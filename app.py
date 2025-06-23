@@ -6,13 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-import google.generativeai as genai # Re-importa a biblioteca Gemini API
+import google.generativeai as genai # Mantido para funcionalidades futuras de IA no perfil
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI (re-adicionada) ---
-# ALERTA DE SEGURANÇA: Para produção, armazene a API_KEY em uma variável de ambiente!
-# Ex: export GEMINI_API_KEY='SUA_CHAVE_AQUI' e depois os.getenv('GEMINI_API_KEY')
+# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido, mas não usado diretamente nas novas features) ---
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # Substitua pela sua chave real
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -35,7 +33,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF') # NOVA COLUNA
+    profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -141,6 +139,29 @@ def delete_bill_db(bill_id, user_id):
         return True
     return False
 
+# NOVA FUNÇÃO: Edita Transação no Banco de Dados
+def edit_transaction_db(transaction_id, description, amount, date, type, user_id):
+    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
+    if transaction:
+        transaction.description = description
+        transaction.amount = float(amount)
+        transaction.date = date
+        transaction.type = type
+        db.session.commit()
+        return True
+    return False
+
+# NOVA FUNÇÃO: Edita Conta no Banco de Dados
+def edit_bill_db(bill_id, description, amount, dueDate, user_id):
+    bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
+    if bill:
+        bill.description = description
+        bill.amount = float(amount)
+        bill.dueDate = dueDate
+        db.session.commit()
+        return True
+    return False
+
 def get_dashboard_data_db(user_id):
     all_transactions = Transaction.query.filter_by(user_id=user_id).all()
     all_bills = Bill.query.filter_by(user_id=user_id).all()
@@ -160,7 +181,7 @@ def get_dashboard_data_db(user_id):
         'pendingBillsList': pending_bills
     }
 
-# --- FUNÇÃO PARA INTERAGIR COM O GEMINI API (re-adicionada) ---
+# --- FUNÇÃO PARA INTERAGIR COM O GEMINI API (mantida) ---
 def generate_text_with_gemini(prompt_text):
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
@@ -251,6 +272,69 @@ def handle_delete_bill(bill_id):
         flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
 
+# NOVA ROTA (GET): Obter dados de uma transação para edição
+@app.route('/get_transaction_data/<int:transaction_id>', methods=['GET'])
+@login_required
+def get_transaction_data(transaction_id):
+    transaction = Transaction.query.filter_by(id=transaction_id, user_id=current_user.id).first()
+    if transaction:
+        return jsonify({
+            'id': transaction.id,
+            'description': transaction.description,
+            'amount': transaction.amount,
+            'date': transaction.date,
+            'type': transaction.type
+        })
+    return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
+
+# NOVA ROTA (POST): Salvar edições de uma transação
+@app.route('/edit_transaction/<int:transaction_id>', methods=['POST'])
+@login_required
+def handle_edit_transaction(transaction_id):
+    description = request.form['edit_description']
+    amount = request.form['edit_amount']
+    date = request.form['edit_date']
+    transaction_type = request.form['edit_type']
+
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id):
+        flash('Transação atualizada com sucesso!', 'success')
+    else:
+        flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+# NOVA ROTA (GET): Obter dados de uma conta para edição
+@app.route('/get_bill_data/<int:bill_id>', methods=['GET'])
+@login_required
+def get_bill_data(bill_id):
+    bill = Bill.query.filter_by(id=bill_id, user_id=current_user.id).first()
+    if bill:
+        return jsonify({
+            'id': bill.id,
+            'description': bill.description,
+            'amount': bill.amount,
+            'dueDate': bill.dueDate,
+            'status': bill.status
+        })
+    return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+
+# NOVA ROTA (POST): Salvar edições de uma conta
+@app.route('/edit_bill/<int:bill_id>', methods=['POST'])
+@login_required
+def handle_edit_bill(bill_id):
+    description = request.form['edit_bill_description']
+    amount = request.form['edit_bill_amount']
+    due_date = request.form['edit_bill_dueDate']
+    # O status não será editável via formulário simples de edição aqui, mas poderia ser adicionado
+
+    if edit_bill_db(bill_id, description, amount, due_date, current_user.id):
+        flash('Conta atualizada com sucesso!', 'success')
+    else:
+        flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+
+# --- ROTAS DE AUTENTICAÇÃO E GERENCIAMENTO DE USUÁRIO (mantidas) ---
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -297,8 +381,6 @@ def logout():
     flash('Você foi desconectado.', 'info')
     return redirect(url_for('login'))
 
-# --- ROTAS PARA GERENCIAMENTO DE USUÁRIO E INTEGRAÇÃO AI ---
-
 @app.route('/profile')
 @login_required
 def profile():
@@ -333,7 +415,7 @@ def delete_account():
             user_to_delete = User.query.get(current_user.id)
             if user_to_delete:
                 logout_user()
-                db.session.delete(user_to_delete) # O cascade='all, delete-orphan' no modelo User cuidará das transações e bills
+                db.session.delete(user_to_delete)
                 db.session.commit()
                 flash('Sua conta foi excluída permanentemente.', 'success')
                 return redirect(url_for('register'))
@@ -343,7 +425,6 @@ def delete_account():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# NOVA ROTA: Obter Resumo Financeiro Mensal para o perfil
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -356,18 +437,16 @@ def get_monthly_summary():
         month = current_date.month
 
     # Obter transações do mês e ano para o usuário logado
-    monthly_transactions = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        db.extract('year', Transaction.date) == year,
-        db.extract('month', Transaction.date) == month
-    ).all()
+    # Importante: Transaction.date é uma string, precisamos extrair ano/mês dela
+    monthly_transactions = [
+        t for t in Transaction.query.filter_by(user_id=current_user.id).all()
+        if datetime.datetime.strptime(t.date, '%Y-%m-%d').year == year and
+           datetime.datetime.strptime(t.date, '%Y-%m-%d').month == month
+    ]
 
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
     monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
     monthly_balance = monthly_income - monthly_expenses
-
-    # Opcional: detalhar por categorias (se você tivesse categorias em seu modelo Transaction)
-    # Por enquanto, apenas income/expense total
     
     return jsonify({
         'year': year,
@@ -381,12 +460,11 @@ def get_monthly_summary():
         ]
     })
 
-# NOVA ROTA: Gerar Insight de IA para o perfil
 @app.route('/profile/ai_insight', methods=['POST'])
 @login_required
 def get_ai_insight():
     data = request.get_json()
-    monthly_summary = data.get('summary_data') # Recebe o resumo mensal do frontend
+    monthly_summary = data.get('summary_data')
     
     if not monthly_summary:
         return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
@@ -407,7 +485,6 @@ def get_ai_insight():
     ai_text = generate_text_with_gemini(prompt)
     return jsonify({'insight': ai_text})
 
-# NOVA ROTA: Atualizar URL da Foto de Perfil
 @app.route('/profile/update_picture', methods=['POST'])
 @login_required
 def update_profile_picture():
@@ -429,7 +506,6 @@ if __name__ == '__main__':
             db.session.commit()
             print("Usuário 'admin' criado com senha 'admin123'.")
 
-        # Dados iniciais para contas a pagar (associados ao primeiro usuário, se houver)
         if not Bill.query.first() and User.query.first():
             first_user = User.query.first()
             if first_user:

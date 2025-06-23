@@ -78,6 +78,49 @@
             visibility: visible;
             transform: translateY(0);
         }
+        /* Estilos para o modal de edição */
+        .modal {
+            position: fixed;
+            z-index: 1050;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+        .modal.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-button:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -331,6 +374,11 @@
                                                 Excluir
                                             </button>
                                         </form>
+
+                                        <!-- NOVO BOTÃO: Editar Conta -->
+                                        <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm">
+                                            Editar
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -367,6 +415,11 @@
                                             Excluir
                                         </button>
                                     </form>
+
+                                    <!-- NOVO BOTÃO: Editar Transação -->
+                                    <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm">
+                                        Editar
+                                    </button>
                                 </div>
                             </div>
                         {% endfor %}
@@ -430,7 +483,69 @@
         </div>
     </div>
 
-    <!-- JavaScript para funcionalidade de acordeão exclusivo -->
+    <!-- Modal de Edição (Transação e Conta) -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditModal()">&times;</span>
+            <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
+            
+            <!-- Formulário de Edição de Transação (inicialmente oculto) -->
+            <form id="edit-transaction-form" method="POST" class="space-y-4 hidden">
+                <input type="hidden" id="edit_transaction_id" name="transaction_id">
+                <div>
+                    <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" id="edit_description" name="edit_description" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="edit_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                    <input type="number" step="0.01" id="edit_amount" name="edit_amount" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="edit_date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                    <input type="date" id="edit_date" name="edit_date" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select id="edit_type" name="edit_type" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="income">Receita</option>
+                        <option value="expense">Despesa</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                    Salvar Edição
+                </button>
+            </form>
+
+            <!-- Formulário de Edição de Conta (inicialmente oculto) -->
+            <form id="edit-bill-form" method="POST" class="space-y-4 hidden">
+                <input type="hidden" id="edit_bill_id" name="bill_id">
+                <div>
+                    <label for="edit_bill_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" id="edit_bill_description" name="edit_bill_description" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="edit_bill_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                    <input type="number" step="0.01" id="edit_bill_amount" name="edit_bill_amount" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="edit_bill_dueDate" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+                    <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                    Salvar Edição
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript para funcionalidade de acordeão exclusivo e edição -->
     <script>
         function toggleAccordion(contentIdToToggle, arrowIdToToggle, otherContentIds, otherArrowIds) {
             const contentToToggle = document.getElementById(contentIdToToggle);
@@ -456,7 +571,7 @@
             }
         }
         
-        // --- NOVO JAVASCRIPT: Desaparecimento de Mensagens Flash ---
+        // --- JAVASCRIPT: Desaparecimento de Mensagens Flash ---
         document.addEventListener('DOMContentLoaded', () => {
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
@@ -468,20 +583,86 @@
             });
         });
 
-        // --- NOVO JAVASCRIPT: Toggle do Menu de Usuário ---
+        // --- JAVASCRIPT: Toggle do Menu de Usuário ---
         function toggleUserMenu() {
             const userMenu = document.getElementById('user-menu');
             userMenu.classList.toggle('active');
         }
 
-        // Fecha o menu de usuário se clicar fora dele
         document.addEventListener('click', (event) => {
             const userMenu = document.getElementById('user-menu');
-            const menuButton = document.querySelector('header nav button'); // O botão do hambúrguer
-            if (userMenu.classList.contains('active') && !userMenu.contains(event.target) && !menuButton.contains(event.target)) {
+            const menuButton = document.querySelector('header nav button');
+            if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
                 userMenu.classList.remove('active');
             }
         });
+
+        // --- NOVO JAVASCRIPT: Funcionalidade de Edição via Modal ---
+
+        const editModal = document.getElementById('edit-modal');
+        const editTransactionForm = document.getElementById('edit-transaction-form');
+        const editBillForm = document.getElementById('edit-bill-form');
+        const editModalTitle = document.getElementById('edit-modal-title');
+
+        // Abre o modal de edição
+        async function openEditModal(type, id) {
+            editModal.classList.add('active'); // Mostra o modal
+
+            // Esconde ambos os formulários inicialmente
+            editTransactionForm.classList.add('hidden');
+            editBillForm.classList.add('hidden');
+
+            try {
+                let url;
+                if (type === 'transaction') {
+                    url = `/get_transaction_data/${id}`;
+                    editModalTitle.textContent = 'Editar Transação';
+                } else if (type === 'bill') {
+                    url = `/get_bill_data/${id}`;
+                    editModalTitle.textContent = 'Editar Conta';
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                if (type === 'transaction') {
+                    document.getElementById('edit_transaction_id').value = data.id;
+                    document.getElementById('edit_description').value = data.description;
+                    document.getElementById('edit_amount').value = data.amount;
+                    document.getElementById('edit_date').value = data.date;
+                    document.getElementById('edit_type').value = data.type;
+                    editTransactionForm.action = `/edit_transaction/${data.id}`; // Define a action do formulário
+                    editTransactionForm.classList.remove('hidden'); // Mostra o formulário de transação
+                } else if (type === 'bill') {
+                    document.getElementById('edit_bill_id').value = data.id;
+                    document.getElementById('edit_bill_description').value = data.description;
+                    document.getElementById('edit_bill_amount').value = data.amount;
+                    document.getElementById('edit_bill_dueDate').value = data.dueDate;
+                    editBillForm.action = `/edit_bill/${data.id}`; // Define a action do formulário
+                    editBillForm.classList.remove('hidden'); // Mostra o formulário de conta
+                }
+
+            } catch (error) {
+                console.error('Erro ao buscar dados para edição:', error);
+                alert('Não foi possível carregar os dados para edição.');
+                closeEditModal();
+            }
+        }
+
+        // Fecha o modal de edição
+        function closeEditModal() {
+            editModal.classList.remove('active');
+        }
+
+        // Fecha o modal ao clicar fora dele
+        window.onclick = function(event) {
+            if (event.target == editModal) {
+                closeEditModal();
+            }
+        }
     </script>
 </body>
 </html>
