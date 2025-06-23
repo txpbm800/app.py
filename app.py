@@ -6,11 +6,11 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-import google.generativeai as genai # Mantido para funcionalidades futuras de IA no perfil
+import google.generativeai as genai
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido, mas não usado diretamente nas novas features) ---
+# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido) ---
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # Substitua pela sua chave real
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -73,7 +73,7 @@ class Bill(db.Model):
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
-# --- Funções de Lógica de Negócios (Interagem com o Banco de Dados e FILTRAM POR USUÁRIO) ---
+# --- Funções de Lógica de Negócios ---
 
 def add_transaction_db(description, amount, date, type, user_id):
     new_transaction = Transaction(
@@ -139,7 +139,6 @@ def delete_bill_db(bill_id, user_id):
         return True
     return False
 
-# NOVA FUNÇÃO: Edita Transação no Banco de Dados
 def edit_transaction_db(transaction_id, description, amount, date, type, user_id):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
     if transaction:
@@ -151,7 +150,6 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
         return True
     return False
 
-# NOVA FUNÇÃO: Edita Conta no Banco de Dados
 def edit_bill_db(bill_id, description, amount, dueDate, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
@@ -181,7 +179,6 @@ def get_dashboard_data_db(user_id):
         'pendingBillsList': pending_bills
     }
 
-# --- FUNÇÃO PARA INTERAGIR COM O GEMINI API (mantida) ---
 def generate_text_with_gemini(prompt_text):
     try:
         model = genai.GenerativeModel('gemini-2.0-flash')
@@ -191,25 +188,101 @@ def generate_text_with_gemini(prompt_text):
         print(f"Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento."
 
-# --- Rotas da Aplicação ---
+# --- Rotas da Aplicação (ATUALIZADAS COM FILTROS E ORDENAÇÃO) ---
 
 @app.route('/')
 @login_required
 def index():
     dashboard_data = get_dashboard_data_db(current_user.id)
-    all_transactions = Transaction.query.filter_by(user_id=current_user.id).all()
+    
+    # --- FILTRAGEM E ORDENAÇÃO PARA TRANSAÇÕES ---
+    transactions_query = Transaction.query.filter_by(user_id=current_user.id)
+
+    # Filtro por tipo de transação
+    transaction_type_filter = request.args.get('transaction_type')
+    if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
+        transactions_query = transactions_query.filter_by(type=transaction_type_filter)
+
+    # Filtro por período de data
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    if start_date:
+        transactions_query = transactions_query.filter(Transaction.date >= start_date)
+    if end_date:
+        transactions_query = transactions_query.filter(Transaction.date <= end_date)
+
+    # Ordenação de transações
+    sort_by_transactions = request.args.get('sort_by_transactions', 'date') # Padrão: por data
+    order_transactions = request.args.get('order_transactions', 'desc') # Padrão: decrescente
+
+    if sort_by_transactions == 'date':
+        if order_transactions == 'asc':
+            transactions_query = transactions_query.order_by(Transaction.date.asc())
+        else:
+            transactions_query = transactions_query.order_by(Transaction.date.desc())
+    elif sort_by_transactions == 'amount':
+        if order_transactions == 'asc':
+            transactions_query = transactions_query.order_by(Transaction.amount.asc())
+        else:
+            transactions_query = transactions_query.order_by(Transaction.amount.desc())
+    
+    all_transactions = transactions_query.all()
+    
+    # Prepara as listas filtradas para as seções específicas de Receitas e Despesas
     income_transactions = [t for t in all_transactions if t.type == 'income']
     expense_transactions = [t for t in all_transactions if t.type == 'expense']
+
+
+    # --- FILTRAGEM E ORDENAÇÃO PARA CONTAS (BILLS) ---
+    bills_query = Bill.query.filter_by(user_id=current_user.id)
+
+    # Filtro por status da conta
+    bill_status_filter = request.args.get('bill_status')
+    if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
+        if bill_status_filter == 'overdue':
+            today_str = datetime.date.today().isoformat()
+            bills_query = bills_query.filter(Bill.dueDate < today_str, Bill.status == 'pending')
+        else:
+            bills_query = bills_query.filter_by(status=bill_status_filter)
+    elif not bill_status_filter: # Se nenhum filtro de status, mostrar apenas pendentes por padrão para a bills list principal
+         bills_query = bills_query.filter_by(status='pending')
+
+
+    # Ordenação de contas
+    sort_by_bills = request.args.get('sort_by_bills', 'dueDate') # Padrão: por data de vencimento
+    order_bills = request.args.get('order_bills', 'asc') # Padrão: crescente (vencimentos mais próximos primeiro)
+
+    if sort_by_bills == 'dueDate':
+        if order_bills == 'asc':
+            bills_query = bills_query.order_by(Bill.dueDate.asc())
+        else:
+            bills_query = bills_query.order_by(Bill.dueDate.desc())
+    elif sort_by_bills == 'amount':
+        if order_bills == 'asc':
+            bills_query = bills_query.order_by(Bill.amount.asc())
+        else:
+            bills_query = bills_query.order_by(Bill.amount.desc())
+            
+    filtered_bills = bills_query.all() # Isso agora será o bills que passamos para a BillsList
 
     return render_template(
         'index.html',
         dashboard=dashboard_data,
-        transactions=all_transactions,
-        bills=dashboard_data['pendingBillsList'],
-        income_transactions=income_transactions,
-        expense_transactions=expense_transactions,
+        transactions=all_transactions, # Transações já filtradas/ordenadas
+        bills=filtered_bills, # Contas já filtradas/ordenadas
+        income_transactions=income_transactions, # Receitas filtradas por data/ordenadas
+        expense_transactions=expense_transactions, # Despesas filtradas por data/ordenadas
         current_date=datetime.date.today().isoformat(),
-        current_user=current_user
+        current_user=current_user,
+        # Passa os valores de filtro/ordenação atuais para preencher os controles no frontend
+        current_transaction_type_filter=transaction_type_filter,
+        current_bill_status_filter=bill_status_filter,
+        current_sort_by_transactions=sort_by_transactions,
+        current_order_transactions=order_transactions,
+        current_sort_by_bills=sort_by_bills,
+        current_order_bills=order_bills,
+        current_start_date=start_date,
+        current_end_date=end_date
     )
 
 @app.route('/add_transaction', methods=['POST'])
@@ -272,7 +345,6 @@ def handle_delete_bill(bill_id):
         flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
 
-# NOVA ROTA (GET): Obter dados de uma transação para edição
 @app.route('/get_transaction_data/<int:transaction_id>', methods=['GET'])
 @login_required
 def get_transaction_data(transaction_id):
@@ -287,7 +359,6 @@ def get_transaction_data(transaction_id):
         })
     return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
 
-# NOVA ROTA (POST): Salvar edições de uma transação
 @app.route('/edit_transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def handle_edit_transaction(transaction_id):
@@ -302,7 +373,6 @@ def handle_edit_transaction(transaction_id):
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
 
-# NOVA ROTA (GET): Obter dados de uma conta para edição
 @app.route('/get_bill_data/<int:bill_id>', methods=['GET'])
 @login_required
 def get_bill_data(bill_id):
@@ -317,14 +387,12 @@ def get_bill_data(bill_id):
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
-# NOVA ROTA (POST): Salvar edições de uma conta
 @app.route('/edit_bill/<int:bill_id>', methods=['POST'])
 @login_required
 def handle_edit_bill(bill_id):
     description = request.form['edit_bill_description']
     amount = request.form['edit_bill_amount']
     due_date = request.form['edit_bill_dueDate']
-    # O status não será editável via formulário simples de edição aqui, mas poderia ser adicionado
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id):
         flash('Conta atualizada com sucesso!', 'success')
@@ -436,8 +504,6 @@ def get_monthly_summary():
         year = current_date.year
         month = current_date.month
 
-    # Obter transações do mês e ano para o usuário logado
-    # Importante: Transaction.date é uma string, precisamos extrair ano/mês dela
     monthly_transactions = [
         t for t in Transaction.query.filter_by(user_id=current_user.id).all()
         if datetime.datetime.strptime(t.date, '%Y-%m-%d').year == year and
@@ -511,7 +577,7 @@ if __name__ == '__main__':
             if first_user:
                 db.session.add(Bill(description='Aluguel', amount=1200.00, dueDate='2025-07-25', status='pending', user_id=first_user.id))
                 db.session.add(Bill(description='Energia Elétrica', amount=280.50, dueDate='2025-07-20', status='pending', user_id=first_user.id))
-                db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-07-15', status='pending', user_id=first_user.id))
+                db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-01-15', status='pending', user_id=first_user.id))
                 db.session.commit()
 
     port = int(os.environ.get('PORT', 5000))
