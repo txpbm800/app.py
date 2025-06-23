@@ -270,10 +270,18 @@
                         </div>
                         <div>
                             <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                            <select id="type" name="type" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')"> {# Adicionado onchange #}
                                 <option value="income">Receita</option>
                                 <option value="expense">Despesa</option>
+                            </select>
+                        </div>
+                        {# NOVO: Campo de seleção de categoria para adicionar transação #}
+                        <div>
+                            <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                            <select id="category_id" name="category_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="">Selecione a Categoria</option>
+                                {# Preenchido dinamicamente via JS #}
                             </select>
                         </div>
                         <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
@@ -285,7 +293,7 @@
 
             <!-- Bill Form Section (Colapsável) -->
             <div class="rounded-lg shadow-md bg-white card-shadow">
-                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])">
+                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
                     <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
                     <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -329,6 +337,7 @@
                         <input type="hidden" name="end_date" value="{{ current_end_date or '' }}">
                         <input type="hidden" name="sort_by_transactions" value="{{ current_sort_by_transactions or 'date' }}">
                         <input type="hidden" name="order_transactions" value="{{ current_order_transactions or 'desc' }}">
+                        <input type="hidden" name="category_filter" value="{{ current_category_filter or '' }}"> {# Adicionado filtro de categoria oculto #}
 
                         <div>
                             <label for="bill_status_filter" class="block text-xs font-medium text-gray-700 mb-1">Status:</label>
@@ -451,6 +460,19 @@
                                 <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
                             </select>
                         </div>
+                        {# NOVO: Filtro por Categoria #}
+                        <div>
+                            <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
+                            <select id="category_filter" name="category_filter" onchange="document.getElementById('transactions-filter-sort-form').submit()"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                <option value="">Todas</option>
+                                {% for category in all_categories %}
+                                    <option value="{{ category.id }}" {% if current_category_filter == category.id %}selected{% endif %}>
+                                        {{ category.name }} ({{ category.type|capitalize }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         <div>
                             <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
                             <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" onchange="document.getElementById('transactions-filter-sort-form').submit()"
@@ -495,9 +517,12 @@
                                     <div>
                                         <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
                                         <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                        {# NOVA: Exibe a categoria #}
+                                        <p class="text-xs text-gray-400">
+                                            Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                        </p>
                                     </div>
                                 </div>
-                                {# MUDANÇAS AQUI: Botões organizados em coluna #}
                                 <div class="flex flex-col space-y-2 ml-auto">
                                     <div class="flex space-x-2">
                                         <!-- Botão Editar Transação -->
@@ -520,7 +545,7 @@
                 </div>
             </div>
         
-            <!-- Income List Section (Filtros não aplicados aqui, mas as transações passadas já estarão filtradas pela data/tipo principal) -->
+            <!-- Income List Section -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                 <div class="space-y-3">
@@ -547,7 +572,7 @@
                 </div>
             </div>
 
-            <!-- Expense List Section (Filtros não aplicados aqui, mas as transações passadas já estarão filtradas pela data/tipo principal) -->
+            <!-- Expense List Section -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                 <div class="space-y-3">
@@ -602,10 +627,18 @@
                 </div>
                 <div>
                     <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select id="edit_type" name="edit_type" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <select id="edit_type" name="edit_type" required onchange="filterCategoriesByType(this.value, 'edit_category_id')"> {# Adicionado onchange #}
                         <option value="income">Receita</option>
                         <option value="expense">Despesa</option>
+                    </select>
+                </div>
+                {# NOVO: Campo de seleção de categoria para editar transação #}
+                <div>
+                    <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select id="edit_category_id" name="edit_category_id"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Selecione a Categoria</option>
+                        {# Preenchido dinamicamente via JS #}
                     </select>
                 </div>
                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
@@ -640,6 +673,19 @@
 
     <!-- JavaScript para funcionalidade de acordeão exclusivo e edição -->
     <script>
+        // Array global para armazenar todas as categorias
+        let allCategories = []; 
+        // Recebe as categorias do Flask (Jinja2)
+        const categoriesData = {{ all_categories | tojson }};
+
+        // Popula allCategories com os dados do Flask
+        document.addEventListener('DOMContentLoaded', () => {
+            allCategories = categoriesData;
+            // Popula as categorias inicialmente para o formulário de adição (tipo padrão 'income')
+            filterCategoriesByType(document.getElementById('type').value, 'category_id');
+        });
+
+
         function toggleAccordion(contentIdToToggle, arrowIdToToggle, otherContentIds, otherArrowIds) {
             const contentToToggle = document.getElementById(contentIdToToggle);
             const arrowToToggle = document.getElementById(arrowIdToToggle);
@@ -697,6 +743,25 @@
         const editBillForm = document.getElementById('edit-bill-form');
         const editModalTitle = document.getElementById('edit-modal-title');
 
+        // NOVO: Função para filtrar categorias com base no tipo (receita/despesa)
+        function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>'; // Limpa opções existentes
+
+            const filtered = allCategories.filter(cat => cat[1] === transactionType); // cat[1] é o 'type' da categoria
+
+            filtered.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category[0]; // category[0] é o 'id' da categoria
+                option.textContent = category[2]; // category[2] é o 'name' da categoria
+                if (selectedCategoryId && category[0] === selectedCategoryId) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            });
+        }
+
+
         // Abre o modal de edição
         async function openEditModal(type, id) {
             editModal.classList.add('active'); // Mostra o modal
@@ -727,6 +792,10 @@
                     document.getElementById('edit_amount').value = data.amount;
                     document.getElementById('edit_date').value = data.date;
                     document.getElementById('edit_type').value = data.type;
+                    
+                    // NOVO: Filtra e seleciona a categoria correta para o modal de edição
+                    filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
+
                     editTransactionForm.action = `/edit_transaction/${data.id}`; // Define a action do formulário
                     editTransactionForm.classList.remove('hidden'); // Mostra o formulário de transação
                 } else if (type === 'bill') {
