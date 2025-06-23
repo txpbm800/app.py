@@ -41,6 +41,22 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
+        /* Estilo para o conteúdo colapsável */
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+        }
+        .collapsible-content.expanded {
+            max-height: 500px; /* Um valor grande o suficiente para o conteúdo */
+            padding-top: 1rem; /* Adiciona um padding quando expandido */
+        }
+        .arrow-icon {
+            transition: transform 0.3s ease-out;
+        }
+        .arrow-icon.rotated {
+            transform: rotate(180deg);
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -119,62 +135,76 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <!-- Transaction Form Section -->
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Nova Transação</h2>
-                <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4">
-                    <div>
-                        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                        <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                        <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                        <input type="date" id="date" name="date" value="{{ current_date }}" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                        <select id="type" name="type" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                            <option value="income">Receita</option>
-                            <option value="expense">Despesa</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                        Adicionar Transação
-                    </button>
-                </form>
+            <!-- Transaction Form Section (Colapsável) -->
+            <div class="rounded-lg shadow-md bg-white card-shadow">
+                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleCollapsible('transaction-form-content', 'transaction-arrow')">
+                    <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
+                    <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div id="transaction-form-content" class="collapsible-content">
+                    <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                            <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                            <input type="date" id="date" name="date" value="{{ current_date }}" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        </div>
+                        <div>
+                            <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                            <select id="type" name="type" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <option value="income">Receita</option>
+                                <option value="expense">Despesa</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                            Adicionar Transação
+                        </button>
+                    </form>
+                </div>
             </div>
 
-            <!-- Bill Form Section -->
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Nova Conta a Pagar</h2>
-                <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4">
-                    <div>
-                        <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                        <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                        <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
-                        <input type="date" id="bill-due-date" name="bill_due_date" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                        Adicionar Conta
-                    </button>
-                </form>
+            <!-- Bill Form Section (Colapsável) -->
+            <div class="rounded-lg shadow-md bg-white card-shadow">
+                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleCollapsible('bill-form-content', 'bill-arrow')">
+                    <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
+                    <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </button>
+                <div id="bill-form-content" class="collapsible-content">
+                    <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
+                        <div>
+                            <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                            <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                            <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+                            <input type="date" id="bill-due-date" name="bill_due_date" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                            Adicionar Conta
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -182,14 +212,12 @@
             <!-- Bills List Section -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
-                    <!-- Ícone de cartão de crédito (Lucide React equivalente) -->
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                     <span>Contas a Pagar</span>
                 </h2>
                 <div class="space-y-4">
                     {% if not bills %}
-                        <div class="text-center py-8 flex flex-col items-center justify-center"> {# Adicionado flexbox para centralização #}
-                            <!-- Ícone de check circle (Lucide React equivalente) -->
+                        <div class="text-center py-8 flex flex-col items-center justify-center">
                             <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
                             <p class="text-gray-500 text-lg">Todas as contas estão em dia!</p>
                         </div>
@@ -209,7 +237,6 @@
                                         </div>
                                         <div class="flex items-center space-x-4 text-sm text-gray-600">
                                             <div class="flex items-center space-x-1">
-                                                <!-- Ícone de relógio (Lucide React equivalente) -->
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                 <span>Vencimento: {{ bill.dueDate }}</span>
                                             </div>
@@ -234,6 +261,13 @@
                                                 Pagar
                                             </button>
                                         </form>
+
+                                        <!-- NOVO BOTÃO: Excluir Conta -->
+                                        <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
+                                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm">
+                                                Excluir
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -253,7 +287,6 @@
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                 <div class="flex items-center space-x-3">
                                     <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                        <!-- Ícone de seta para cima (Lucide React equivalente) -->
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                     </div>
                                     <div>
@@ -261,8 +294,16 @@
                                         <p class="text-sm text-gray-500">{{ transaction.date }}</p>
                                     </div>
                                 </div>
-                                <div class="font-bold text-lg {% if transaction.type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
-                                    {% if transaction.type == 'income' %}+{% else %}-{% endif %}R$ {{ "%.2f"|format(transaction.amount) }}
+                                <div class="flex items-center space-x-2"> {# Adicionado flexbox para alinhar valor e botão #}
+                                    <div class="font-bold text-lg {% if transaction.type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
+                                        {% if transaction.type == 'income' %}+{% else %}-{% endif %}R$ {{ "%.2f"|format(transaction.amount) }}
+                                    </div>
+                                    <!-- NOVO BOTÃO: Excluir Transação -->
+                                    <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm">
+                                            Excluir
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         {% endfor %}
@@ -283,7 +324,6 @@
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                 <div class="flex items-center space-x-3">
                                     <div class="p-2 rounded-full bg-green-100 text-green-600">
-                                        <!-- Ícone de seta para cima (Lucide React equivalente) -->
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                     </div>
                                     <div>
@@ -311,7 +351,6 @@
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                 <div class="flex items-center space-x-3">
                                     <div class="p-2 rounded-full bg-red-100 text-red-600">
-                                        <!-- Ícone de seta para baixo (Lucide React equivalente) -->
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
                                     </div>
                                     <div>
@@ -329,5 +368,25 @@
             </div>
         </div>
     </div>
+
+    <!-- JavaScript para funcionalidade de colapsar -->
+    <script>
+        function toggleCollapsible(contentId, arrowId) {
+            const content = document.getElementById(contentId);
+            const arrow = document.getElementById(arrowId);
+            if (content.classList.contains('expanded')) {
+                content.classList.remove('expanded');
+                arrow.classList.remove('rotated');
+            } else {
+                content.classList.add('expanded');
+                arrow.classList.add('rotated');
+            }
+        }
+
+        // Opcional: Expandir um dos formulários por padrão ao carregar a página
+        // window.onload = function() {
+        //     toggleCollapsible('transaction-form-content', 'transaction-arrow');
+        // };
+    </script>
 </body>
 </html>
