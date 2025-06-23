@@ -43,17 +43,9 @@ class Bill(db.Model):
 
 # --- Funções de Lógica de Negócios (Interagem com o Banco de Dados) ---
 
-# Função para inicializar o banco de dados e criar tabelas
-# Isso será chamado antes da primeira requisição
-@app.before_first_request
-def create_tables():
-    db.create_all()
-    # Adiciona dados iniciais se o banco de dados estiver vazio
-    if not Bill.query.first():
-        db.session.add(Bill(description='Aluguel', amount=1200.00, dueDate='2025-07-25', status='pending'))
-        db.session.add(Bill(description='Energia Elétrica', amount=280.50, dueDate='2025-07-20', status='pending'))
-        db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-07-15', status='pending'))
-        db.session.commit()
+# A inicialização do banco de dados e adição de dados iniciais
+# será movida para o bloco if __name__ == '__main__':
+# para evitar o uso de @app.before_first_request
 
 def add_transaction_db(description, amount, date, type):
     """Adiciona uma nova transação ao banco de dados."""
@@ -182,6 +174,16 @@ def handle_reschedule_bill(bill_id):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
+    # Cria o contexto de aplicação para inicializar o banco de dados
+    with app.app_context():
+        db.create_all() # Cria as tabelas se não existirem
+        # Adiciona dados iniciais se o banco de dados estiver vazio (apenas na primeira execução)
+        if not Bill.query.first():
+            db.session.add(Bill(description='Aluguel', amount=1200.00, dueDate='2025-07-25', status='pending'))
+            db.session.add(Bill(description='Energia Elétrica', amount=280.50, dueDate='2025-07-20', status='pending'))
+            db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-07-15', status='pending'))
+            db.session.commit()
+
     # Obtém a porta do ambiente (fornecida pelo Render ou padrão 5000 para local)
     port = int(os.environ.get('PORT', 5000))
     # Inicia o Flask na porta e host que o Render espera (0.0.0.0 para ser acessível externamente)
