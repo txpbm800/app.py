@@ -1,16 +1,23 @@
 # app.py
 
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
+import google.generativeai as genai # Re-importa a biblioteca Gemini API
 
 app = Flask(__name__)
 
+# --- CONFIGURAÇÃO DA API KEY GEMINI (re-adicionada) ---
+# ALERTA DE SEGURANÇA: Para produção, armazene a API_KEY em uma variável de ambiente!
+# Ex: export GEMINI_API_KEY='SUA_CHAVE_AQUI' e depois os.getenv('GEMINI_API_KEY')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # Substitua pela sua chave real
+genai.configure(api_key=GEMINI_API_KEY)
+
 # Configuração da Chave Secreta para Flask-Login e Flask-WTF
-app.config['SECRET_KEY'] = 'uma_chave_secreta_muito_complexa_e_aleatoria' # Substitua por uma chave forte!
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma_chave_secreta_muito_complexa_e_aleatoria') # Use uma variável de ambiente em produção!
 
 # Configuração do Banco de Dados SQLite
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -22,13 +29,16 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# --- Definição dos Modelos do Banco de Dados (ORM) ---
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
+    profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF') # NOVA COLUNA
     
-    transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan') # Adicionado cascade
-    bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan') # Adicionado cascade
+    transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
+    bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -64,6 +74,8 @@ class Bill(db.Model):
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
+
+# --- Funções de Lógica de Negócios (Interagem com o Banco de Dados e FILTRAM POR USUÁRIO) ---
 
 def add_transaction_db(description, amount, date, type, user_id):
     new_transaction = Transaction(
@@ -148,6 +160,18 @@ def get_dashboard_data_db(user_id):
         'pendingBillsList': pending_bills
     }
 
+# --- FUNÇÃO PARA INTERAGIR COM O GEMINI API (re-adicionada) ---
+def generate_text_with_gemini(prompt_text):
+    try:
+        model = genai.GenerativeModel('gemini-2.0-flash')
+        response = model.generate_content(prompt_text)
+        return response.text
+    except Exception as e:
+        print(f"Erro ao chamar Gemini API: {e}")
+        return "Não foi possível gerar uma sugestão/resumo no momento."
+
+# --- Rotas da Aplicação ---
+
 @app.route('/')
 @login_required
 def index():
@@ -176,7 +200,7 @@ def handle_add_transaction():
     transaction_type = request.form['type']
     
     add_transaction_db(description, amount, date, transaction_type, current_user.id)
-    flash('Transação adicionada com sucesso!', 'success') # Adicionada mensagem flash
+    flash('Transação adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/add_bill', methods=['POST'])
@@ -187,14 +211,14 @@ def handle_add_bill():
     due_date = request.form['bill_due_date']
     
     add_bill_db(description, amount, due_date, current_user.id)
-    flash('Conta adicionada com sucesso!', 'success') # Adicionada mensagem flash
+    flash('Conta adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
 @app.route('/pay_bill/<int:bill_id>', methods=['POST'])
 @login_required
 def handle_pay_bill(bill_id):
     if pay_bill_db(bill_id, current_user.id):
-        flash('Conta paga e transação registrada com sucesso!', 'success') # Adicionada mensagem flash
+        flash('Conta paga e transação registrada com sucesso!', 'success')
     else:
         flash('Não foi possível pagar a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
@@ -204,7 +228,7 @@ def handle_pay_bill(bill_id):
 def handle_reschedule_bill(bill_id):
     new_date = request.form['new_date']
     if reschedule_bill_db(bill_id, new_date, current_user.id):
-        flash('Conta remarcada com sucesso!', 'success') # Adicionada mensagem flash
+        flash('Conta remarcada com sucesso!', 'success')
     else:
         flash('Não foi possível remarcar a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
@@ -213,7 +237,7 @@ def handle_reschedule_bill(bill_id):
 @login_required
 def handle_delete_transaction(transaction_id):
     if delete_transaction_db(transaction_id, current_user.id):
-        flash('Transação excluída com sucesso!', 'info') # Adicionada mensagem flash
+        flash('Transação excluída com sucesso!', 'info')
     else:
         flash('Não foi possível excluir a transação. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
@@ -222,7 +246,7 @@ def handle_delete_transaction(transaction_id):
 @login_required
 def handle_delete_bill(bill_id):
     if delete_bill_db(bill_id, current_user.id):
-        flash('Conta excluída com sucesso!', 'info') # Adicionada mensagem flash
+        flash('Conta excluída com sucesso!', 'info')
     else:
         flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
@@ -273,12 +297,12 @@ def logout():
     flash('Você foi desconectado.', 'info')
     return redirect(url_for('login'))
 
-# --- NOVAS ROTAS PARA GERENCIAMENTO DE USUÁRIO ---
+# --- ROTAS PARA GERENCIAMENTO DE USUÁRIO E INTEGRAÇÃO AI ---
 
-@app.route('/profile', methods=['GET'])
+@app.route('/profile')
 @login_required
 def profile():
-    return render_template('profile.html', current_user=current_user) # Será o menu de configurações
+    return render_template('profile.html', current_user=current_user)
 
 @app.route('/change_password', methods=['GET', 'POST'])
 @login_required
@@ -296,8 +320,8 @@ def change_password():
             current_user.set_password(new_password)
             db.session.commit()
             flash('Senha alterada com sucesso!', 'success')
-            return redirect(url_for('profile')) # Redireciona para o perfil/menu de configurações
-    return render_template('change_password.html') # Você precisará criar este template
+            return redirect(url_for('profile'))
+    return render_template('change_password.html')
 
 @app.route('/delete_account', methods=['GET', 'POST'])
 @login_required
@@ -308,39 +332,110 @@ def delete_account():
         if current_user.check_password(confirm_password):
             user_to_delete = User.query.get(current_user.id)
             if user_to_delete:
-                logout_user() # Desloga o usuário antes de deletar
-                db.session.delete(user_to_delete)
+                logout_user()
+                db.session.delete(user_to_delete) # O cascade='all, delete-orphan' no modelo User cuidará das transações e bills
                 db.session.commit()
                 flash('Sua conta foi excluída permanentemente.', 'success')
-                return redirect(url_for('register')) # Redireciona para registro/login
+                return redirect(url_for('register'))
             else:
                 flash('Erro ao encontrar sua conta.', 'danger')
         else:
             flash('Senha incorreta.', 'danger')
-    return render_template('delete_account.html') # Você precisará criar este template
+    return render_template('delete_account.html')
+
+# NOVA ROTA: Obter Resumo Financeiro Mensal para o perfil
+@app.route('/profile/monthly_summary', methods=['GET'])
+@login_required
+def get_monthly_summary():
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+
+    if not year or not month:
+        current_date = datetime.date.today()
+        year = current_date.year
+        month = current_date.month
+
+    # Obter transações do mês e ano para o usuário logado
+    monthly_transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        db.extract('year', Transaction.date) == year,
+        db.extract('month', Transaction.date) == month
+    ).all()
+
+    monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
+    monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
+    monthly_balance = monthly_income - monthly_expenses
+
+    # Opcional: detalhar por categorias (se você tivesse categorias em seu modelo Transaction)
+    # Por enquanto, apenas income/expense total
+    
+    return jsonify({
+        'year': year,
+        'month': month,
+        'income': monthly_income,
+        'expenses': monthly_expenses,
+        'balance': monthly_balance,
+        'transactions_details': [
+            {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date}
+            for t in monthly_transactions
+        ]
+    })
+
+# NOVA ROTA: Gerar Insight de IA para o perfil
+@app.route('/profile/ai_insight', methods=['POST'])
+@login_required
+def get_ai_insight():
+    data = request.get_json()
+    monthly_summary = data.get('summary_data') # Recebe o resumo mensal do frontend
+    
+    if not monthly_summary:
+        return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
+
+    prompt = (
+        f"Com base nos seguintes dados financeiros de um mês específico: "
+        f"Receita Total: R${monthly_summary['income']:.2f}, "
+        f"Despesa Total: R${monthly_summary['expenses']:.2f}, "
+        f"Saldo Mensal: R${monthly_summary['balance']:.2f}. "
+        f"Detalhes das transações: {monthly_summary['transactions_details']}. "
+        f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
+        f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
+        f"Use uma linguagem amigável e direta em português. "
+        f"Seja conciso, com no máximo 100 palavras. "
+        f"Não inclua 'Olá!' ou saudações, vá direto ao ponto."
+    )
+
+    ai_text = generate_text_with_gemini(prompt)
+    return jsonify({'insight': ai_text})
+
+# NOVA ROTA: Atualizar URL da Foto de Perfil
+@app.route('/profile/update_picture', methods=['POST'])
+@login_required
+def update_profile_picture():
+    picture_url = request.form['profile_picture_url']
+    current_user.profile_picture_url = picture_url
+    db.session.commit()
+    flash('Foto de perfil atualizada com sucesso!', 'success')
+    return redirect(url_for('profile'))
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         
-        # Opcional: Criar um usuário admin na primeira execução se não existir
         if not User.query.filter_by(username='admin').first():
             admin_user = User(username='admin')
-            admin_user.set_password('admin123') # Senha para o usuário admin (MUDAR EM PRODUÇÃO!)
+            admin_user.set_password('admin123')
             db.session.add(admin_user)
             db.session.commit()
             print("Usuário 'admin' criado com senha 'admin123'.")
 
-        # Dados iniciais para contas a pagar (apenas se não houver NENHUMA conta,
-        # e agora associados ao primeiro usuário criado, se houver)
-        # Atenção: Se o user 'admin' for criado, as contas iniciais serão atribuídas a ele.
+        # Dados iniciais para contas a pagar (associados ao primeiro usuário, se houver)
         if not Bill.query.first() and User.query.first():
             first_user = User.query.first()
-            if first_user: # Garante que há um usuário para atribuir as contas
+            if first_user:
                 db.session.add(Bill(description='Aluguel', amount=1200.00, dueDate='2025-07-25', status='pending', user_id=first_user.id))
                 db.session.add(Bill(description='Energia Elétrica', amount=280.50, dueDate='2025-07-20', status='pending', user_id=first_user.id))
-                db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-01-15', status='pending', user_id=first_user.id))
+                db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-07-15', status='pending', user_id=first_user.id))
                 db.session.commit()
 
     port = int(os.environ.get('PORT', 5000))

@@ -16,16 +16,54 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            padding: 2rem; /* Adicionado padding para melhor visualização em telas pequenas */
         }
         .card-shadow {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
+        .profile-pic {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #6366f1; /* purple-500 */
+            margin: 0 auto 1.5rem;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #6366f1; /* purple-500 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .month-selector {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
     </style>
 </head>
 <body>
-    <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
+    <div class="max-w-xl w-full bg-white rounded-lg shadow-md p-8 text-center">
         <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2>
-        <p class="text-gray-600 mb-8">Gerencie suas configurações de conta.</p>
+        
+        {# Foto de Perfil #}
+        <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
+        <form id="profile-picture-form" action="{{ url_for('update_profile_picture') }}" method="POST" class="mb-4">
+            <input type="url" id="profile_picture_url_input" name="profile_picture_url" placeholder="URL da Foto de Perfil" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                Atualizar Foto
+            </button>
+        </form>
+
+        <p class="text-gray-600 mb-8">Gerencie suas configurações de conta ou veja seu resumo financeiro.</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -39,6 +77,31 @@
             {% endif %}
         {% endwith %}
 
+        {# Resumo Financeiro Mensal #}
+        <div class="mb-8">
+            <h3 class="text-2xl font-bold text-gray-900 mb-4">Resumo Mensal</h3>
+            <div class="month-selector">
+                <button onclick="changeMonth(-1)" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">&lt;</button>
+                <span id="current-month-year" class="font-semibold text-lg text-gray-800"></span>
+                <button onclick="changeMonth(1)" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">&gt;</button>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
+                <div class="p-3 bg-green-50 rounded-lg">Receita: <br><span id="monthly-income" class="font-bold text-green-700 text-lg">R$ 0,00</span></div>
+                <div class="p-3 bg-red-50 rounded-lg">Despesa: <br><span id="monthly-expenses" class="font-bold text-red-700 text-lg">R$ 0,00</span></div>
+                <div class="p-3 bg-blue-50 rounded-lg">Saldo: <br><span id="monthly-balance" class="font-bold text-blue-700 text-lg">R$ 0,00</span></div>
+            </div>
+
+            <button onclick="getAiInsight()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
+                <span id="ai-spinner" class="hidden loading-spinner"></span>
+                <span id="ai-button-text">Obter Insight da IA</span>
+            </button>
+            <div id="ai-insight-output" class="mt-4 p-4 bg-gray-100 rounded-md text-left text-gray-800 text-sm italic border border-gray-200">
+                Insights sobre seus gastos aparecerão aqui...
+            </div>
+        </div>
+
+
         <div class="space-y-4">
             <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
@@ -51,5 +114,156 @@
             </a>
         </div>
     </div>
+
+    <script>
+        // Função para formatar moeda
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        }
+
+        // Variáveis para controlar o mês/ano
+        let currentMonth = new Date().getMonth() + 1; // Mês atual (1-12)
+        let currentYear = new Date().getFullYear(); // Ano atual
+        let currentMonthlyData = {}; // Armazenará os dados do mês selecionado para a IA
+
+        // Nomes dos meses para exibição
+        const monthNames = [
+            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+        ];
+
+        // Função para buscar e exibir o resumo mensal
+        async function fetchMonthlySummary() {
+            const monthYearDisplay = document.getElementById('current-month-year');
+            const monthlyIncomeEl = document.getElementById('monthly-income');
+            const monthlyExpensesEl = document.getElementById('monthly-expenses');
+            const monthlyBalanceEl = document.getElementById('monthly-balance');
+            const aiInsightOutputEl = document.getElementById('ai-insight-output');
+
+            monthYearDisplay.textContent = `${monthNames[currentMonth - 1]} de ${currentYear}`;
+            aiInsightOutputEl.textContent = 'Insights sobre seus gastos aparecerão aqui...'; // Limpa o insight anterior
+
+            try {
+                const response = await fetch(`/profile/monthly_summary?year=${currentYear}&month=${currentMonth}`);
+                const data = await response.json();
+
+                currentMonthlyData = data; // Armazena os dados para uso da IA
+
+                monthlyIncomeEl.textContent = formatCurrency(data.income);
+                monthlyExpensesEl.textContent = formatCurrency(data.expenses);
+                // Define a cor do saldo com base no valor
+                if (data.balance >= 0) {
+                    monthlyBalanceEl.classList.remove('text-red-700');
+                    monthlyBalanceEl.classList.add('text-green-700');
+                } else {
+                    monthlyBalanceEl.classList.remove('text-green-700');
+                    monthlyBalanceEl.classList.add('text-red-700');
+                }
+                monthlyBalanceEl.textContent = formatCurrency(data.balance);
+
+            } catch (error) {
+                console.error('Erro ao buscar resumo mensal:', error);
+                monthlyIncomeEl.textContent = 'Erro';
+                monthlyExpensesEl.textContent = 'Erro';
+                monthlyBalanceEl.textContent = 'Erro';
+                aiInsightOutputEl.textContent = 'Não foi possível carregar o resumo mensal.';
+            }
+        }
+
+        // Função para mudar o mês
+        function changeMonth(offset) {
+            currentMonth += offset;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            } else if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            fetchMonthlySummary();
+        }
+
+        // Função para obter insight da IA
+        async function getAiInsight() {
+            const aiSpinner = document.getElementById('ai-spinner');
+            const aiButtonText = document.getElementById('ai-button-text');
+            const aiInsightOutputEl = document.getElementById('ai-insight-output');
+
+            if (Object.keys(currentMonthlyData).length === 0) {
+                aiInsightOutputEl.textContent = 'Carregue um resumo mensal primeiro para obter insights.';
+                return;
+            }
+
+            aiSpinner.classList.remove('hidden');
+            aiButtonText.textContent = 'Gerando Insight...';
+            aiInsightOutputEl.textContent = 'Gerando insights de IA...';
+
+            try {
+                const response = await fetch('/profile/ai_insight', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ summary_data: currentMonthlyData }),
+                });
+                const data = await response.json();
+
+                if (data.insight) {
+                    aiInsightOutputEl.textContent = data.insight;
+                } else if (data.error) {
+                    aiInsightOutputEl.textContent = `Erro da IA: ${data.error}`;
+                } else {
+                    aiInsightOutputEl.textContent = 'Não foi possível gerar insights da IA.';
+                }
+            } catch (error) {
+                console.error('Erro ao chamar API de IA:', error);
+                aiInsightOutputEl.textContent = 'Erro ao conectar com o serviço de IA.';
+            } finally {
+                aiSpinner.classList.add('hidden');
+                aiButtonText.textContent = 'Obter Insight da IA';
+            }
+        }
+
+        // Ao carregar a página
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchMonthlySummary(); // Carrega o resumo do mês atual
+            
+            // Lógica para mensagens flash desaparecerem automaticamente
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000); // 4 segundos
+            });
+
+            // Lógica para carregar a imagem de perfil. Se a URL estiver vazia, usa placeholder.
+            const profilePicElement = document.getElementById('profile-picture');
+            if (!profilePicElement.src || profilePicElement.src === window.location.origin + '/' || profilePicElement.src.startsWith('https://placehold.co/')) {
+                // Se a URL estiver vazia, ou for a URL base, ou for o placeholder, use o padrão
+                profilePicElement.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
+            } else {
+                // Tenta carregar a imagem e, em caso de erro, volta para o placeholder
+                profilePicElement.onerror = function() {
+                    this.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
+                };
+            }
+        });
+
+        // --- JavaScript para Toggle do Menu de Usuário (já existente) ---
+        function toggleUserMenu() {
+            const userMenu = document.getElementById('user-menu');
+            userMenu.classList.toggle('active');
+        }
+
+        document.addEventListener('click', (event) => {
+            const userMenu = document.getElementById('user-menu');
+            const menuButton = document.querySelector('header nav button');
+            if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
+                userMenu.classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>
