@@ -51,19 +51,16 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# NOVO MODELO: Categoria
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
     
-    # Relacionamento para que uma categoria possa ter várias transações
     transactions = db.relationship('Transaction', backref='category', lazy=True)
 
     def __repr__(self):
         return f"<Category {self.name} ({self.type})>"
 
-# Modelo para Transações (MODIFICADO para incluir category_id)
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
@@ -71,7 +68,7 @@ class Transaction(db.Model):
     date = db.Column(db.String(10), nullable=False)
     type = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True) # NOVA COLUNA, pode ser nulo inicialmente
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
     def __repr__(self):
         return f"<Transaction {self.description} - {self.amount}>"
@@ -89,7 +86,6 @@ class Bill(db.Model):
 
 # --- Funções de Lógica de Negócios ---
 
-# MODIFICADA para incluir category_id
 def add_transaction_db(description, amount, date, type, user_id, category_id=None):
     new_transaction = Transaction(
         description=description,
@@ -97,7 +93,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         date=date,
         type=type,
         user_id=user_id,
-        category_id=category_id # Salva o category_id
+        category_id=category_id
     )
     db.session.add(new_transaction)
     db.session.commit()
@@ -119,8 +115,6 @@ def pay_bill_db(bill_id, user_id):
         bill.status = 'paid'
         db.session.add(bill)
         
-        # Ao pagar uma conta, ela se torna uma despesa.
-        # Podemos associá-la a uma categoria de "Contas Fixas" ou "Pagamentos"
         fixed_bills_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
         category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
 
@@ -130,7 +124,7 @@ def pay_bill_db(bill_id, user_id):
             datetime.date.today().isoformat(),
             'expense',
             user_id,
-            category_id=category_id_for_payment # Passa a categoria
+            category_id=category_id_for_payment
         )
         db.session.commit()
         return True
@@ -161,7 +155,6 @@ def delete_bill_db(bill_id, user_id):
         return True
     return False
 
-# MODIFICADA para incluir category_id
 def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
     if transaction:
@@ -169,7 +162,7 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
         transaction.amount = float(amount)
         transaction.date = date
         transaction.type = type
-        transaction.category_id = category_id # Atualiza category_id
+        transaction.category_id = category_id
         db.session.commit()
         return True
     return False
@@ -212,7 +205,7 @@ def generate_text_with_gemini(prompt_text):
         print(f"Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento."
 
-# --- Rotas da Aplicação (ATUALIZADAS COM FILTROS E ORDENAÇÃO) ---
+# --- Rotas da Aplicação ---
 
 @app.route('/')
 @login_required
@@ -231,18 +224,18 @@ def index():
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     if start_date:
-        transactions_query = transactions_query.filter(Transaction.date >= start_date)
+        transactions_query = transactions_query.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date, db.Date))
     if end_date:
-        transactions_query = transactions_query.filter(Transaction.date <= end_date)
+        transactions_query = transactions_query.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date, db.Date))
 
-    # NOVO FILTRO: Por Categoria (para transações)
+    # Filtro por Categoria
     category_filter_id = request.args.get('category_filter', type=int)
     if category_filter_id:
         transactions_query = transactions_query.filter_by(category_id=category_filter_id)
 
     # Ordenação de transações
-    sort_by_transactions = request.args.get('sort_by_transactions', 'date') # Padrão: por data
-    order_transactions = request.args.get('order_transactions', 'desc') # Padrão: decrescente
+    sort_by_transactions = request.args.get('sort_by_transactions', 'date')
+    order_transactions = request.args.get('order_transactions', 'desc')
 
     if sort_by_transactions == 'date':
         if order_transactions == 'asc':
@@ -257,7 +250,6 @@ def index():
     
     all_transactions = transactions_query.all()
     
-    # Prepara as listas filtradas para as seções específicas de Receitas e Despesas
     income_transactions = [t for t in all_transactions if t.type == 'income']
     expense_transactions = [t for t in all_transactions if t.type == 'expense']
 
@@ -265,7 +257,6 @@ def index():
     # --- FILTRAGEM E ORDENAÇÃO PARA CONTAS (BILLS) ---
     bills_query = Bill.query.filter_by(user_id=current_user.id)
 
-    # Filtro por status da conta
     bill_status_filter = request.args.get('bill_status')
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
         if bill_status_filter == 'overdue':
@@ -273,13 +264,11 @@ def index():
             bills_query = bills_query.filter(Bill.dueDate < today_str, Bill.status == 'pending')
         else:
             bills_query = bills_query.filter_by(status=bill_status_filter)
-    elif not bill_status_filter: # Se nenhum filtro de status, mostrar apenas pendentes por padrão para a bills list principal
+    elif not bill_status_filter:
          bills_query = bills_query.filter_by(status='pending')
 
-
-    # Ordenação de contas
-    sort_by_bills = request.args.get('sort_by_bills', 'dueDate') # Padrão: por data de vencimento
-    order_bills = request.args.get('order_bills', 'asc') # Padrão: crescente (vencimentos mais próximos primeiro)
+    sort_by_bills = request.args.get('sort_by_bills', 'dueDate')
+    order_bills = request.args.get('order_bills', 'asc')
 
     if sort_by_bills == 'dueDate':
         if order_bills == 'asc':
@@ -292,21 +281,21 @@ def index():
         else:
             bills_query = bills_query.order_by(Bill.amount.desc())
             
-    filtered_bills = bills_query.all() # Isso agora será o bills que passamos para a BillsList
+    filtered_bills = bills_query.all()
 
-    # Obtém todas as categorias para passar para o template
-    all_categories = Category.query.all()
+    # Obtém todas as categorias e as formata para serem JSON-serializáveis
+    # CONVERSÃO PARA LISTA DE TUPLAS: (id, type, name)
+    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
 
     return render_template(
         'index.html',
         dashboard=dashboard_data,
-        transactions=all_transactions, # Transações já filtradas/ordenadas
-        bills=filtered_bills, # Contas já filtradas/ordenadas
-        income_transactions=income_transactions, # Receitas filtradas por data/ordenadas
-        expense_transactions=expense_transactions, # Despesas filtradas por data/ordenadas
+        transactions=all_transactions,
+        bills=filtered_bills,
+        income_transactions=income_transactions,
+        expense_transactions=expense_transactions,
         current_date=datetime.date.today().isoformat(),
         current_user=current_user,
-        # Passa os valores de filtro/ordenação atuais para preencher os controles no frontend
         current_transaction_type_filter=transaction_type_filter,
         current_bill_status_filter=bill_status_filter,
         current_sort_by_transactions=sort_by_transactions,
@@ -315,8 +304,8 @@ def index():
         current_order_bills=order_bills,
         current_start_date=start_date,
         current_end_date=end_date,
-        all_categories=all_categories, # NOVA: passa todas as categorias
-        current_category_filter=category_filter_id # NOVA: passa o filtro de categoria atual
+        all_categories=all_categories_formatted, # MODIFICADO: passa a lista formatada
+        current_category_filter=category_filter_id
     )
 
 @app.route('/add_transaction', methods=['POST'])
@@ -326,9 +315,9 @@ def handle_add_transaction():
     amount = request.form['amount']
     date = request.form['date']
     transaction_type = request.form['type']
-    category_id = request.form.get('category_id', type=int) # NOVO: Pega a categoria do formulário
+    category_id = request.form.get('category_id', type=int)
 
-    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id) # Passa category_id
+    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id)
     flash('Transação adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -380,7 +369,6 @@ def handle_delete_bill(bill_id):
         flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
 
-# MODIFICADA para incluir category_id
 @app.route('/get_transaction_data/<int:transaction_id>', methods=['GET'])
 @login_required
 def get_transaction_data(transaction_id):
@@ -392,11 +380,10 @@ def get_transaction_data(transaction_id):
             'amount': transaction.amount,
             'date': transaction.date,
             'type': transaction.type,
-            'category_id': transaction.category_id # NOVA: Retorna category_id
+            'category_id': transaction.category_id
         })
     return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
 
-# MODIFICADA para incluir category_id
 @app.route('/edit_transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def handle_edit_transaction(transaction_id):
@@ -404,9 +391,9 @@ def handle_edit_transaction(transaction_id):
     amount = request.form['edit_amount']
     date = request.form['edit_date']
     transaction_type = request.form['edit_type']
-    category_id = request.form.get('edit_category_id', type=int) # NOVA: Pega category_id do formulário
+    category_id = request.form.get('edit_category_id', type=int)
 
-    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id): # Passa category_id
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id):
         flash('Transação atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
@@ -543,11 +530,13 @@ def get_monthly_summary():
         year = current_date.year
         month = current_date.month
 
-    monthly_transactions = [
-        t for t in Transaction.query.filter_by(user_id=current_user.id).all()
-        if datetime.datetime.strptime(t.date, '%Y-%m-%d').year == year and
-           datetime.datetime.strptime(t.date, '%Y-%m-%d').month == month
-    ]
+    # Filtragem mais robusta por data e usuário diretamente no SQLAlchemy
+    monthly_transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        db.extract('year', db.cast(Transaction.date, db.Date)) == year,
+        db.extract('month', db.cast(Transaction.date, db.Date)) == month
+    ).all()
+
 
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
     monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
@@ -561,7 +550,7 @@ def get_monthly_summary():
         'balance': monthly_balance,
         'transactions_details': [
             {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date,
-             'category': t.category.name if t.category else 'Sem Categoria'} # Inclui a categoria na resposta JSON
+             'category': t.category.name if t.category else 'Sem Categoria'}
             for t in monthly_transactions
         ]
     })
@@ -580,7 +569,7 @@ def get_ai_insight():
         f"Receita Total: R${monthly_summary['income']:.2f}, "
         f"Despesa Total: R${monthly_summary['expenses']:.2f}, "
         f"Saldo Mensal: R${monthly_summary['balance']:.2f}. "
-        f"Detalhes das transações (descrição, valor, tipo, data, categoria): {monthly_summary['transactions_details']}. " # Inclui categoria no prompt
+        f"Detalhes das transações (descrição, valor, tipo, data, categoria): {monthly_summary['transactions_details']}. "
         f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
         f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
         f"Use uma linguagem amigável e direta em português. "
@@ -628,7 +617,6 @@ if __name__ == '__main__':
             db.session.commit()
             print("Usuário 'admin' criado com senha 'admin123'.")
 
-        # Dados iniciais para contas a pagar (associados ao primeiro usuário, se houver)
         if not Bill.query.first() and User.query.first():
             first_user = User.query.first()
             if first_user:
