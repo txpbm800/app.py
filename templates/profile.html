@@ -1,0 +1,55 @@
+<!-- templates/profile.html -->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perfil - Gestão Financeira Pessoal</title>
+    <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body>
+    <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8 text-center">
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2>
+        <p class="text-gray-600 mb-8">Gerencie suas configurações de conta.</p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-4">
+                    {% for category, message in messages %}
+                        <div class="p-3 rounded-md text-sm {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="space-y-4">
+            <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+                Redefinir Senha
+            </a>
+            <a href="{{ url_for('delete_account') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+                Apagar Conta
+            </a>
+            <a href="{{ url_for('index') }}" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md transition-colors">
+                Voltar para o Dashboard
+            </a>
+        </div>
+    </div>
+</body>
+</html>

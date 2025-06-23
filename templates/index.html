@@ -57,16 +57,60 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
+        /* Estilos para o menu de usuário */
+        .user-menu-dropdown {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 180px;
+            overflow: hidden;
+            transform: translateY(10px); /* Pequeno deslocamento para baixo */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0.2s ease-out;
+        }
+        .user-menu-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
-            <nav>
+            <nav class="relative"> {# Adicionado relative para posicionamento do dropdown #}
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
-                    <a href="{{ url_for('logout') }}" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Sair</a>
+                    
+                    {# Botão do menu hambúrguer #}
+                    <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                    </button>
+
+                    {# Dropdown do menu de usuário #}
+                    <div id="user-menu" class="user-menu-dropdown">
+                        <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
+                            Meu Perfil
+                        </a>
+                        <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
+                            Redefinir Senha
+                        </a>
+                        <a href="{{ url_for('delete_account') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50">
+                            Apagar Conta
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200">
+                            Sair
+                        </a>
+                    </div>
+
                 {% else %}
                     <a href="{{ url_for('login') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Login</a>
                     <a href="{{ url_for('register') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Registrar</a>
@@ -75,17 +119,17 @@
         </header>
 
         {# Exibe mensagens flash #}
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-6">
+        <div id="flash-messages-container" class="mb-6">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
                     {% for category, message in messages %}
-                        <div class="p-3 rounded-md text-sm {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        <div class="flash-message p-3 rounded-md text-sm mb-2 {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}" role="alert">
                             {{ message }}
                         </div>
                     {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+                {% endif %}
+            {% endwith %}
+        </div>
 
         <!-- Dashboard Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -411,6 +455,33 @@
                 arrowToToggle.classList.add('rotated');
             }
         }
+        
+        // --- NOVO JAVASCRIPT: Desaparecimento de Mensagens Flash ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000); // 4 segundos
+            });
+        });
+
+        // --- NOVO JAVASCRIPT: Toggle do Menu de Usuário ---
+        function toggleUserMenu() {
+            const userMenu = document.getElementById('user-menu');
+            userMenu.classList.toggle('active');
+        }
+
+        // Fecha o menu de usuário se clicar fora dele
+        document.addEventListener('click', (event) => {
+            const userMenu = document.getElementById('user-menu');
+            const menuButton = document.querySelector('header nav button'); // O botão do hambúrguer
+            if (userMenu.classList.contains('active') && !userMenu.contains(event.target) && !menuButton.contains(event.target)) {
+                userMenu.classList.remove('active');
+            }
+        });
     </script>
 </body>
 </html>
