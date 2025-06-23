@@ -57,25 +57,14 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
-        .loading-spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #10B981;
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        /* Removido o estilo do loading-spinner já que a funcionalidade Gemini será removida */
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
     <div class="max-w-7xl mx-auto">
         <h1 class="text-4xl font-bold text-gray-900 mb-8 text-center">Gestão Financeira Pessoal (Python Flask)</h1>
 
-        <!-- Dashboard Section (permanece como um bloco separado) -->
+        <!-- Dashboard Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <!-- Saldo Atual Card -->
             <div class="rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 p-6 card-shadow card-hover transition-all duration-300">
@@ -168,11 +157,7 @@
                             <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                         </div>
-                        <button type="button" onclick="suggestDescription('transaction')" class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
-                            <span id="transaction-spinner" class="hidden loading-spinner"></span>
-                            <span id="transaction-button-text">Sugestão de Descrição</span>
-                        </button>
-                        <div id="transaction-suggestion-message" class="text-sm text-gray-600 mt-2"></div>
+                        {# Removido o botão de sugestão e seus elementos relacionados #}
                         <div>
                             <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
                             <input type="date" id="date" name="date" value="{{ current_date }}" required
@@ -213,11 +198,7 @@
                             <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
-                        <button type="button" onclick="suggestDescription('bill')" class="w-full mt-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
-                            <span id="bill-spinner" class="hidden loading-spinner"></span>
-                            <span id="bill-button-text">Sugestão de Descrição</span>
-                        </button>
-                        <div id="bill-suggestion-message" class="text-sm text-gray-600 mt-2"></div>
+                        {# Removido o botão de sugestão e seus elementos relacionados #}
                         <div>
                             <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
                             <input type="date" id="bill-due-date" name="bill_due_date" required
@@ -413,81 +394,7 @@
                 arrowToToggle.classList.add('rotated');
             }
         }
-
-        // --- Funções para Sugestão Gemini ---
-        // Funções suggestDescription permanecem as mesmas
-        async function suggestDescription(formType) {
-            let amountInputId, typeInputId, descriptionInputId, spinnerId, buttonTextId, suggestionMessageId;
-
-            if (formType === 'transaction') {
-                amountInputId = 'amount';
-                typeInputId = 'type';
-                descriptionInputId = 'description';
-                spinnerId = 'transaction-spinner';
-                buttonTextId = 'transaction-button-text';
-                suggestionMessageId = 'transaction-suggestion-message';
-            } else if (formType === 'bill') {
-                amountInputId = 'bill-amount';
-                descriptionInputId = 'bill-description';
-                typeInputId = null; // Contas a pagar são sempre despesas para a sugestão
-                spinnerId = 'bill-spinner';
-                buttonTextId = 'bill-button-text';
-                suggestionMessageId = 'bill-suggestion-message';
-            } else {
-                return;
-            }
-
-            const amountElement = document.getElementById(amountInputId);
-            const typeElement = typeInputId ? document.getElementById(typeInputId) : null;
-            const descriptionElement = document.getElementById(descriptionInputId);
-            const spinner = document.getElementById(spinnerId);
-            const buttonText = document.getElementById(buttonTextId);
-            const suggestionMessage = document.getElementById(suggestionMessageId);
-
-            const amount = amountElement.value;
-            const type = typeElement ? typeElement.value : 'expense'; // Assume 'expense' para contas a pagar
-
-            if (!amount) {
-                suggestionMessage.textContent = 'Por favor, insira um valor primeiro.';
-                return;
-            }
-
-            // Ativa o spinner e desabilita o botão
-            spinner.classList.remove('hidden');
-            buttonText.textContent = 'Gerando...';
-            // Você pode desabilitar o botão aqui se quiser: event.target.disabled = true;
-
-            suggestionMessage.textContent = ''; // Limpa mensagens anteriores
-
-            try {
-                const response = await fetch('/suggest_description', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ amount: parseFloat(amount), type: type }),
-                });
-
-                const data = await response.json();
-
-                if (data.suggestion) {
-                    descriptionElement.value = data.suggestion.replace(/\*+/g, ''); // Remove formatação bold do Gemini
-                    suggestionMessage.textContent = 'Sugestão aplicada.';
-                } else if (data.error) {
-                    suggestionMessage.textContent = `Erro: ${data.error}`;
-                } else {
-                    suggestionMessage.textContent = 'Não foi possível gerar uma sugestão.';
-                }
-            } catch (error) {
-                console.error('Erro ao buscar sugestão:', error);
-                suggestionMessage.textContent = 'Erro ao conectar com o serviço de sugestão.';
-            } finally {
-                // Desativa o spinner e reabilita o botão
-                spinner.classList.add('hidden');
-                buttonText.textContent = 'Sugestão de Descrição';
-                // event.target.disabled = false;
-            }
-        }
+        // Removida a função suggestDescription, pois a funcionalidade Gemini foi removida
     </script>
 </body>
 </html>
