@@ -131,8 +131,8 @@
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
                     
-                    {# NOVO: Link para Transações Recorrentes na navegação #}
-                    <a href="{{ url_for('recurring_transactions') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Recorrentes</a>
+                    {# REMOVIDO: Link para Transações Recorrentes na navegação #}
+                    {# <a href="{{ url_for('recurring_transactions') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Recorrentes</a> #}
 
                     {# Botão do menu hambúrguer #}
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
@@ -248,7 +248,7 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             <!-- Transaction Form Section (Colapsável) -->
             <div class="rounded-lg shadow-md bg-white card-shadow">
-                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])"> {# Removido 'recurring-transaction-form-content' #}
+                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
                     <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
                     <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -294,9 +294,9 @@
                 </div>
             </div>
 
-            <!-- Bill Form Section (Colapsável) -->
+            <!-- Bill Form Section (Colapsável, AGORA INCLUI RECORRÊNCIA) -->
             <div class="rounded-lg shadow-md bg-white card-shadow">
-                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])"> {# Removido 'recurring-transaction-form-content' #}
+                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])">
                     <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
                     <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -316,9 +316,36 @@
                         </div>
                         <div>
                             <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
-                            <input type="date" id="bill-due-date" name="bill_due_date" required
+                            <input type="date" id="bill-due-date" name="bill_due_date" value="{{ current_date }}" required
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        
+                        {# NOVO: Checkbox para marcar como recorrente #}
+                        <div class="flex items-center">
+                            <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
+                            <label for="is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
+                        </div>
+
+                        {# Campos de recorrência (ocultos por padrão) #}
+                        <div id="bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
+                            <div>
+                                <label for="recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
+                                <select id="recurring_frequency_bill" name="recurring_frequency_bill"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    onchange="toggleInstallmentsField('recurring_frequency_bill', 'bill_installments_total_field')">
+                                    <option value="monthly">Mensal</option>
+                                    <option value="weekly">Semanal</option>
+                                    <option value="yearly">Anual</option>
+                                    <option value="installments">Parcelas</option>
+                                </select>
+                            </div>
+                            <div id="bill_installments_total_field" class="hidden">
+                                <label for="recurring_installments_total_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Parcelas</label>
+                                <input type="number" id="recurring_installments_total_bill" name="recurring_installments_total_bill" placeholder="Ex: 12" min="1"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                             Adicionar Conta
                         </button>
@@ -408,9 +435,13 @@
                                             <div class="font-bold text-xl text-gray-800">
                                                 R$ {{ "%.2f"|format(bill.amount) }}
                                             </div>
-                                            {% if bill.recurring_transaction_origin_id %} {# NOVO: Indica se veio de recorrência #}
+                                            {# NOVO: Indica se veio de recorrência #}
+                                            {% if bill.is_recurring or bill.recurring_transaction_origin_id %} 
                                                 <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
                                                     Recorrente
+                                                    {% if bill.installment_number and bill.recurring_installments_total %}
+                                                        {{ bill.installment_number }}/{{ bill.recurring_installments_total }}
+                                                    {% endif %}
                                                 </span>
                                             {% endif %}
                                         </div>
@@ -659,7 +690,7 @@
                 </button>
             </form>
 
-            <!-- Formulário de Edição de Conta (inicialmente oculto) -->
+            <!-- Formulário de Edição de Conta (MODIFICADO para incluir recorrência) -->
             <form id="edit-bill-form" method="POST" class="space-y-4 hidden">
                 <input type="hidden" id="edit_bill_id" name="bill_id">
                 <div>
@@ -677,6 +708,37 @@
                     <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
+
+                {# NOVO: Checkbox e campos de recorrência para edição de Bill #}
+                <div class="flex items-center">
+                    <input type="checkbox" id="edit_is_recurring_bill" name="edit_is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFieldsEdit()">
+                    <label for="edit_is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
+                </div>
+
+                <div id="edit_bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
+                    <div>
+                        <label for="edit_recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
+                        <select id="edit_recurring_frequency_bill" name="edit_recurring_frequency_bill"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            onchange="toggleInstallmentsField('edit_recurring_frequency_bill', 'edit_bill_installments_total_field')">
+                            <option value="monthly">Mensal</option>
+                            <option value="weekly">Semanal</option>
+                            <option value="yearly">Anual</option>
+                            <option value="installments">Parcelas</option>
+                        </select>
+                    </div>
+                    <div id="edit_bill_installments_total_field" class="hidden">
+                        <label for="edit_recurring_installments_total_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Parcelas</label>
+                        <input type="number" id="edit_recurring_installments_total_bill" name="edit_recurring_installments_total_bill" placeholder="Ex: 12" min="1"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
+                    <div class="flex items-center">
+                        <input type="checkbox" id="edit_is_active_recurring_bill" name="edit_is_active_recurring_bill" class="mr-2">
+                        <label for="edit_is_active_recurring_bill" class="text-sm font-medium text-gray-700">Recorrência Ativa?</label>
+                    </div>
+                </div>
+
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                     Salvar Edição
                 </button>
@@ -728,6 +790,17 @@
             document.getElementById('transactions-filter-sort-form').addEventListener('submit', function(event) {
                 // Nada a fazer aqui além de permitir o submit padrão
             });
+
+            // Inicializa a visibilidade dos campos de recorrência na NOVA CONTA A PAGAR
+            const isRecurringBillCheckbox = document.getElementById('is_recurring_bill');
+            if (isRecurringBillCheckbox) {
+                isRecurringBillCheckbox.addEventListener('change', toggleBillRecurringFields);
+                toggleBillRecurringFields(); // Chama na carga inicial
+            }
+            const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
+            if (addBillFrequencySelect) {
+                toggleInstallmentsField('recurring_frequency_bill', 'bill_installments_total_field'); // Inicializa visibilidade de parcelas
+            }
         });
 
 
@@ -788,7 +861,7 @@
 
         function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
             const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return; // Garante que o elemento existe
+            if (!selectElement) return;
 
             selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
 
@@ -807,7 +880,7 @@
 
         function populateCategoryFilter(selectElementId, currentFilterValue = null) {
             const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return; // Garante que o elemento existe
+            if (!selectElement) return;
 
             selectElement.innerHTML = '<option value="">Todas</option>';
 
@@ -821,6 +894,66 @@
                 selectElement.appendChild(option);
             });
         }
+
+        // NOVO: Função para esconder/mostrar campos de recorrência no formulário de NOVA CONTA A PAGAR
+        function toggleBillRecurringFields() {
+            const isRecurringCheckbox = document.getElementById('is_recurring_bill');
+            const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
+            const recurringFrequencySelect = document.getElementById('recurring_frequency_bill');
+            const installmentsTotalField = document.getElementById('bill_installments_total_field');
+            const installmentsTotalInput = document.getElementById('recurring_installments_total_bill');
+
+            if (isRecurringCheckbox.checked) {
+                recurringFieldsDiv.classList.remove('hidden');
+                recurringFrequencySelect.setAttribute('required', 'true');
+                // Inicializa o estado do campo de parcelas ao mostrar a seção
+                if (recurringFrequencySelect.value === 'installments') {
+                    installmentsTotalField.classList.remove('hidden');
+                    installmentsTotalInput.setAttribute('required', 'true');
+                } else {
+                    installmentsTotalField.classList.add('hidden');
+                    installmentsTotalInput.removeAttribute('required');
+                }
+            } else {
+                recurringFieldsDiv.classList.add('hidden');
+                recurringFrequencySelect.removeAttribute('required');
+                installmentsTotalField.classList.add('hidden');
+                installmentsTotalInput.removeAttribute('required');
+            }
+        }
+
+        // NOVO: Função para esconder/mostrar campos de recorrência no MODAL DE EDIÇÃO DE CONTA
+        function toggleBillRecurringFieldsEdit() {
+            const isRecurringCheckbox = document.getElementById('edit_is_recurring_bill');
+            const recurringFieldsDiv = document.getElementById('edit_bill_recurring_fields');
+            const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
+            const installmentsTotalField = document.getElementById('edit_bill_installments_total_field');
+            const installmentsTotalInput = document.getElementById('edit_recurring_installments_total_bill');
+            const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
+
+
+            if (isRecurringCheckbox.checked) {
+                recurringFieldsDiv.classList.remove('hidden');
+                recurringFrequencySelect.setAttribute('required', 'true');
+                isActiveRecurringCheckbox.parentElement.classList.remove('hidden'); // Mostra o checkbox de ativa
+                
+                // Inicializa o estado do campo de parcelas ao mostrar a seção
+                if (recurringFrequencySelect.value === 'installments') {
+                    installmentsTotalField.classList.remove('hidden');
+                    installmentsTotalInput.setAttribute('required', 'true');
+                } else {
+                    installmentsTotalField.classList.add('hidden');
+                    installmentsTotalInput.removeAttribute('required');
+                }
+            } else {
+                recurringFieldsDiv.classList.add('hidden');
+                recurringFrequencySelect.removeAttribute('required');
+                installmentsTotalField.classList.add('hidden');
+                installmentsTotalInput.removeAttribute('required');
+                isActiveRecurringCheckbox.parentElement.classList.add('hidden'); // Esconde o checkbox de ativa
+            }
+        }
+
 
         async function openEditModal(type, id) {
             editModal.classList.add('active');
@@ -860,6 +993,34 @@
                     document.getElementById('edit_bill_description').value = data.description;
                     document.getElementById('edit_bill_amount').value = data.amount;
                     document.getElementById('edit_bill_dueDate').value = data.dueDate;
+                    
+                    // Preenche campos de recorrência no modal de edição de Bill
+                    const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
+                    const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
+                    const editRecurringInstallmentsTotalBillInput = document.getElementById('edit_recurring_installments_total_bill');
+                    const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
+
+                    editIsRecurringBillCheckbox.checked = data.is_recurring;
+                    
+                    // Garante que o evento onchange é disparado no select de frequência para reativar o listener
+                    // e controlar a visibilidade do campo de parcelas.
+                    editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly'; // Define valor padrão
+                    
+                    if (data.recurring_installments_total) {
+                        editRecurringInstallmentsTotalBillInput.value = data.recurring_installments_total;
+                    } else {
+                        editRecurringInstallmentsTotalBillInput.value = '';
+                    }
+
+                    editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
+
+                    // Chama a função para controlar a visibilidade dos campos de recorrência e parcelas
+                    toggleBillRecurringFieldsEdit(); 
+                    
+                    // Adiciona event listener para garantir que a visibilidade seja atualizada se a frequência mudar
+                    editRecurringFrequencyBillSelect.onchange = toggleBillRecurringFieldsEdit;
+
+
                     editBillForm.action = `/edit_bill/${data.id}`;
                     editBillForm.classList.remove('hidden');
                 }
@@ -873,6 +1034,15 @@
 
         function closeEditModal() {
             editModal.classList.remove('active');
+            // Remove o listener onchange do modal de edição da conta para evitar múltiplos listeners
+            const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
+            if (editRecurringFrequencyBillSelect) {
+                editRecurringFrequencyBillSelect.onchange = null; 
+            }
+            const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
+            if (editIsRecurringBillCheckbox) {
+                editIsRecurringBillCheckbox.onchange = null;
+            }
         }
 
         window.onclick = function(event) {
