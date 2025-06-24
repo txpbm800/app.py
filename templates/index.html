@@ -7,8 +7,7 @@
     <title>Gestão Financeira Pessoal (Python Flask)</title>
     <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inclui Chart.js para visualização de dados -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- REMOVIDO: Inclui Chart.js aqui, será movido para profile.html -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
@@ -602,17 +601,7 @@
             </div>
         </div>
 
-        {# SEÇÃO DE GRÁFICOS - NOVO #}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Visão Geral Mensal</h2>
-                <canvas id="monthlyOverviewChart" width="400" height="200"></canvas>
-            </div>
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Despesas por Categoria</h2>
-                <canvas id="expensesByCategoryChart" width="400" height="200"></canvas>
-            </div>
-        </div>
+        {# REMOVIDO: SEÇÃO DE GRÁFICOS DO INDEX.HTML #}
 
 
     </div>
@@ -695,8 +684,8 @@
         const categoriesData = {{ all_categories | tojson }};
 
         // Gráficos globais para que possam ser destruídos e recriados
-        let monthlyOverviewChartInstance;
-        let expensesByCategoryChartInstance;
+        // REMOVIDO: monthlyOverviewChartInstance e expensesByCategoryChartInstance daqui
+        // Serão movidos para profile.html
 
         // Popula allCategories com os dados do Flask e inicializa outras coisas
         document.addEventListener('DOMContentLoaded', () => {
@@ -711,8 +700,8 @@
                 filterCategoriesByType(initialFilterType, 'category_id');
             }
 
-            // Inicializa os gráficos ao carregar a página
-            fetchChartDataAndRender();
+            // REMOVIDO: Inicialização dos gráficos aqui, será movido para profile.html
+            // fetchChartDataAndRender(); 
 
             // Lógica para mensagens flash desaparecerem automaticamente
             const flashMessages = document.querySelectorAll('.flash-message');
@@ -859,125 +848,8 @@
             }
         }
 
-        // --- NOVAS FUNÇÕES PARA GRÁFICOS ---
-
-        // Função para buscar dados do gráfico do backend
-        async function fetchChartData() {
-            try {
-                const response = await fetch('/get_chart_data');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                console.error('Erro ao buscar dados do gráfico:', error);
-                return null;
-            }
-        }
-
-        // Função para renderizar os gráficos
-        async function fetchChartDataAndRender() {
-            const chartData = await fetchChartData();
-            if (!chartData) {
-                return;
-            }
-
-            // Destruir instâncias de gráficos existentes para evitar duplicidade
-            if (monthlyOverviewChartInstance) {
-                monthlyOverviewChartInstance.destroy();
-            }
-            if (expensesByCategoryChartInstance) {
-                expensesByCategoryChartInstance.destroy();
-            }
-
-            // Gráfico de Visão Geral Mensal (Receitas vs Despesas)
-            const monthlyOverviewCtx = document.getElementById('monthlyOverviewChart').getContext('2d');
-            monthlyOverviewChartInstance = new Chart(monthlyOverviewCtx, {
-                type: 'bar',
-                data: {
-                    labels: chartData.monthly_summary.labels, // Nomes dos meses
-                    datasets: [
-                        {
-                            label: 'Receitas',
-                            data: chartData.monthly_summary.income,
-                            backgroundColor: 'rgba(16, 185, 129, 0.6)', // Tailwind green-500
-                            borderColor: 'rgba(16, 185, 129, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Despesas',
-                            data: chartData.monthly_summary.expenses,
-                            backgroundColor: 'rgba(239, 68, 68, 0.6)', // Tailwind red-500
-                            borderColor: 'rgba(239, 68, 68, 1)',
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false, // Permite que o gráfico se ajuste ao tamanho do container
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Gráfico de Despesas por Categoria (Pie/Doughnut)
-            const expensesByCategoryCtx = document.getElementById('expensesByCategoryChart').getContext('2d');
-            
-            // Gerar cores dinamicamente para o gráfico de pizza/doughnut
-            const backgroundColors = [
-                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'
-            ];
-            const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
-
-            expensesByCategoryChartInstance = new Chart(expensesByCategoryCtx, {
-                type: 'doughnut', // Pode ser 'pie' ou 'doughnut'
-                data: {
-                    labels: chartData.expenses_by_category.labels, // Nomes das categorias
-                    datasets: [{
-                        data: chartData.expenses_by_category.values,
-                        backgroundColor: backgroundColors.slice(0, chartData.expenses_by_category.labels.length),
-                        borderColor: borderColors.slice(0, chartData.expenses_by_category.labels.length),
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.label || '';
-                                    if (label) {
-                                        label += ': ';
-                                    }
-                                    if (context.parsed !== null) {
-                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed);
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
+        // REMOVIDO: Funções de gráficos do index.html (fetchChartData, fetchChartDataAndRender)
+        // Serão movidas para profile.html
     </script>
 </body>
 </html>
