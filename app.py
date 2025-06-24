@@ -6,6 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
+import google.generativeai as genai # <-- ESTA LINHA DEVE ESTAR PRESENTE!
 
 app = Flask(__name__)
 
@@ -82,9 +83,6 @@ class Bill(db.Model):
     dueDate = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    # NOVAS COLUNAS: Para rastrear se a conta veio de uma transação recorrente
-    is_recurring_generated = db.Column(db.Boolean, default=False, nullable=False)
-    recurring_source_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True)
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
@@ -101,10 +99,6 @@ class RecurringTransaction(db.Model):
     
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
-
-    # Relacionamento inverso para as contas geradas por esta recorrente (opcional, mas útil)
-    generated_bills = db.relationship('Bill', backref='recurring_source', lazy=True)
-
 
     def __repr__(self):
         return f"<RecurringTransaction {self.description} - {self.frequency}>"
@@ -261,81 +255,11 @@ def generate_text_with_gemini(prompt_text):
         print(f"Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento."
 
-# --- FUNÇÃO PARA PROCESSAR TRANSAÇÕES RECORRENTES PENDENTES ---
-def process_due_recurring_transactions(user_id):
-    today = datetime.date.today()
-    # Pega todas as transações recorrentes ativas para o usuário
-    active_recurring_transactions = RecurringTransaction.query.filter_by(user_id=user_id, is_active=True).all()
-    
-    bills_generated_count = 0
-    
-    for rec_trans in active_recurring_transactions:
-        next_due_date_dt = datetime.datetime.strptime(rec_trans.next_due_date, '%Y-%m-%d').date()
-        
-        # Se a próxima data de vencimento for hoje ou no passado
-        while next_due_date_dt <= today:
-            # 1. Verificar se já existe uma Bill gerada para este mês/data desta recorrente
-            # Evita duplicatas se a função for chamada várias vezes no mesmo dia/mês
-            existing_bill = Bill.query.filter_by(
-                recurring_source_id=rec_trans.id,
-                dueDate=next_due_date_dt.isoformat(),
-                user_id=user_id
-            ).first()
-
-            if existing_bill:
-                # Se a conta já existe, apenas avança para a próxima data de vencimento da recorrente
-                print(f"Conta já existente para {rec_trans.description} em {next_due_date_dt.isoformat()}, pulando.")
-            else:
-                # 2. Criar uma nova Bill
-                new_bill = Bill(
-                    description=rec_trans.description,
-                    amount=rec_trans.amount,
-                    dueDate=next_due_date_dt.isoformat(), # A data de vencimento da conta é a próxima data de vencimento da recorrente
-                    status='pending',
-                    user_id=rec_trans.user_id,
-                    is_recurring_generated=True, # Marcado como gerado automaticamente
-                    recurring_source_id=rec_trans.id # Link para a transação recorrente original
-                )
-                db.session.add(new_bill)
-                db.session.commit() # Commit para que o ID da nova bill seja gerado
-                bills_generated_count += 1
-                print(f"Gerada conta: {new_bill.description} ({new_bill.amount}) para {new_bill.dueDate}")
-
-            # 3. Calcular a próxima data de vencimento para a transação recorrente
-            if rec_trans.frequency == 'monthly':
-                next_due_date_dt = next_due_date_dt.replace(day=1) # Vai para o 1º dia do mês para garantir adição correta de meses
-                if next_due_date_dt.month == 12:
-                    next_due_date_dt = next_due_date_dt.replace(year=next_due_date_dt.year + 1, month=1)
-                else:
-                    next_due_date_dt = next_due_date_dt.replace(month=next_due_date_dt.month + 1)
-                # Tenta manter o dia original se possível, senão vai para o último dia do mês
-                try:
-                    next_due_date_dt = next_due_date_dt.replace(day=datetime.datetime.strptime(rec_trans.start_date, '%Y-%m-%d').day)
-                except ValueError:
-                    # Se o dia original for maior que os dias do próximo mês (ex: 31 de jan para fev)
-                    next_due_date_dt = next_due_date_dt.replace(day=1) + datetime.timedelta(days=31) # Garante que vai para o próximo mês
-                    next_due_date_dt = next_due_date_dt.replace(day=1) - datetime.timedelta(days=1) # Vai para o último dia do mês anterior
-            elif rec_trans.frequency == 'weekly':
-                next_due_date_dt += datetime.timedelta(weeks=1)
-            elif rec_trans.frequency == 'yearly':
-                next_due_date_dt = next_due_date_dt.replace(year=next_due_date_dt.year + 1)
-            
-            rec_trans.next_due_date = next_due_date_dt.isoformat()
-            db.session.add(rec_trans) # Adiciona a alteração da recorrente ao session
-            db.session.commit() # Salva a nova next_due_date
-
-
-    if bills_generated_count > 0:
-        flash(f"{bills_generated_count} novas contas geradas a partir de transações recorrentes!", 'info')
-
 # --- Rotas da Aplicação ---
 
 @app.route('/')
 @login_required
 def index():
-    # Processa transações recorrentes ao carregar o dashboard
-    process_due_recurring_transactions(current_user.id) # NOVO
-    
     dashboard_data = get_dashboard_data_db(current_user.id)
     
     # --- FILTRAGEM E ORDENAÇÃO PARA TRANSAÇÕES ---
@@ -408,6 +332,7 @@ def index():
     # Obtém todas as categorias e as formata para serem JSON-serializáveis
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
     
+
     return render_template(
         'index.html',
         dashboard=dashboard_data,
@@ -449,7 +374,6 @@ def handle_add_bill():
     amount = request.form['bill_amount']
     due_date = request.form['bill_due_date']
     
-    # Ao adicionar uma conta manualmente, não é gerada por recorrente
     add_bill_db(description, amount, due_date, current_user.id)
     flash('Conta adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
@@ -772,13 +696,13 @@ def get_chart_data():
 # --- ROTA: Página de Transações Recorrentes ---
 @app.route('/recurring_transactions')
 @login_required
-def recurring_transactions(): # Endpoint mudou de recurring_transactions_page para recurring_transactions
+def recurring_transactions_page():
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
-    recurring_items = get_recurring_transactions_db(current_user.id) # Renomeado para evitar conflito com rota
+    recurring_transactions = get_recurring_transactions_db(current_user.id)
     return render_template(
         'recurring_transactions.html',
         all_categories=all_categories_formatted,
-        recurring_transactions=recurring_items,
+        recurring_transactions=recurring_transactions,
         current_date=datetime.date.today().isoformat(),
         current_user=current_user
     )
@@ -796,7 +720,7 @@ def handle_add_recurring_transaction():
 
     add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id)
     flash('Transação recorrente adicionada com sucesso!', 'success')
-    return redirect(url_for('recurring_transactions')) # Redireciona para o endpoint CORRETO
+    return redirect(url_for('recurring_transactions_page'))
 
 # ROTA: Obter dados de uma transação recorrente para edição
 @app.route('/get_recurring_transaction_data/<int:recurring_id>', methods=['GET'])
@@ -826,13 +750,13 @@ def handle_edit_recurring_transaction(recurring_id):
     frequency = request.form['edit_recurring_frequency']
     start_date = request.form['edit_recurring_start_date']
     category_id = request.form.get('edit_recurring_category_id', type=int)
-    is_active = request.form.get('edit_recurring_is_active') == 'on' # Checkbox retorna 'on' ou None
+    is_active = request.form.get('edit_recurring_is_active') == 'on'
 
     if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
         flash('Transação recorrente atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
-    return redirect(url_for('recurring_transactions')) # Redireciona para o endpoint CORRETO
+    return redirect(url_for('recurring_transactions_page'))
 
 # ROTA: Excluir Transação Recorrente
 @app.route('/delete_recurring_transaction/<int:recurring_id>', methods=['POST'])
@@ -842,7 +766,7 @@ def handle_delete_recurring_transaction(recurring_id):
         flash('Transação recorrente excluída com sucesso!', 'info')
     else:
         flash('Não foi possível excluir a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
-    return redirect(url_for('recurring_transactions')) # Redireciona para o endpoint CORRETO
+    return redirect(url_for('recurring_transactions_page'))
 
 if __name__ == '__main__':
     with app.app_context():
