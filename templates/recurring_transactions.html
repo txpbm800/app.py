@@ -95,9 +95,9 @@
                             {{ message }}
                         </div>
                     {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+                {% endif %}
+            {% endwith %}
+        </div>
 
         {# Formulário de Adição de Recorrente (Colapsável) #}
         <div class="rounded-lg shadow-md bg-white card-shadow mb-8">
@@ -187,8 +187,8 @@
                                         <div>Próximo Venc.: {{ rec_trans.next_due_date }}</div>
                                         <div>Categoria: {{ rec_trans.category.name if rec_trans.category else 'N/A' }}</div>
                                         {# NOVO: Exibe informações de parcelamento se for o caso #}
-                                        {% if rec_trans.installments_total > 1 %}
-                                            <div>Parcelas: {{ rec_trans.installments_paid or 0 }} de {{ rec_trans.installments_total }}</div>
+                                        {% if rec_trans.installments_total > 0 %} {# Mudado de > 1 para > 0 #}
+                                            <div>Parcelas: {{ rec_trans.installments_generated or 0 }} de {{ rec_trans.installments_total }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -368,8 +368,8 @@
                 document.getElementById('edit_recurring_start_date').value = data.start_date;
                 document.getElementById('edit_recurring_is_active').checked = data.is_active;
 
-                // NOVO: Preenche o campo de parcelas para edição
-                if (data.frequency === 'installments') { // Verifica se é parcelado
+                // Preenche o campo de parcelas para edição e controla sua visibilidade
+                if (data.frequency === 'installments') {
                     document.getElementById('edit_recurring_installments_total').value = data.installments_total;
                     document.getElementById('edit_recurring_installments_total_field').classList.remove('hidden');
                     document.getElementById('edit_recurring_installments_total').setAttribute('required', 'true');
@@ -378,7 +378,6 @@
                     document.getElementById('edit_recurring_installments_total_field').classList.add('hidden');
                     document.getElementById('edit_recurring_installments_total').removeAttribute('required');
                 }
-
 
                 // Popula e seleciona a categoria
                 filterCategoriesByType(data.type, 'edit_recurring_category_id', data.category_id);

@@ -84,28 +84,24 @@ class Bill(db.Model):
     dueDate = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    # NOVO CAMPO: Para rastrear se esta conta veio de uma transação recorrente
-    recurring_transaction_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True)
-    # NOVO CAMPO: Para rastrear o número da parcela (se aplicável)
+    recurring_transaction_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True) 
     installment_number = db.Column(db.Integer, nullable=True) 
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
-# NOVO MODELO: Transação Recorrente (MODIFICADO para parcelamento)
 class RecurringTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
-    frequency = db.Column(db.String(20), nullable=False) # 'monthly', 'weekly', 'yearly', 'installments'
-    start_date = db.Column(db.String(10), nullable=False) # Data de início
-    next_due_date = db.Column(db.String(10), nullable=False) # Próxima data para gerar a transação
-    is_active = db.Column(db.Boolean, default=True, nullable=False) # Ativa ou desativa
+    type = db.Column(db.String(10), nullable=False)
+    frequency = db.Column(db.String(20), nullable=False)
+    start_date = db.Column(db.String(10), nullable=False)
+    next_due_date = db.Column(db.String(10), nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
     
-    # NOVOS CAMPOS PARA PARCELAMENTO
-    installments_total = db.Column(db.Integer, nullable=True, default=0) # Total de parcelas (0 para indefinido/não-parcelado)
-    installments_generated = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram geradas como Bill/Transaction
+    installments_total = db.Column(db.Integer, nullable=True, default=0)
+    installments_generated = db.Column(db.Integer, nullable=True, default=0)
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
@@ -128,13 +124,11 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
-# MODIFICADA: Adicionar Transação Recorrente com campos de parcelamento
 def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None, installments_total=0):
-    # Garante que installments_total seja pelo menos 1 se for 'installments', ou 0 se não for.
     if frequency == 'installments' and (installments_total is None or installments_total < 1):
-        installments_total = 1 # Garante pelo menos 1 parcela se a frequência for 'installments'
+        installments_total = 1
     elif frequency != 'installments':
-        installments_total = 0 # Não é parcelado
+        installments_total = 0
 
     new_recurring_transaction = RecurringTransaction(
         description=description,
@@ -142,12 +136,12 @@ def add_recurring_transaction_db(description, amount, type, frequency, start_dat
         type=type,
         frequency=frequency,
         start_date=start_date,
-        next_due_date=start_date, # A primeira next_due_date é a start_date
+        next_due_date=start_date,
         is_active=True,
         user_id=user_id,
         category_id=category_id,
         installments_total=installments_total,
-        installments_generated=0 # Começa com 0 parcelas geradas
+        installments_generated=0
     )
     db.session.add(new_recurring_transaction)
     db.session.commit()
@@ -155,7 +149,6 @@ def add_recurring_transaction_db(description, amount, type, frequency, start_dat
 def get_recurring_transactions_db(user_id):
     return RecurringTransaction.query.filter_by(user_id=user_id).all()
 
-# MODIFICADA: Edita Transação Recorrente com campos de parcelamento
 def edit_recurring_transaction_db(recurring_id, description, amount, type, frequency, start_date, user_id, category_id=None, is_active=True, installments_total=0):
     recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
     if recurring_trans:
@@ -167,7 +160,6 @@ def edit_recurring_transaction_db(recurring_id, description, amount, type, frequ
         recurring_trans.category_id = category_id
         recurring_trans.is_active = is_active
         
-        # Garante que installments_total seja consistente com a frequência
         if frequency == 'installments' and (installments_total is None or installments_total < 1):
             recurring_trans.installments_total = 1
         elif frequency != 'installments':
@@ -175,7 +167,6 @@ def edit_recurring_transaction_db(recurring_id, description, amount, type, frequ
         else:
             recurring_trans.installments_total = installments_total
 
-        # Não resetamos installments_generated aqui, ele é controlado pela geração
         db.session.commit()
         return True
     return False
@@ -189,114 +180,6 @@ def delete_recurring_transaction_db(recurring_id, user_id):
     return False
 
 
-# FUNÇÃO PRINCIPAL: Processa Transações Recorrentes e Gera Contas/Transações
-# MELHORADA PARA CALCULAR A PRÓXIMA DATA E GERAR MULTIPLAS INSTÂNCIAS SE NECESSÁRIO
-def process_due_recurring_transactions(user_id):
-    today = datetime.date.today()
-    bills_generated_count = 0
-    transactions_generated_count = 0
-
-    recurring_transactions = RecurringTransaction.query.filter_by(user_id=user_id, is_active=True).all()
-    
-    for rec_trans in recurring_transactions:
-        next_due_date_dt = datetime.datetime.strptime(rec_trans.next_due_date, '%Y-%m-%d').date()
-
-        # Continua gerando enquanto a próxima data de vencimento for hoje ou no passado
-        # e a recorrência ainda estiver ativa (para parceladas, verifica total gerado)
-        while next_due_date_dt <= today and rec_trans.is_active:
-            
-            # Condição para transações parceladas:
-            if rec_trans.frequency == 'installments':
-                if (rec_trans.installments_generated or 0) < rec_trans.installments_total:
-                    # Verifica se a conta para esta parcela e data já foi gerada
-                    existing_bill = Bill.query.filter_by(
-                        recurring_transaction_origin_id=rec_trans.id,
-                        dueDate=next_due_date_dt.isoformat(),
-                        installment_number=(rec_trans.installments_generated or 0) + 1,
-                        user_id=user_id
-                    ).first()
-
-                    if not existing_bill:
-                        installment_number = (rec_trans.installments_generated or 0) + 1
-                        bill_description = f"{rec_trans.description} (Parcela {installment_number}/{rec_trans.installments_total})"
-                        
-                        new_bill = Bill(
-                            description=bill_description,
-                            amount=rec_trans.amount,
-                            dueDate=next_due_date_dt.isoformat(),
-                            status='pending',
-                            user_id=rec_trans.user_id,
-                            recurring_transaction_origin_id=rec_trans.id,
-                            installment_number=installment_number # Salva o número da parcela
-                        )
-                        db.session.add(new_bill)
-                        bills_generated_count += 1
-                        print(f"Gerada conta: {bill_description} para {next_due_date_dt}")
-                    else:
-                        print(f"Conta já existente para {rec_trans.description} parcela {existing_bill.installment_number} em {next_due_date_dt}, pulando.")
-                    
-                    rec_trans.installments_generated = (rec_trans.installments_generated or 0) + 1
-                    
-                    if rec_trans.installments_generated >= rec_trans.installments_total:
-                        rec_trans.is_active = False # Desativa a recorrência se todas as parcelas foram geradas
-                else: # Já gerou todas as parcelas, então desativa a recorrência
-                    rec_trans.is_active = False
-            
-            # Condição para outras frequências (mensal, semanal, anual)
-            else: 
-                # Verifica se a transação para esta data já foi gerada (para evitar duplicatas)
-                existing_transaction = Transaction.query.filter_by(
-                    description=rec_trans.description, # Simplificado para descrição e data
-                    date=next_due_date_dt.isoformat(),
-                    user_id=user_id
-                ).first()
-
-                if not existing_transaction:
-                    if rec_trans.type == 'income': # Gera Transação comum para receita
-                        add_transaction_db(
-                            description=rec_trans.description,
-                            amount=rec_trans.amount,
-                            date=next_due_date_dt.isoformat(),
-                            type=rec_trans.type,
-                            user_id=rec_trans.user_id,
-                            category_id=rec_trans.category_id
-                        )
-                        transactions_generated_count += 1
-                        print(f"Gerada receita: {rec_trans.description} para {next_due_date_dt}")
-                    elif rec_trans.type == 'expense': # Gera Bill para despesas não-parceladas
-                         new_bill = Bill(
-                            description=rec_trans.description,
-                            amount=rec_trans.amount,
-                            dueDate=next_due_date_dt.isoformat(),
-                            status='pending',
-                            user_id=rec_trans.user_id,
-                            is_recurring_generated=True, # Marca como gerada de recorrente
-                            recurring_source_id=rec_trans.id
-                        )
-                         db.session.add(new_bill)
-                         bills_generated_count += 1
-                         print(f"Gerada conta fixa: {rec_trans.description} para {next_due_date_dt}")
-                else:
-                    print(f"Transação já existente para {rec_trans.description} em {next_due_date_dt}, pulando.")
-            
-            # Calcula a próxima next_due_date
-            if rec_trans.is_active: # Só avança a data se a recorrência ainda estiver ativa
-                if rec_trans.frequency == 'monthly' or rec_trans.frequency == 'installments':
-                    next_due_date_dt += relativedelta(months=1)
-                elif rec_trans.frequency == 'weekly':
-                    next_due_date_dt += relativedelta(weeks=1)
-                elif rec_trans.frequency == 'yearly':
-                    next_due_date_dt += relativedelta(years=1)
-                rec_trans.next_due_date = next_due_date_dt.isoformat()
-            
-            db.session.add(rec_trans) # Salva o estado atualizado da recorrência
-            db.session.commit() # Comita as alterações
-
-    if bills_generated_count > 0 or transactions_generated_count > 0:
-        flash(f"{bills_generated_count} novas contas e {transactions_generated_count} transações geradas automaticamente!", 'info')
-
-
-# MODIFICADA: pay_bill_db para lidar com contas originadas de recorrentes (parceladas)
 def pay_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
@@ -837,10 +720,10 @@ def get_chart_data():
 # ROTA: Página de Transações Recorrentes
 @app.route('/recurring_transactions')
 @login_required
-def recurring_transactions(): # Endpoint é 'recurring_transactions'
+def recurring_transactions():
     # Processa as transações recorrentes do usuário ANTES de carregar a página
     # para garantir que as contas/transações sejam geradas antes de exibir a lista
-    process_due_recurring_transactions(current_user.id) # Chamado aqui também!
+    process_due_recurring_transactions(current_user.id) 
 
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
     recurring_items = get_recurring_transactions_db(current_user.id)
