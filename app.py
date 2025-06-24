@@ -37,6 +37,8 @@ class User(UserMixin, db.Model):
     
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
+    recurring_transactions = db.relationship('RecurringTransaction', backref='user', lazy=True, cascade='all, delete-orphan')
+
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -57,6 +59,7 @@ class Category(db.Model):
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
+    recurring_transactions = db.relationship('RecurringTransaction', backref='category', lazy=True)
 
     def __repr__(self):
         return f"<Category {self.name} ({self.type})>"
@@ -84,6 +87,23 @@ class Bill(db.Model):
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
+class RecurringTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    description = db.Column(db.String(200), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
+    frequency = db.Column(db.String(20), nullable=False) # 'monthly', 'weekly', 'yearly'
+    start_date = db.Column(db.String(10), nullable=False) # Data de início
+    next_due_date = db.Column(db.String(10), nullable=False) # Próxima data para gerar a transação
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # Ativa ou desativa
+    
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+
+    def __repr__(self):
+        return f"<RecurringTransaction {self.description} - {self.frequency}>"
+
+
 # --- Funções de Lógica de Negócios ---
 
 def add_transaction_db(description, amount, date, type, user_id, category_id=None):
@@ -98,16 +118,48 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
-def add_bill_db(description, amount, due_date, user_id):
-    new_bill = Bill(
+def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None):
+    new_recurring_transaction = RecurringTransaction(
         description=description,
         amount=float(amount),
-        dueDate=due_date,
-        status='pending',
-        user_id=user_id
+        type=type,
+        frequency=frequency,
+        start_date=start_date,
+        next_due_date=start_date, # A primeira data de vencimento é a data de início
+        is_active=True,
+        user_id=user_id,
+        category_id=category_id
     )
-    db.session.add(new_bill)
+    db.session.add(new_recurring_transaction)
     db.session.commit()
+
+def get_recurring_transactions_db(user_id):
+    return RecurringTransaction.query.filter_by(user_id=user_id).all()
+
+# NOVO: Função para editar Transação Recorrente
+def edit_recurring_transaction_db(recurring_id, description, amount, type, frequency, start_date, user_id, category_id=None, is_active=True):
+    recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
+    if recurring_trans:
+        recurring_trans.description = description
+        recurring_trans.amount = float(amount)
+        recurring_trans.type = type
+        recurring_trans.frequency = frequency
+        recurring_trans.start_date = start_date
+        recurring_trans.category_id = category_id
+        recurring_trans.is_active = is_active
+        db.session.commit()
+        return True
+    return False
+
+# NOVO: Função para deletar Transação Recorrente
+def delete_recurring_transaction_db(recurring_id, user_id):
+    recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
+    if recurring_trans:
+        db.session.delete(recurring_trans)
+        db.session.commit()
+        return True
+    return False
+
 
 def pay_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
@@ -281,6 +333,9 @@ def index():
 
     # Obtém todas as categorias e as formata para serem JSON-serializáveis
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
+    
+    # NÃO PASSA MAIS recurring_transactions para o index.html, pois terá sua própria página
+
 
     return render_template(
         'index.html',
@@ -514,7 +569,6 @@ def delete_account():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# MODIFICADO: Rota para obter resumo mensal no perfil
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -526,13 +580,11 @@ def get_monthly_summary():
         year = current_date.year
         month = current_date.month
 
-    # NOVO: Filtra transações usando comparação de string para ano e mês
-    # É mais robusto para datas armazenadas como TEXT em SQLite (YYYY-MM-DD)
-    target_month_str = f"{year}-{month:02d}" # Garante 'YYYY-MM' com zero à esquerda para meses < 10
+    target_month_str = f"{year}-{month:02d}"
 
     monthly_transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
-        Transaction.date.like(f"{target_month_str}-%") # Usa LIKE para filtrar por 'YYYY-MM-%'
+        Transaction.date.like(f"{target_month_str}-%")
     ).all()
 
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
@@ -586,7 +638,6 @@ def update_profile_picture():
     flash('Foto de perfil atualizada com sucesso!', 'success')
     return redirect(url_for('profile'))
 
-# MODIFICADO: Rota para obter dados para os gráficos
 @app.route('/get_chart_data', methods=['GET'])
 @login_required
 def get_chart_data():
@@ -608,7 +659,6 @@ def get_chart_data():
         month_name = datetime.date(target_year, target_month, 1).strftime('%b/%Y')
         month_labels.append(month_name)
         
-        # NOVO: Filtra transações usando comparação de string para ano e mês (para o gráfico de barras)
         target_month_str = f"{target_year}-{target_month:02d}"
         transactions_in_month = Transaction.query.filter(
             Transaction.user_id == user_id,
@@ -626,11 +676,10 @@ def get_chart_data():
 
     expenses_by_category = {}
     
-    # NOVO: Filtra transações usando comparação de string para ano (para o gráfico de pizza)
     current_year_str = str(today.year)
     current_year_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
-        Transaction.date.like(f"{current_year_str}-%"), # Filtra por 'YYYY-%'
+        Transaction.date.like(f"{current_year_str}-%"),
         Transaction.type == 'expense'
     ).all()
 
@@ -648,6 +697,65 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
+# --- NOVA ROTA: Página de Transações Recorrentes ---
+@app.route('/recurring_transactions')
+@login_required
+def recurring_transactions_page():
+    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
+    recurring_transactions = get_recurring_transactions_db(current_user.id)
+    return render_template(
+        'recurring_transactions.html',
+        all_categories=all_categories_formatted,
+        recurring_transactions=recurring_transactions,
+        current_date=datetime.date.today().isoformat(),
+        current_user=current_user # Passa o usuário atual para o template
+    )
+
+# NOVA ROTA: Obter dados de uma transação recorrente para edição
+@app.route('/get_recurring_transaction_data/<int:recurring_id>', methods=['GET'])
+@login_required
+def get_recurring_transaction_data(recurring_id):
+    recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=current_user.id).first()
+    if recurring_trans:
+        return jsonify({
+            'id': recurring_trans.id,
+            'description': recurring_trans.description,
+            'amount': recurring_trans.amount,
+            'type': recurring_trans.type,
+            'frequency': recurring_trans.frequency,
+            'start_date': recurring_trans.start_date,
+            'category_id': recurring_trans.category_id,
+            'is_active': recurring_trans.is_active
+        })
+    return jsonify({'error': 'Transação recorrente não encontrada ou não pertence a este usuário'}), 404
+
+# NOVA ROTA: Salvar edições de uma transação recorrente
+@app.route('/edit_recurring_transaction/<int:recurring_id>', methods=['POST'])
+@login_required
+def handle_edit_recurring_transaction(recurring_id):
+    description = request.form['edit_recurring_description']
+    amount = request.form['edit_recurring_amount']
+    trans_type = request.form['edit_recurring_type']
+    frequency = request.form['edit_recurring_frequency']
+    start_date = request.form['edit_recurring_start_date']
+    category_id = request.form.get('edit_recurring_category_id', type=int)
+    is_active = request.form.get('edit_recurring_is_active') == 'on' # Checkbox retorna 'on' ou None
+
+    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
+        flash('Transação recorrente atualizada com sucesso!', 'success')
+    else:
+        flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('recurring_transactions_page'))
+
+# NOVA ROTA: Excluir Transação Recorrente
+@app.route('/delete_recurring_transaction/<int:recurring_id>', methods=['POST'])
+@login_required
+def handle_delete_recurring_transaction(recurring_id):
+    if delete_recurring_transaction_db(recurring_id, current_user.id):
+        flash('Transação recorrente excluída com sucesso!', 'info')
+    else:
+        flash('Não foi possível excluir a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('recurring_transactions_page'))
 
 if __name__ == '__main__':
     with app.app_context():
@@ -675,13 +783,43 @@ if __name__ == '__main__':
             db.session.commit()
             print("Usuário 'admin' criado com senha 'admin123'.")
 
-        if not Bill.query.first() and User.query.first():
+        if User.query.first():
             first_user = User.query.first()
-            if first_user:
+            
+            if not Bill.query.filter_by(user_id=first_user.id).first():
                 db.session.add(Bill(description='Aluguel', amount=1200.00, dueDate='2025-07-25', status='pending', user_id=first_user.id))
                 db.session.add(Bill(description='Energia Elétrica', amount=280.50, dueDate='2025-07-20', status='pending', user_id=first_user.id))
                 db.session.add(Bill(description='Internet', amount=99.90, dueDate='2025-01-15', status='pending', user_id=first_user.id))
                 db.session.commit()
+
+            if not RecurringTransaction.query.filter_by(user_id=first_user.id).first():
+                salario_category = Category.query.filter_by(name='Salário', type='income').first()
+                alimentacao_category = Category.query.filter_by(name='Alimentação', type='expense').first()
+
+                db.session.add(RecurringTransaction(
+                    description='Salário Mensal',
+                    amount=3000.00,
+                    type='income',
+                    frequency='monthly',
+                    start_date='2025-01-01',
+                    next_due_date='2025-07-01',
+                    is_active=True,
+                    user_id=first_user.id,
+                    category_id=salario_category.id if salario_category else None
+                ))
+                db.session.add(RecurringTransaction(
+                    description='Assinatura Streaming',
+                    amount=49.90,
+                    type='expense',
+                    frequency='monthly',
+                    start_date='2025-01-10',
+                    next_due_date='2025-07-10',
+                    is_active=True,
+                    user_id=first_user.id,
+                    category_id=alimentacao_category.id if alimentacao_category else None # Exemplo, ajuste para uma categoria de "Assinaturas" se criada
+                ))
+                db.session.commit()
+                print("Transações recorrentes de exemplo adicionadas.")
 
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
