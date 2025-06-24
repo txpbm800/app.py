@@ -356,13 +356,24 @@
         // Função para renderizar um gráfico específico
         function renderChart(canvasId, chartType, chartData, chartTitle) {
             const ctx = document.getElementById(canvasId);
-            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty')); // Pega a mensagem de vazio associada
-
+            // Mensagem de vazio associada (se existir)
+            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty')); 
+            
             // Verifica se há dados válidos para o gráfico
             const hasData = (chartData.labels && chartData.labels.length > 0 && 
                               (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
 
             if (ctx) { // Verifica se o canvas existe
+                // Destruir instância existente se houver (para evitar duplicidade)
+                let chartInstanceToDestroy;
+                if (canvasId === 'monthlyOverviewChart') chartInstanceToDestroy = monthlyOverviewChartInstance;
+                else if (canvasId === 'expensesByCategoryChart') chartInstanceToDestroy = expensesByCategoryChartInstance;
+                else if (canvasId === 'amplifiedChart') chartInstanceToDestroy = amplifiedChartInstance;
+
+                if (chartInstanceToDestroy) {
+                    chartInstanceToDestroy.destroy();
+                }
+
                 if (hasData) {
                     // Esconde a mensagem de vazio e mostra o canvas
                     if (emptyMessageEl) emptyMessageEl.classList.add('hidden');
@@ -373,7 +384,7 @@
                         chartConfig = {
                             type: 'bar',
                             data: {
-                                labels: chartData.labels,
+                                labels: chartData.labels, // Nomes dos meses
                                 datasets: [
                                     {
                                         label: 'Receitas',
@@ -417,9 +428,9 @@
                         const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
                         
                         chartConfig = {
-                            type: 'doughnut',
+                            type: 'doughnut', // Pode ser 'pie' ou 'doughnut'
                             data: {
-                                labels: chartData.labels,
+                                labels: chartData.labels, // Nomes das categorias
                                 datasets: [{
                                     data: chartData.values,
                                     backgroundColor: backgroundColors.slice(0, chartData.labels.length),
@@ -453,16 +464,6 @@
                         };
                     }
                     
-                    // Destruir instância existente se houver
-                    let chartInstance;
-                    if (canvasId === 'monthlyOverviewChart') chartInstance = monthlyOverviewChartInstance;
-                    else if (canvasId === 'expensesByCategoryChart') chartInstance = expensesByCategoryChartInstance;
-                    else if (canvasId === 'amplifiedChart') chartInstance = amplifiedChartInstance;
-
-                    if (chartInstance) {
-                        chartInstance.destroy();
-                    }
-
                     // Criar nova instância do gráfico
                     const newChartInstance = new Chart(ctx.getContext('2d'), chartConfig);
 
@@ -502,7 +503,19 @@
             // Pequeno atraso para garantir que o modal esteja visível e o canvas tenha dimensões
             // antes de tentar renderizar o gráfico. Isso é crucial para o Chart.js.
             setTimeout(() => {
+                // Seleciona o canvas do modal
+                const amplifiedCanvas = document.getElementById('amplifiedChart');
+                // Adiciona temporariamente altura e largura para forçar o redimensionamento
+                amplifiedCanvas.style.width = '100%';
+                amplifiedCanvas.style.height = '100%';
+                
                 renderChart('amplifiedChart', chartType, chartData, chartTitle);
+
+                // Chama resize e update para forçar o Chart.js a redesenhar corretamente
+                if (amplifiedChartInstance) {
+                    amplifiedChartInstance.resize();
+                    amplifiedChartInstance.update();
+                }
             }, 100); // 100ms de atraso
         }
 
@@ -512,6 +525,12 @@
             if (amplifiedChartInstance) {
                 amplifiedChartInstance.destroy(); // Destroi a instância do gráfico do modal
                 amplifiedChartInstance = null;
+            }
+            // Opcional: Limpar o canvas ou redefinir estilos se necessário
+            const amplifiedCanvas = document.getElementById('amplifiedChart');
+            if (amplifiedCanvas) {
+                amplifiedCanvas.style.width = '';
+                amplifiedCanvas.style.height = '';
             }
         }
 
