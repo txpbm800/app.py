@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-import google.generativeai as genai # Mantido para funcionalidades futuras de IA no perfil
+import google.generativeai as genai
 
 app = Flask(__name__)
 
@@ -215,12 +215,10 @@ def index():
     # --- FILTRAGEM E ORDENAÇÃO PARA TRANSAÇÕES ---
     transactions_query = Transaction.query.filter_by(user_id=current_user.id)
 
-    # Filtro por tipo de transação
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
         transactions_query = transactions_query.filter_by(type=transaction_type_filter)
 
-    # Filtro por período de data
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     if start_date:
@@ -228,12 +226,10 @@ def index():
     if end_date:
         transactions_query = transactions_query.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date, db.Date))
 
-    # Filtro por Categoria
     category_filter_id = request.args.get('category_filter', type=int)
     if category_filter_id:
         transactions_query = transactions_query.filter_by(category_id=category_filter_id)
 
-    # Ordenação de transações
     sort_by_transactions = request.args.get('sort_by_transactions', 'date')
     order_transactions = request.args.get('order_transactions', 'desc')
 
@@ -284,7 +280,6 @@ def index():
     filtered_bills = bills_query.all()
 
     # Obtém todas as categorias e as formata para serem JSON-serializáveis
-    # CONVERSÃO PARA LISTA DE TUPLAS: (id, type, name)
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
 
     return render_template(
@@ -304,7 +299,7 @@ def index():
         current_order_bills=order_bills,
         current_start_date=start_date,
         current_end_date=end_date,
-        all_categories=all_categories_formatted, # MODIFICADO: passa a lista formatada
+        all_categories=all_categories_formatted,
         current_category_filter=category_filter_id
     )
 
@@ -519,6 +514,7 @@ def delete_account():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
+# MODIFICADO: Rota para obter resumo mensal no perfil
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -530,13 +526,14 @@ def get_monthly_summary():
         year = current_date.year
         month = current_date.month
 
-    # Filtragem mais robusta por data e usuário diretamente no SQLAlchemy
+    # NOVO: Filtra transações usando comparação de string para ano e mês
+    # É mais robusto para datas armazenadas como TEXT em SQLite (YYYY-MM-DD)
+    target_month_str = f"{year}-{month:02d}" # Garante 'YYYY-MM' com zero à esquerda para meses < 10
+
     monthly_transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
-        db.extract('year', db.cast(Transaction.date, db.Date)) == year,
-        db.extract('month', db.cast(Transaction.date, db.Date)) == month
+        Transaction.date.like(f"{target_month_str}-%") # Usa LIKE para filtrar por 'YYYY-MM-%'
     ).all()
-
 
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
     monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
@@ -589,12 +586,73 @@ def update_profile_picture():
     flash('Foto de perfil atualizada com sucesso!', 'success')
     return redirect(url_for('profile'))
 
+# MODIFICADO: Rota para obter dados para os gráficos
+@app.route('/get_chart_data', methods=['GET'])
+@login_required
+def get_chart_data():
+    user_id = current_user.id
+    
+    today = datetime.date.today()
+    
+    month_labels = []
+    monthly_income_data = {}
+    monthly_expenses_data = {}
+
+    for i in range(6, -1, -1): # Últimos 7 meses (mês atual + 6 anteriores)
+        target_month = today.month - i
+        target_year = today.year
+        while target_month <= 0:
+            target_month += 12
+            target_year -= 1
+        
+        month_name = datetime.date(target_year, target_month, 1).strftime('%b/%Y')
+        month_labels.append(month_name)
+        
+        # NOVO: Filtra transações usando comparação de string para ano e mês (para o gráfico de barras)
+        target_month_str = f"{target_year}-{target_month:02d}"
+        transactions_in_month = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.date.like(f"{target_month_str}-%")
+        ).all()
+        
+        monthly_income_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'income')
+        monthly_expenses_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'expense')
+
+    monthly_overview_chart_data = {
+        'labels': month_labels,
+        'income': [monthly_income_data[m] for m in month_labels],
+        'expenses': [monthly_expenses_data[m] for m in month_labels]
+    }
+
+    expenses_by_category = {}
+    
+    # NOVO: Filtra transações usando comparação de string para ano (para o gráfico de pizza)
+    current_year_str = str(today.year)
+    current_year_transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date.like(f"{current_year_str}-%"), # Filtra por 'YYYY-%'
+        Transaction.type == 'expense'
+    ).all()
+
+    for transaction in current_year_transactions:
+        category_name = transaction.category.name if transaction.category else 'Sem Categoria'
+        expenses_by_category[category_name] = expenses_by_category.get(category_name, 0) + transaction.amount
+
+    expenses_by_category_chart_data = {
+        'labels': list(expenses_by_category.keys()),
+        'values': list(expenses_by_category.values())
+    }
+
+    return jsonify({
+        'monthly_summary': monthly_overview_chart_data,
+        'expenses_by_category': expenses_by_category_chart_data
+    })
+
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all() # Isso criará a nova tabela Category e atualizará Transaction
+        db.create_all()
         
-        # Adiciona categorias padrão se o banco estiver vazio
         if not Category.query.first():
             db.session.add(Category(name='Salário', type='income'))
             db.session.add(Category(name='Freelance', type='income'))
