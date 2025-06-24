@@ -169,7 +169,7 @@
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Visão Geral de Receitas e Despesas</h3>
                 {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal(monthlyOverviewChartInstance.config.type, monthlyOverviewChartInstance.data, 'Visão Geral de Receitas e Despesas')">
+                <div class="chart-container cursor-pointer" onclick="openChartModal('monthlyOverviewChart')"> {# Simplificado para passar apenas o ID #}
                     <canvas id="monthlyOverviewChart"></canvas>
                     <p id="monthlyOverviewEmpty" class="chart-empty-message hidden">
                         Adicione transações para ver o gráfico de Visão Geral Mensal.
@@ -179,7 +179,7 @@
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Despesas por Categoria (Ano Atual)</h3>
                 {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal(expensesByCategoryChartInstance.config.type, expensesByCategoryChartInstance.data, 'Despesas por Categoria (Ano Atual)')">
+                <div class="chart-container cursor-pointer" onclick="openChartModal('expensesByCategoryChart')"> {# Simplificado para passar apenas o ID #}
                     <canvas id="expensesByCategoryChart"></canvas>
                     <p id="expensesByCategoryEmpty" class="chart-empty-message hidden">
                         Adicione despesas categorizadas para ver este gráfico.
@@ -496,27 +496,48 @@
         const chartModalTitle = document.getElementById('chart-modal-title');
         
         // MUDANÇA AQUI: openChartModal agora aceita chartType, chartData e chartTitle diretamente
-        function openChartModal(chartType, chartData, chartTitle) {
-            chartModal.classList.add('active'); // Mostra o modal (visibility: visible, opacity: 1)
+        function openChartModal(chartId) { // Recebe o ID do canvas original
+            let chartType, chartData, chartTitle;
+
+            // Determina qual gráfico foi clicado e obtém seus dados e tipo do globalChartRawData
+            if (chartId === 'monthlyOverviewChart' && globalChartRawData) {
+                chartType = 'bar';
+                chartData = globalChartRawData.monthly_summary;
+                chartTitle = 'Visão Geral de Receitas e Despesas';
+            } else if (chartId === 'expensesByCategoryChart' && globalChartRawData) {
+                chartType = 'doughnut';
+                chartData = globalChartRawData.expenses_by_category;
+                chartTitle = 'Despesas por Categoria (Ano Atual)';
+            } else {
+                console.error("Dados do gráfico não disponíveis para ampliação.");
+                return;
+            }
+
+            chartModal.classList.add('active'); // Mostra o modal
             chartModalTitle.textContent = chartTitle; // Define o título do modal
 
-            // Pequeno atraso para garantir que o modal esteja visível e o canvas tenha dimensões
-            // antes de tentar renderizar o gráfico. Isso é crucial para o Chart.js.
-            setTimeout(() => {
-                // Seleciona o canvas do modal
-                const amplifiedCanvas = document.getElementById('amplifiedChart');
-                // Adiciona temporariamente altura e largura para forçar o redimensionamento
-                amplifiedCanvas.style.width = '100%';
-                amplifiedCanvas.style.height = '100%';
-                
-                renderChart('amplifiedChart', chartType, chartData, chartTitle);
+            // Destruir instância anterior do gráfico ampliado (se houver)
+            if (amplifiedChartInstance) {
+                amplifiedChartInstance.destroy();
+                amplifiedChartInstance = null;
+            }
 
-                // Chama resize e update para forçar o Chart.js a redesenhar corretamente
-                if (amplifiedChartInstance) {
-                    amplifiedChartInstance.resize();
-                    amplifiedChartInstance.update();
-                }
-            }, 100); // 100ms de atraso
+            // Remova e recrie o canvas para garantir que o Chart.js o redesenhe corretamente
+            const oldCanvas = document.getElementById('amplifiedChart');
+            const parentDiv = oldCanvas.parentNode;
+            oldCanvas.remove(); // Remove o canvas antigo
+            const newCanvas = document.createElement('canvas'); // Cria um novo canvas
+            newCanvas.id = 'amplifiedChart'; // Atribui o mesmo ID
+            parentDiv.appendChild(newCanvas); // Adiciona o novo canvas ao DOM
+
+            // Renderiza o gráfico ampliado dentro do modal com um pequeno atraso
+            setTimeout(() => {
+                renderChart('amplifiedChart', chartType, chartData, chartTitle);
+            }, 50); // Atraso reduzido para 50ms para tentar um carregamento mais rápido
+
+            // Opcional: Garante que a mensagem de vazio do modal esteja escondida ao abrir
+            const amplifiedEmpty = document.getElementById('amplifiedChartEmpty');
+            if (amplifiedEmpty) amplifiedEmpty.classList.add('hidden');
         }
 
         // Fecha o modal de gráfico
@@ -526,12 +547,7 @@
                 amplifiedChartInstance.destroy(); // Destroi a instância do gráfico do modal
                 amplifiedChartInstance = null;
             }
-            // Opcional: Limpar o canvas ou redefinir estilos se necessário
-            const amplifiedCanvas = document.getElementById('amplifiedChart');
-            if (amplifiedCanvas) {
-                amplifiedCanvas.style.width = '';
-                amplifiedCanvas.style.height = '';
-            }
+            // Não precisamos mais resetar width/height manual aqui pois o canvas é recriado
         }
 
         // Fecha o modal ao clicar fora dele
