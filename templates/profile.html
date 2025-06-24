@@ -168,8 +168,8 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"> {# Alterado de grid-cols-1 para lg:grid-cols-2 #}
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Visão Geral de Receitas e Despesas</h3>
-                {# Adicionado onclick para abrir o modal #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal('monthlyOverviewChart', 'monthlyOverviewTitle')">
+                {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal(monthlyOverviewChartInstance.config.type, monthlyOverviewChartInstance.data, 'Visão Geral de Receitas e Despesas')">
                     <canvas id="monthlyOverviewChart"></canvas>
                     <p id="monthlyOverviewEmpty" class="chart-empty-message hidden">
                         Adicione transações para ver o gráfico de Visão Geral Mensal.
@@ -178,8 +178,8 @@
             </div>
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Despesas por Categoria (Ano Atual)</h3>
-                {# Adicionado onclick para abrir o modal #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal('expensesByCategoryChart', 'expensesByCategoryTitle')">
+                {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal(expensesByCategoryChartInstance.config.type, expensesByCategoryChartInstance.data, 'Despesas por Categoria (Ano Atual)')">
                     <canvas id="expensesByCategoryChart"></canvas>
                     <p id="expensesByCategoryEmpty" class="chart-empty-message hidden">
                         Adicione despesas categorizadas para ver este gráfico.
@@ -206,8 +206,13 @@
         <div class="modal-content-chart">
             <span class="close-button-chart" onclick="closeChartModal()">&times;</span>
             <h3 id="chart-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center"></h3>
-            <div style="width: 100%; height: calc(100% - 60px);"> {# Ajuste de altura para o canvas dentro do modal #}
+            {# O canvas dentro do modal precisa de um id único para o Chart.js #}
+            <div style="width: 100%; height: calc(100% - 60px);"> 
                 <canvas id="amplifiedChart"></canvas>
+                {# Adicione uma mensagem de vazio também para o modal, caso os dados estejam ausentes #}
+                <p id="amplifiedChartEmpty" class="chart-empty-message hidden">
+                    Não há dados para exibir neste gráfico.
+                </p>
             </div>
         </div>
     </div>
@@ -351,15 +356,16 @@
         // Função para renderizar um gráfico específico
         function renderChart(canvasId, chartType, chartData, chartTitle) {
             const ctx = document.getElementById(canvasId);
-            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty'));
+            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty')); // Pega a mensagem de vazio associada
 
             // Verifica se há dados válidos para o gráfico
             const hasData = (chartData.labels && chartData.labels.length > 0 && 
                               (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
 
-            if (ctx) {
+            if (ctx) { // Verifica se o canvas existe
                 if (hasData) {
-                    emptyMessageEl.classList.add('hidden');
+                    // Esconde a mensagem de vazio e mostra o canvas
+                    if (emptyMessageEl) emptyMessageEl.classList.add('hidden');
                     ctx.classList.remove('hidden');
 
                     let chartConfig = {};
@@ -465,8 +471,9 @@
                     else if (canvasId === 'amplifiedChart') amplifiedChartInstance = newChartInstance;
 
                 } else {
-                    ctx.classList.add('hidden'); // Esconde o canvas
-                    emptyMessageEl.classList.remove('hidden'); // Mostra a mensagem de vazio
+                    // Esconde o canvas e mostra a mensagem de vazio
+                    ctx.classList.add('hidden');
+                    if (emptyMessageEl) emptyMessageEl.classList.remove('hidden');
                 }
             }
         }
@@ -482,37 +489,21 @@
             renderChart('expensesByCategoryChart', 'doughnut', chartData.expenses_by_category, 'Despesas por Categoria (Ano Atual)');
         }
 
-        // --- NOVAS FUNÇÕES PARA O MODAL DE AMPLIAÇÃO DE GRÁFICO ---
+        // --- FUNÇÕES PARA O MODAL DE AMPLIAÇÃO DE GRÁFICO ---
 
         const chartModal = document.getElementById('chart-modal');
         const chartModalTitle = document.getElementById('chart-modal-title');
-        let currentAmplifiedChartType = null;
-        let currentAmplifiedChartData = null;
-        let currentAmplifiedChartTitle = null;
+        
+        // MUDANÇA AQUI: openChartModal agora aceita chartType, chartData e chartTitle diretamente
+        function openChartModal(chartType, chartData, chartTitle) {
+            chartModal.classList.add('active'); // Mostra o modal (visibility: visible, opacity: 1)
+            chartModalTitle.textContent = chartTitle; // Define o título do modal
 
-
-        // Abre o modal de gráfico
-        function openChartModal(originalCanvasId, originalTitleId) {
-            chartModal.classList.add('active'); // Mostra o modal
-
-            // Determina qual gráfico foi clicado e prepara os dados
-            if (originalCanvasId === 'monthlyOverviewChart' && globalChartRawData) {
-                currentAmplifiedChartType = 'bar';
-                currentAmplifiedChartData = globalChartRawData.monthly_summary;
-                currentAmplifiedChartTitle = 'Visão Geral de Receitas e Despesas';
-            } else if (originalCanvasId === 'expensesByCategoryChart' && globalChartRawData) {
-                currentAmplifiedChartType = 'doughnut';
-                currentAmplifiedChartData = globalChartRawData.expenses_by_category;
-                currentAmplifiedChartTitle = 'Despesas por Categoria (Ano Atual)';
-            } else {
-                console.error("Dados do gráfico não disponíveis para ampliação.");
-                return;
-            }
-
-            chartModalTitle.textContent = currentAmplifiedChartTitle;
-            
-            // Renderiza o gráfico ampliado dentro do modal
-            renderChart('amplifiedChart', currentAmplifiedChartType, currentAmplifiedChartData, currentAmplifiedChartTitle);
+            // Pequeno atraso para garantir que o modal esteja visível e o canvas tenha dimensões
+            // antes de tentar renderizar o gráfico. Isso é crucial para o Chart.js.
+            setTimeout(() => {
+                renderChart('amplifiedChart', chartType, chartData, chartTitle);
+            }, 100); // 100ms de atraso
         }
 
         // Fecha o modal de gráfico
