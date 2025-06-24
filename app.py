@@ -136,7 +136,6 @@ def add_recurring_transaction_db(description, amount, type, frequency, start_dat
 def get_recurring_transactions_db(user_id):
     return RecurringTransaction.query.filter_by(user_id=user_id).all()
 
-# NOVO: Função para editar Transação Recorrente
 def edit_recurring_transaction_db(recurring_id, description, amount, type, frequency, start_date, user_id, category_id=None, is_active=True):
     recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
     if recurring_trans:
@@ -151,7 +150,6 @@ def edit_recurring_transaction_db(recurring_id, description, amount, type, frequ
         return True
     return False
 
-# NOVO: Função para deletar Transação Recorrente
 def delete_recurring_transaction_db(recurring_id, user_id):
     recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
     if recurring_trans:
@@ -334,8 +332,6 @@ def index():
     # Obtém todas as categorias e as formata para serem JSON-serializáveis
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
     
-    # NÃO PASSA MAIS recurring_transactions para o index.html, pois terá sua própria página
-
 
     return render_template(
         'index.html',
@@ -708,10 +704,25 @@ def recurring_transactions_page():
         all_categories=all_categories_formatted,
         recurring_transactions=recurring_transactions,
         current_date=datetime.date.today().isoformat(),
-        current_user=current_user # Passa o usuário atual para o template
+        current_user=current_user
     )
 
-# NOVA ROTA: Obter dados de uma transação recorrente para edição
+# ROTA: Adicionar Transação Recorrente (agora aponta para a própria página de recorrentes)
+@app.route('/add_recurring_transaction', methods=['POST'])
+@login_required
+def handle_add_recurring_transaction():
+    description = request.form['recurring_description']
+    amount = request.form['recurring_amount']
+    transaction_type = request.form['recurring_type']
+    frequency = request.form['recurring_frequency']
+    start_date = request.form['recurring_start_date']
+    category_id = request.form.get('recurring_category_id', type=int)
+
+    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id)
+    flash('Transação recorrente adicionada com sucesso!', 'success')
+    return redirect(url_for('recurring_transactions_page')) # REDIRECIONAMENTO CORRIGIDO AQUI
+
+# ROTA: Obter dados de uma transação recorrente para edição
 @app.route('/get_recurring_transaction_data/<int:recurring_id>', methods=['GET'])
 @login_required
 def get_recurring_transaction_data(recurring_id):
@@ -729,7 +740,7 @@ def get_recurring_transaction_data(recurring_id):
         })
     return jsonify({'error': 'Transação recorrente não encontrada ou não pertence a este usuário'}), 404
 
-# NOVA ROTA: Salvar edições de uma transação recorrente
+# ROTA: Salvar edições de uma transação recorrente
 @app.route('/edit_recurring_transaction/<int:recurring_id>', methods=['POST'])
 @login_required
 def handle_edit_recurring_transaction(recurring_id):
@@ -739,7 +750,7 @@ def handle_edit_recurring_transaction(recurring_id):
     frequency = request.form['edit_recurring_frequency']
     start_date = request.form['edit_recurring_start_date']
     category_id = request.form.get('edit_recurring_category_id', type=int)
-    is_active = request.form.get('edit_recurring_is_active') == 'on' # Checkbox retorna 'on' ou None
+    is_active = request.form.get('edit_recurring_is_active') == 'on'
 
     if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
         flash('Transação recorrente atualizada com sucesso!', 'success')
@@ -747,7 +758,7 @@ def handle_edit_recurring_transaction(recurring_id):
         flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('recurring_transactions_page'))
 
-# NOVA ROTA: Excluir Transação Recorrente
+# ROTA: Excluir Transação Recorrente
 @app.route('/delete_recurring_transaction/<int:recurring_id>', methods=['POST'])
 @login_required
 def handle_delete_recurring_transaction(recurring_id):
@@ -816,7 +827,7 @@ if __name__ == '__main__':
                     next_due_date='2025-07-10',
                     is_active=True,
                     user_id=first_user.id,
-                    category_id=alimentacao_category.id if alimentacao_category else None # Exemplo, ajuste para uma categoria de "Assinaturas" se criada
+                    category_id=alimentacao_category.id if alimentacao_category else None
                 ))
                 db.session.commit()
                 print("Transações recorrentes de exemplo adicionadas.")
