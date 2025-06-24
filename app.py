@@ -122,7 +122,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         category_id=category_id
     )
     db.session.add(new_transaction)
-    db.session.commit()
+    # db.session.commit() # Comitaremos no final do processamento ou na rota principal
 
 # MODIFICADA: Adicionar Transação Recorrente com campos de parcelamento
 def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None, installments_total=0):
@@ -387,6 +387,7 @@ def process_due_recurring_transactions(user_id):
                             recurring_transaction_origin_id=rec_trans.id, # Link to recurring origin
                             installment_number=None # No installment number for non-installment
                         )
+                         # Adicione a Bill à sessão ANTES do commit, e não faça commit individualmente aqui
                         db.session.add(new_bill)
                         bills_generated_count += 1
                         print(f"  GERADA CONTA FIXA: {rec_trans.description} para {next_due_date_dt.isoformat()}") # Debug
@@ -420,12 +421,15 @@ def process_due_recurring_transactions(user_id):
             # Sempre avance a data dentro do loop 'while' para garantir que ele progrida.
             # A condição 'rec_trans.is_active' no 'while' loop já controla quando parar de processar mais.
             if rec_trans.is_active: # Só avança a data se a recorrência ainda estiver ativa ou acabou de ser gerada
+                # Usamos next_due_date_dt.day para manter o dia original da recorrência
+                # e next_due_date_dt.replace para mudar mês/ano.
+                # Se o dia do mês original for maior que os dias do próximo mês, relativedelta ajusta automaticamente.
                 if rec_trans.frequency == 'monthly' or rec_trans.frequency == 'installments':
-                    next_due_date_dt += relativedelta(months=1)
+                    next_due_date_dt = next_due_date_dt + relativedelta(months=1)
                 elif rec_trans.frequency == 'weekly':
                     next_due_date_dt += relativedelta(weeks=1)
                 elif rec_trans.frequency == 'yearly':
-                    next_due_date_dt += relativedelta(years=1)
+                    next_due_date_dt = next_due_date_dt + relativedelta(years=1)
                 rec_trans.next_due_date = next_due_date_dt.isoformat()
             else: # Se a recorrência foi desativada no loop (ex: todas as parcelas geradas), não avança mais a data
                 rec_trans.next_due_date = rec_trans.next_due_date # Mantém a última data (que desativou a recorrência)
@@ -456,7 +460,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         category_id=category_id
     )
     db.session.add(new_transaction)
-    db.session.commit() # Commit aqui para garantir que a transação é salva individualmente
+    db.session.commit()
 
 # MODIFICADA: Adicionar Transação Recorrente com campos de parcelamento
 def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None, installments_total=0):
@@ -549,6 +553,7 @@ def pay_bill_db(bill_id, user_id):
             rec_trans_origin = RecurringTransaction.query.get(bill.recurring_transaction_origin_id)
             if rec_trans_origin and rec_trans_origin.user_id == user_id:
                 # Chamamos process_due_recurring_transactions aqui para gerar a próxima ocorrência
+                # É importante ter certeza de que essa chamada não crie um loop infinito ou duplique coisas
                 print(f"Processando recorrências após pagamento da conta {bill.id} de origem {bill.recurring_transaction_origin_id}")
                 process_due_recurring_transactions(user_id) # Chama a função principal de processamento
         
@@ -1073,7 +1078,7 @@ def get_chart_data():
 # ROTA: Página de Transações Recorrentes
 @app.route('/recurring_transactions')
 @login_required
-def recurring_transactions(): # Endpoint é 'recurring_transactions'
+def recurring_transactions():
     # Processa as transações recorrentes do usuário ANTES de carregar a página
     # para garantir que as contas/transações sejam geradas antes de exibir a lista
     process_due_recurring_transactions(current_user.id) 
@@ -1098,8 +1103,10 @@ def handle_add_recurring_transaction():
     frequency = request.form['recurring_frequency']
     start_date = request.form['recurring_start_date']
     category_id = request.form.get('recurring_category_id', type=int)
+    # NOVO: Pega o total de parcelas
+    installments_total = request.form.get('recurring_installments_total', type=int) 
 
-    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id)
+    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id, installments_total)
     flash('Transação recorrente adicionada com sucesso!', 'success')
     return redirect(url_for('recurring_transactions'))
 
@@ -1117,7 +1124,8 @@ def get_recurring_transaction_data(recurring_id):
             'frequency': recurring_trans.frequency,
             'start_date': recurring_trans.start_date,
             'category_id': recurring_trans.category_id,
-            'is_active': recurring_trans.is_active
+            'is_active': recurring_trans.is_active,
+            'installments_total': recurring_trans.installments_total
         })
     return jsonify({'error': 'Transação recorrente não encontrada ou não pertence a este usuário'}), 404
 
@@ -1132,8 +1140,9 @@ def handle_edit_recurring_transaction(recurring_id):
     start_date = request.form['edit_recurring_start_date']
     category_id = request.form.get('edit_recurring_category_id', type=int)
     is_active = request.form.get('edit_recurring_is_active') == 'on'
+    installments_total = request.form.get('edit_recurring_installments_total', type=int)
 
-    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
+    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active, installments_total):
         flash('Transação recorrente atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
