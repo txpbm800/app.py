@@ -7,6 +7,8 @@
     <title>Perfil - Gestão Financeira Pessoal</title>
     <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- NOVO: Inclui Chart.js para visualização de dados -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
@@ -14,7 +16,7 @@
             background-color: #f7fafc;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start; /* Ajustado para alinhar no topo */
             min-height: 100vh;
             padding: 2rem; /* Adicionado padding para melhor visualização em telas pequenas */
         }
@@ -47,6 +49,67 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 1.5rem;
+        }
+        /* Contêiner responsivo para o canvas do gráfico */
+        .chart-container {
+            position: relative;
+            height: 300px; /* Altura fixa para o gráfico para garantir que não fique gigantesco */
+            width: 100%;
+        }
+        /* Estilo para o texto quando o gráfico está vazio */
+        .chart-empty-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #a0aec0; /* gray-400 */
+            font-size: 1.125rem; /* text-lg */
+            text-align: center;
+        }
+
+        /* Estilos para o modal de ampliação do gráfico */
+        .modal {
+            position: fixed;
+            z-index: 1050;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6); /* Fundo mais escuro */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+        .modal.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content-chart { /* Nome diferente para evitar conflito com modal de edição */
+            background-color: #fefefe;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 90%; /* Mais largo para o gráfico */
+            max-width: 900px; /* Máx. largura para desktop */
+            position: relative;
+            height: 80%; /* Altura um pouco maior para o gráfico */
+        }
+        .close-button-chart { /* Nome diferente */
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-button-chart:hover {
+            color: #333;
         }
     </style>
 </head>
@@ -101,8 +164,31 @@
             </div>
         </div>
 
+        {# SEÇÃO DE GRÁFICOS - AGORA NO PROFILE.HTML - ALTERADO PARA GRID DE 2 COLUNAS #}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"> {# Alterado de grid-cols-1 para lg:grid-cols-2 #}
+            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">Visão Geral de Receitas e Despesas</h3>
+                {# Adicionado onclick para abrir o modal #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal('monthlyOverviewChart', 'monthlyOverviewTitle')">
+                    <canvas id="monthlyOverviewChart"></canvas>
+                    <p id="monthlyOverviewEmpty" class="chart-empty-message hidden">
+                        Adicione transações para ver o gráfico de Visão Geral Mensal.
+                    </p>
+                </div>
+            </div>
+            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">Despesas por Categoria (Ano Atual)</h3>
+                {# Adicionado onclick para abrir o modal #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal('expensesByCategoryChart', 'expensesByCategoryTitle')">
+                    <canvas id="expensesByCategoryChart"></canvas>
+                    <p id="expensesByCategoryEmpty" class="chart-empty-message hidden">
+                        Adicione despesas categorizadas para ver este gráfico.
+                    </p>
+                </div>
+            </div>
+        </div>
 
-        <div class="space-y-4">
+        <div class="space-y-4 mt-8"> {# Adicionado mt-8 para espaçamento após os gráficos #}
             <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
             </a>
@@ -114,6 +200,18 @@
             </a>
         </div>
     </div>
+
+    <!-- Modal de Ampliação de Gráfico -->
+    <div id="chart-modal" class="modal">
+        <div class="modal-content-chart">
+            <span class="close-button-chart" onclick="closeChartModal()">&times;</span>
+            <h3 id="chart-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center"></h3>
+            <div style="width: 100%; height: calc(100% - 60px);"> {# Ajuste de altura para o canvas dentro do modal #}
+                <canvas id="amplifiedChart"></canvas>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         // Função para formatar moeda
@@ -131,6 +229,14 @@
             "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
         ];
+
+        // Gráficos globais para que possam ser destruídos e recriados
+        let monthlyOverviewChartInstance;
+        let expensesByCategoryChartInstance;
+        let amplifiedChartInstance; // Instância para o gráfico ampliado
+
+        // Variável global para armazenar os dados brutos dos gráficos
+        let globalChartRawData = null; 
 
         // Função para buscar e exibir o resumo mensal
         async function fetchMonthlySummary() {
@@ -224,10 +330,213 @@
             }
         }
 
+        // --- FUNÇÕES PARA GRÁFICOS ---
+
+        // Função para buscar dados do gráfico do backend
+        async function fetchChartData() {
+            try {
+                const response = await fetch('/get_chart_data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                globalChartRawData = data; // Armazena os dados brutos globalmente
+                return data;
+            } catch (error) {
+                console.error('Erro ao buscar dados do gráfico:', error);
+                return null;
+            }
+        }
+
+        // Função para renderizar um gráfico específico
+        function renderChart(canvasId, chartType, chartData, chartTitle) {
+            const ctx = document.getElementById(canvasId);
+            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty'));
+
+            // Verifica se há dados válidos para o gráfico
+            const hasData = (chartData.labels && chartData.labels.length > 0 && 
+                              (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
+
+            if (ctx) {
+                if (hasData) {
+                    emptyMessageEl.classList.add('hidden');
+                    ctx.classList.remove('hidden');
+
+                    let chartConfig = {};
+                    if (chartType === 'bar') {
+                        chartConfig = {
+                            type: 'bar',
+                            data: {
+                                labels: chartData.labels,
+                                datasets: [
+                                    {
+                                        label: 'Receitas',
+                                        data: chartData.income,
+                                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                                        borderColor: 'rgba(16, 185, 129, 1)',
+                                        borderWidth: 1
+                                    },
+                                    {
+                                        label: 'Despesas',
+                                        data: chartData.expenses,
+                                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
+                                        borderColor: 'rgba(239, 68, 68, 1)',
+                                        borderWidth: 1
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    y: {
+                                        beginAtZero: true
+                                    }
+                                },
+                                plugins: {
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    } else if (chartType === 'doughnut') {
+                        const backgroundColors = [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'
+                        ];
+                        const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
+                        
+                        chartConfig = {
+                            type: 'doughnut',
+                            data: {
+                                labels: chartData.labels,
+                                datasets: [{
+                                    data: chartData.values,
+                                    backgroundColor: backgroundColors.slice(0, chartData.labels.length),
+                                    borderColor: borderColors.slice(0, chartData.labels.length),
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'top',
+                                    },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(context) {
+                                                let label = context.label || '';
+                                                if (label) {
+                                                    label += ': ';
+                                                }
+                                                if (context.parsed !== null) {
+                                                    label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed);
+                                                }
+                                                return label;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    }
+                    
+                    // Destruir instância existente se houver
+                    let chartInstance;
+                    if (canvasId === 'monthlyOverviewChart') chartInstance = monthlyOverviewChartInstance;
+                    else if (canvasId === 'expensesByCategoryChart') chartInstance = expensesByCategoryChartInstance;
+                    else if (canvasId === 'amplifiedChart') chartInstance = amplifiedChartInstance;
+
+                    if (chartInstance) {
+                        chartInstance.destroy();
+                    }
+
+                    // Criar nova instância do gráfico
+                    const newChartInstance = new Chart(ctx.getContext('2d'), chartConfig);
+
+                    if (canvasId === 'monthlyOverviewChart') monthlyOverviewChartInstance = newChartInstance;
+                    else if (canvasId === 'expensesByCategoryChart') expensesByCategoryChartInstance = newChartInstance;
+                    else if (canvasId === 'amplifiedChart') amplifiedChartInstance = newChartInstance;
+
+                } else {
+                    ctx.classList.add('hidden'); // Esconde o canvas
+                    emptyMessageEl.classList.remove('hidden'); // Mostra a mensagem de vazio
+                }
+            }
+        }
+
+        // Função para carregar e renderizar todos os gráficos principais
+        async function fetchChartDataAndRender() {
+            const chartData = await fetchChartData();
+            if (!chartData) {
+                return;
+            }
+
+            renderChart('monthlyOverviewChart', 'bar', chartData.monthly_summary, 'Visão Geral de Receitas e Despesas');
+            renderChart('expensesByCategoryChart', 'doughnut', chartData.expenses_by_category, 'Despesas por Categoria (Ano Atual)');
+        }
+
+        // --- NOVAS FUNÇÕES PARA O MODAL DE AMPLIAÇÃO DE GRÁFICO ---
+
+        const chartModal = document.getElementById('chart-modal');
+        const chartModalTitle = document.getElementById('chart-modal-title');
+        let currentAmplifiedChartType = null;
+        let currentAmplifiedChartData = null;
+        let currentAmplifiedChartTitle = null;
+
+
+        // Abre o modal de gráfico
+        function openChartModal(originalCanvasId, originalTitleId) {
+            chartModal.classList.add('active'); // Mostra o modal
+
+            // Determina qual gráfico foi clicado e prepara os dados
+            if (originalCanvasId === 'monthlyOverviewChart' && globalChartRawData) {
+                currentAmplifiedChartType = 'bar';
+                currentAmplifiedChartData = globalChartRawData.monthly_summary;
+                currentAmplifiedChartTitle = 'Visão Geral de Receitas e Despesas';
+            } else if (originalCanvasId === 'expensesByCategoryChart' && globalChartRawData) {
+                currentAmplifiedChartType = 'doughnut';
+                currentAmplifiedChartData = globalChartRawData.expenses_by_category;
+                currentAmplifiedChartTitle = 'Despesas por Categoria (Ano Atual)';
+            } else {
+                console.error("Dados do gráfico não disponíveis para ampliação.");
+                return;
+            }
+
+            chartModalTitle.textContent = currentAmplifiedChartTitle;
+            
+            // Renderiza o gráfico ampliado dentro do modal
+            renderChart('amplifiedChart', currentAmplifiedChartType, currentAmplifiedChartData, currentAmplifiedChartTitle);
+        }
+
+        // Fecha o modal de gráfico
+        function closeChartModal() {
+            chartModal.classList.remove('active');
+            if (amplifiedChartInstance) {
+                amplifiedChartInstance.destroy(); // Destroi a instância do gráfico do modal
+                amplifiedChartInstance = null;
+            }
+        }
+
+        // Fecha o modal ao clicar fora dele
+        window.addEventListener('click', (event) => {
+            if (event.target == chartModal) {
+                closeChartModal();
+            }
+        });
+
+
         // Ao carregar a página
         document.addEventListener('DOMContentLoaded', () => {
             fetchMonthlySummary(); // Carrega o resumo do mês atual
-            
+            fetchChartDataAndRender(); // Carrega e renderiza os gráficos
+
             // Lógica para mensagens flash desaparecerem automaticamente
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
@@ -240,28 +549,12 @@
 
             // Lógica para carregar a imagem de perfil. Se a URL estiver vazia, usa placeholder.
             const profilePicElement = document.getElementById('profile-picture');
-            if (!profilePicElement.src || profilePicElement.src === window.location.origin + '/' || profilePicElement.src.startsWith('https://placehold.co/')) {
-                // Se a URL estiver vazia, ou for a URL base, ou for o placeholder, use o padrão
+            if (profilePicElement && (!profilePicElement.src || profilePicElement.src === window.location.origin + '/' || profilePicElement.src.startsWith('https://placehold.co/'))) {
                 profilePicElement.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
-            } else {
-                // Tenta carregar a imagem e, em caso de erro, volta para o placeholder
+            } else if (profilePicElement) {
                 profilePicElement.onerror = function() {
                     this.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
                 };
-            }
-        });
-
-        // --- JavaScript para Toggle do Menu de Usuário (já existente) ---
-        function toggleUserMenu() {
-            const userMenu = document.getElementById('user-menu');
-            userMenu.classList.toggle('active');
-        }
-
-        document.addEventListener('click', (event) => {
-            const userMenu = document.getElementById('user-menu');
-            const menuButton = document.querySelector('header nav button');
-            if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
-                userMenu.classList.remove('active');
             }
         });
     </script>
