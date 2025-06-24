@@ -6,12 +6,12 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import google.generativeai as genai
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI ---
+# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido) ---
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -35,14 +35,18 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
+    
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
     recurring_transactions = db.relationship('RecurringTransaction', backref='user', lazy=True, cascade='all, delete-orphan')
 
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
     def __repr__(self):
         return f"<User {self.username}>"
 
@@ -53,9 +57,11 @@ def load_user(user_id):
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
-    type = db.Column(db.String(10), nullable=False)
+    type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
+    
     transactions = db.relationship('Transaction', backref='category', lazy=True)
     recurring_transactions = db.relationship('RecurringTransaction', backref='category', lazy=True)
+
     def __repr__(self):
         return f"<Category {self.name} ({self.type})>"
 
@@ -67,6 +73,7 @@ class Transaction(db.Model):
     type = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+
     def __repr__(self):
         return f"<Transaction {self.description} - {self.amount}>"
 
@@ -77,8 +84,10 @@ class Bill(db.Model):
     dueDate = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    recurring_transaction_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True) 
-    installment_number = db.Column(db.Integer, nullable=True) 
+    recurring_transaction_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True)
+    installment_number = db.Column(db.Integer, nullable=True) # Número da parcela
+
+    # CORREÇÃO AQUI: O método __repr__ estava com um erro de sintaxe
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
@@ -86,14 +95,14 @@ class RecurringTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False)
-    frequency = db.Column(db.String(20), nullable=False)
-    start_date = db.Column(db.String(10), nullable=False)
-    next_due_date = db.Column(db.String(10), nullable=False)
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
+    frequency = db.Column(db.String(20), nullable=False) # 'monthly', 'weekly', 'yearly', 'installments'
+    start_date = db.Column(db.String(10), nullable=False) # Data de início
+    next_due_date = db.Column(db.String(10), nullable=False) # Próxima data para gerar a transação
+    is_active = db.Column(db.Boolean, default=True, nullable=False) # Ativa ou desativa
     
-    installments_total = db.Column(db.Integer, nullable=True, default=0)
-    installments_generated = db.Column(db.Integer, nullable=True, default=0)
+    installments_total = db.Column(db.Integer, nullable=True, default=0) # Total de parcelas (0 para indefinido/não-parcelado)
+    installments_generated = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram geradas como Bill/Transaction
 
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
@@ -101,7 +110,8 @@ class RecurringTransaction(db.Model):
     def __repr__(self):
         return f"<RecurringTransaction {self.description} - {self.frequency}>"
 
-# --- Funções de Lógica de Negócios (AGORA COM process_due_recurring_transactions NO TOPO) ---
+
+# --- Funções de Lógica de Negócios ---
 
 # FUNÇÃO PRINCIPAL: Processa Transações Recorrentes e Gera Contas/Transações
 # REALOCADA AQUI PARA SER DEFINIDA ANTES DE SER CHAMADA
@@ -113,69 +123,79 @@ def process_due_recurring_transactions(user_id):
     recurring_transactions = RecurringTransaction.query.filter_by(user_id=user_id, is_active=True).all()
     
     for rec_trans in recurring_transactions:
+        # Convert next_due_date to datetime.date object for comparison and calculation
         next_due_date_dt = datetime.datetime.strptime(rec_trans.next_due_date, '%Y-%m-%d').date()
-
+        
+        # Loop while the next due date is today or in the past AND the recurring transaction is active
         while next_due_date_dt <= today and rec_trans.is_active:
             
+            # Check if this specific instance (for this date and installment) has already been generated
+            # This prevents duplicates if the process is run multiple times on the same day/period
+            
+            # For installments, check for specific installment_number
             if rec_trans.frequency == 'installments':
+                # Check if current installment has already been generated
                 if (rec_trans.installments_generated or 0) < rec_trans.installments_total:
-                    existing_bill = Bill.query.filter_by(
+                    # Check if a Bill for this specific installment_number and next_due_date_dt already exists
+                    # (only check for Bills generated by this recurring transaction)
+                    existing_bill_for_installment = Bill.query.filter_by(
                         recurring_transaction_origin_id=rec_trans.id,
                         dueDate=next_due_date_dt.isoformat(),
                         installment_number=(rec_trans.installments_generated or 0) + 1,
                         user_id=user_id
                     ).first()
 
-                    if not existing_bill:
-                        installment_number = (rec_trans.installments_generated or 0) + 1
-                        bill_description = f"{rec_trans.description} (Parcela {installment_number}/{rec_trans.installments_total})"
+                    if not existing_bill_for_installment:
+                        # Generate the new Bill for this installment
+                        installment_number_to_generate = (rec_trans.installments_generated or 0) + 1
+                        bill_description = f"{rec_trans.description} (Parcela {installment_number_to_generate}/{rec_trans.installments_total})"
                         
                         new_bill = Bill(
                             description=bill_description,
-                            amount=rec_trans.amount,
+                            amount=rec_trans.amount, # Amount of one installment
                             dueDate=next_due_date_dt.isoformat(),
                             status='pending',
                             user_id=rec_trans.user_id,
                             recurring_transaction_origin_id=rec_trans.id,
-                            installment_number=installment_number
+                            installment_number=installment_number_to_generate
                         )
                         db.session.add(new_bill)
                         bills_generated_count += 1
-                        # print(f"Gerada conta: {bill_description} para {next_due_date_dt}") # Para debug local
-                    # else:
-                        # print(f"Conta já existente para {rec_trans.description} parcela {existing_bill.installment_number} em {next_due_date_dt}, pulando.") # Para debug local
+                        print(f"Gerada conta parcelada: {bill_description} para {next_due_date_dt}")
+                    else:
+                        print(f"Conta parcelada já existente para {rec_trans.description} parcela {existing_bill_for_installment.installment_number} em {next_due_date_dt}, pulando.")
                     
+                    # Always increment generated count after processing a due date for an installment
                     rec_trans.installments_generated = (rec_trans.installments_generated or 0) + 1
                     
+                    # If all installments have now been generated, deactivate the recurring transaction
                     if rec_trans.installments_generated >= rec_trans.installments_total:
                         rec_trans.is_active = False
-                else:
+
+                else: # All installments already generated, deactivate if not already
                     rec_trans.is_active = False
-            
-            else: # Outras frequências (monthly, weekly, yearly)
-                # Verifica se a transação/conta para esta data já foi gerada (evitar duplicatas)
-                # Para evitar problemas com o dia exato, podemos verificar pelo mês e descrição, mas para simplificar:
-                # Verificamos se já existe uma transação ou bill com a mesma descrição e data exata gerada
-                
-                # Check for existing generated Bill (for fixed expenses like rent)
-                existing_bill = Bill.query.filter_by(
-                    description=rec_trans.description,
-                    dueDate=next_due_date_dt.isoformat(),
-                    user_id=user_id,
-                    recurring_transaction_origin_id=rec_trans.id # Verifica se a Bill foi gerada por esta recorrência
-                ).first()
 
-                # Check for existing generated Transaction (for income)
-                existing_transaction = Transaction.query.filter_by(
-                    description=rec_trans.description,
-                    date=next_due_date_dt.isoformat(),
-                    user_id=user_id,
-                    # Não há um campo recurring_transaction_origin_id em Transaction,
-                    # então a verificação é mais limitada para evitar duplicatas.
-                ).first()
+            # For other frequencies (monthly, weekly, yearly)
+            else: 
+                # Check if a Bill (for expense) or Transaction (for income) for this specific next_due_date_dt already exists
+                existing_item = None
+                if rec_trans.type == 'expense':
+                    existing_item = Bill.query.filter_by(
+                        description=rec_trans.description,
+                        dueDate=next_due_date_dt.isoformat(),
+                        user_id=user_id,
+                        recurring_transaction_origin_id=rec_trans.id, # Check if linked to this recurring origin
+                        installment_number=None # No installment number for non-installment recurring
+                    ).first()
+                else: # income
+                    existing_item = Transaction.query.filter_by(
+                        description=rec_trans.description,
+                        date=next_due_date_dt.isoformat(),
+                        user_id=user_id,
+                        # No recurring_transaction_origin_id for regular Transaction, relies on description/date/user
+                    ).first()
 
-
-                if not existing_bill and not existing_transaction:
+                if not existing_item:
                     if rec_trans.type == 'income':
                         add_transaction_db(
                             description=rec_trans.description,
@@ -186,7 +206,7 @@ def process_due_recurring_transactions(user_id):
                             category_id=rec_trans.category_id
                         )
                         transactions_generated_count += 1
-                        # print(f"Gerada receita: {rec_trans.description} para {next_due_date_dt}") # Para debug local
+                        print(f"Gerada receita: {rec_trans.description} para {next_due_date_dt}")
                     elif rec_trans.type == 'expense':
                          new_bill = Bill(
                             description=rec_trans.description,
@@ -194,16 +214,17 @@ def process_due_recurring_transactions(user_id):
                             dueDate=next_due_date_dt.isoformat(),
                             status='pending',
                             user_id=rec_trans.user_id,
-                            recurring_transaction_origin_id=rec_trans.id # Liga a Bill gerada à recorrência
+                            recurring_transaction_origin_id=rec_trans.id, # Link to recurring origin
+                            installment_number=None
                         )
                          db.session.add(new_bill)
                          bills_generated_count += 1
-                         # print(f"Gerada conta fixa: {rec_trans.description} para {next_due_date_dt}") # Para debug local
-                # else:
-                    # print(f"Item já existente para {rec_trans.description} em {next_due_date_dt}, pulando.") # Para debug local
+                         print(f"Gerada conta fixa: {rec_trans.description} para {next_due_date_dt}")
+                else:
+                    print(f"Item já existente para {rec_trans.description} em {next_due_date_dt}, pulando.")
             
-            # Calcula a próxima next_due_date
-            if rec_trans.is_active:
+            # --- Calcula a próxima next_due_date ---
+            if rec_trans.is_active: # Only advance date if recurring transaction is still active
                 if rec_trans.frequency == 'monthly' or rec_trans.frequency == 'installments':
                     next_due_date_dt += relativedelta(months=1)
                 elif rec_trans.frequency == 'weekly':
@@ -211,9 +232,13 @@ def process_due_recurring_transactions(user_id):
                 elif rec_trans.frequency == 'yearly':
                     next_due_date_dt += relativedelta(years=1)
                 rec_trans.next_due_date = next_due_date_dt.isoformat()
-            
-            db.session.add(rec_trans)
-            db.session.commit() # Comita a cada loop do while para persistir o estado da recorrência
+            else: # If recurring transaction was deactivated in this loop, ensure next_due_date doesn't keep advancing
+                rec_trans.next_due_date = rec_trans.next_due_date # Keep last generated/deactivated date
+                
+            db.session.add(rec_trans) # Add changes to the session to be committed
+            # db.session.commit() # Commit all changes at the end of the main loop, or flash messages won't appear
+
+    db.session.commit() # Commit all recurring transaction changes at once
 
     if bills_generated_count > 0 or transactions_generated_count > 0:
         flash(f"{bills_generated_count} novas contas e {transactions_generated_count} transações geradas automaticamente!", 'info')
@@ -585,7 +610,7 @@ def get_bill_data(bill_id):
             'amount': bill.amount,
             'dueDate': bill.dueDate,
             'status': bill.status,
-            'recurring_origin_id': bill.recurring_transaction_origin_id,
+            'recurring_transaction_origin_id': bill.recurring_transaction_origin_id,
             'installment_number': bill.installment_number
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
