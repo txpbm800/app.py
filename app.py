@@ -6,7 +6,7 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-from dateutil.relativedelta import relativedelta
+from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import google.generativeai as genai
 
 app = Flask(__name__)
@@ -663,7 +663,7 @@ def index():
             transactions_query = transactions_query.order_by(Transaction.amount.asc())
         else:
             transactions_query = transactions_query.order_by(Transaction.amount.desc())
-    
+            
     all_transactions = transactions_query.all()
     
     income_transactions = [t for t in all_transactions if t.type == 'income']
@@ -823,7 +823,9 @@ def get_bill_data(bill_id):
             'description': bill.description,
             'amount': bill.amount,
             'dueDate': bill.dueDate,
-            'status': bill.status
+            'status': bill.status,
+            'recurring_transaction_origin_id': bill.recurring_transaction_origin_id, # Inclui o ID da recorrência de origem
+            'installment_number': bill.installment_number # Inclui o número da parcela
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -1089,8 +1091,10 @@ def handle_add_recurring_transaction():
     frequency = request.form['recurring_frequency']
     start_date = request.form['recurring_start_date']
     category_id = request.form.get('recurring_category_id', type=int)
+    # NOVO: Pega o total de parcelas
+    installments_total = request.form.get('recurring_installments_total', type=int) 
 
-    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id)
+    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id, installments_total)
     flash('Transação recorrente adicionada com sucesso!', 'success')
     return redirect(url_for('recurring_transactions'))
 
@@ -1108,7 +1112,8 @@ def get_recurring_transaction_data(recurring_id):
             'frequency': recurring_trans.frequency,
             'start_date': recurring_trans.start_date,
             'category_id': recurring_trans.category_id,
-            'is_active': recurring_trans.is_active
+            'is_active': recurring_trans.is_active,
+            'installments_total': recurring_trans.installments_total
         })
     return jsonify({'error': 'Transação recorrente não encontrada ou não pertence a este usuário'}), 404
 
@@ -1123,8 +1128,9 @@ def handle_edit_recurring_transaction(recurring_id):
     start_date = request.form['edit_recurring_start_date']
     category_id = request.form.get('edit_recurring_category_id', type=int)
     is_active = request.form.get('edit_recurring_is_active') == 'on'
+    installments_total = request.form.get('edit_recurring_installments_total', type=int)
 
-    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
+    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active, installments_total):
         flash('Transação recorrente atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
