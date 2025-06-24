@@ -131,6 +131,9 @@
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
                     
+                    {# NOVO: Link para Transações Recorrentes na navegação #}
+                    <a href="{{ url_for('recurring_transactions') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Recorrentes</a>
+
                     {# Botão do menu hambúrguer #}
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -142,9 +145,6 @@
                     <div id="user-menu" class="user-menu-dropdown">
                         <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Meu Perfil
-                        </a>
-                        <a href="{{ url_for('recurring_transactions_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# NOVO LINK #}
-                            Transações Recorrentes
                         </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Redefinir Senha
@@ -408,6 +408,11 @@
                                             <div class="font-bold text-xl text-gray-800">
                                                 R$ {{ "%.2f"|format(bill.amount) }}
                                             </div>
+                                            {% if bill.recurring_transaction_origin_id %} {# NOVO: Indica se veio de recorrência #}
+                                                <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                                    Recorrente
+                                                </span>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     
@@ -689,8 +694,15 @@
         // Popula allCategories com os dados do Flask e inicializa outras coisas
         document.addEventListener('DOMContentLoaded', () => {
             allCategories = categoriesData;
-            const initialType = document.getElementById('type') ? document.getElementById('type').value : 'income';
-            filterCategoriesByType(initialType, 'category_id');
+            // Para o formulário de adição de transação
+            const typeSelect = document.getElementById('type');
+            if (typeSelect) {
+                filterCategoriesByType(typeSelect.value, 'category_id');
+                typeSelect.addEventListener('change', (event) => {
+                    filterCategoriesByType(event.target.value, 'category_id');
+                });
+            }
+
             populateCategoryFilter('category_filter');
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -711,7 +723,6 @@
 
             // Adiciona event listeners aos botões de aplicar
             document.getElementById('bills-filter-sort-form').addEventListener('submit', function(event) {
-                // Ao invés de usar onchange nos selects, o formulário é submetido aqui
                 // Nada a fazer aqui além de permitir o submit padrão
             });
             document.getElementById('transactions-filter-sort-form').addEventListener('submit', function(event) {

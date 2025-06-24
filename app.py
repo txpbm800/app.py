@@ -6,16 +6,17 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
-import google.generativeai as genai # <-- ESTA LINHA DEVE ESTAR PRESENTE!
+from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
+import google.generativeai as genai
 
 app = Flask(__name__)
 
 # --- CONFIGURAÇÃO DA API KEY GEMINI (mantido) ---
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # Substitua pela sua chave real
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Configuração da Chave Secreta para Flask-Login e Flask-WTF
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma_chave_secreta_muito_complexa_e_aleatoria') # Use uma variável de ambiente em produção!
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma_chave_secreta_muito_complexa_e_aleatoria')
 
 # Configuração do Banco de Dados SQLite
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -83,10 +84,13 @@ class Bill(db.Model):
     dueDate = db.Column(db.String(10), nullable=False)
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    # NOVO CAMPO: Para rastrear se esta conta veio de uma transação recorrente
+    recurring_transaction_origin_id = db.Column(db.Integer, db.ForeignKey('recurring_transaction.id'), nullable=True) 
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
+# NOVO MODELO: Transação Recorrente (MODIFICADO para parcelamento)
 class RecurringTransaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
@@ -97,6 +101,10 @@ class RecurringTransaction(db.Model):
     next_due_date = db.Column(db.String(10), nullable=False) # Próxima data para gerar a transação
     is_active = db.Column(db.Boolean, default=True, nullable=False) # Ativa ou desativa
     
+    # NOVOS CAMPOS PARA PARCELAMENTO
+    installments_total = db.Column(db.Integer, nullable=True, default=1) # Total de parcelas, nulo para não-parcelado ou 1
+    installments_paid = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram pagas/geradas
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
@@ -118,17 +126,21 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
-def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None):
+# MODIFICADA: Adicionar Transação Recorrente com campos de parcelamento
+def add_recurring_transaction_db(description, amount, type, frequency, start_date, user_id, category_id=None, installments_total=None):
+    # Calcula a primeira next_due_date como a start_date
     new_recurring_transaction = RecurringTransaction(
         description=description,
         amount=float(amount),
         type=type,
         frequency=frequency,
         start_date=start_date,
-        next_due_date=start_date, # A primeira data de vencimento é a data de início
+        next_due_date=start_date,
         is_active=True,
         user_id=user_id,
-        category_id=category_id
+        category_id=category_id,
+        installments_total=installments_total if installments_total else 1, # Define como 1 se não especificado
+        installments_paid=0
     )
     db.session.add(new_recurring_transaction)
     db.session.commit()
@@ -136,7 +148,8 @@ def add_recurring_transaction_db(description, amount, type, frequency, start_dat
 def get_recurring_transactions_db(user_id):
     return RecurringTransaction.query.filter_by(user_id=user_id).all()
 
-def edit_recurring_transaction_db(recurring_id, description, amount, type, frequency, start_date, user_id, category_id=None, is_active=True):
+# MODIFICADA: Edita Transação Recorrente com campos de parcelamento
+def edit_recurring_transaction_db(recurring_id, description, amount, type, frequency, start_date, user_id, category_id=None, is_active=True, installments_total=None):
     recurring_trans = RecurringTransaction.query.filter_by(id=recurring_id, user_id=user_id).first()
     if recurring_trans:
         recurring_trans.description = description
@@ -146,6 +159,8 @@ def edit_recurring_transaction_db(recurring_id, description, amount, type, frequ
         recurring_trans.start_date = start_date
         recurring_trans.category_id = category_id
         recurring_trans.is_active = is_active
+        recurring_trans.installments_total = installments_total if installments_total else 1
+        # Não alteramos installments_paid diretamente na edição, ele é controlado pela geração/pagamento
         db.session.commit()
         return True
     return False
@@ -159,9 +174,85 @@ def delete_recurring_transaction_db(recurring_id, user_id):
     return False
 
 
+# FUNÇÃO PRINCIPAL: Processa Transações Recorrentes e Gera Contas/Transações
+def process_recurring_transactions(user_id):
+    today = datetime.date.today()
+    recurring_transactions = RecurringTransaction.query.filter_by(user_id=user_id, is_active=True).all()
+    
+    for rec_trans in recurring_transactions:
+        next_due_date_dt = datetime.datetime.strptime(rec_trans.next_due_date, '%Y-%m-%d').date()
+
+        # Se a próxima data de vencimento já passou ou é hoje
+        while next_due_date_dt <= today:
+            # Caso 1: Transação de Receita Recorrente (sem parcelas ou parcela única)
+            if rec_trans.type == 'income' or rec_trans.installments_total == 1:
+                # Cria uma transação comum de RECEITA
+                add_transaction_db(
+                    description=rec_trans.description,
+                    amount=rec_trans.amount,
+                    date=next_due_date_dt.isoformat(),
+                    type=rec_trans.type,
+                    user_id=rec_trans.user_id,
+                    category_id=rec_trans.category_id
+                )
+                flash(f"Receita recorrente '{rec_trans.description}' gerada automaticamente.", 'info')
+                
+                # Atualiza installments_paid e desativa se for única (ou última parcela)
+                rec_trans.installments_paid = (rec_trans.installments_paid or 0) + 1 # Garante que não é None
+                if rec_trans.installments_total == 1: # Se é transação única ou última parcela gerada
+                     rec_trans.is_active = False # Desativa a recorrência
+                
+            # Caso 2: Transação de Despesa Recorrente PARCELADA (gerar Bill)
+            elif rec_trans.type == 'expense' and rec_trans.installments_total > 1:
+                if (rec_trans.installments_paid or 0) < rec_trans.installments_total:
+                    # Gera uma CONTA A PAGAR (Bill)
+                    installment_number = (rec_trans.installments_paid or 0) + 1
+                    bill_description = f"{rec_trans.description} (Parcela {installment_number}/{rec_trans.installments_total})"
+                    
+                    new_bill = Bill(
+                        description=bill_description,
+                        amount=rec_trans.amount, # O valor da parcela
+                        dueDate=next_due_date_dt.isoformat(),
+                        status='pending',
+                        user_id=rec_trans.user_id,
+                        recurring_transaction_origin_id=rec_trans.id # Liga a conta à transação recorrente
+                    )
+                    db.session.add(new_bill)
+                    
+                    rec_trans.installments_paid = installment_number # Incrementa parcelas pagas/geradas
+                    flash(f"Conta recorrente '{bill_description}' gerada automaticamente.", 'info')
+
+                    if rec_trans.installments_paid == rec_trans.installments_total:
+                        rec_trans.is_active = False # Desativa a recorrência se todas as parcelas foram geradas
+                else: # Se já gerou todas as parcelas, desativa
+                    rec_trans.is_active = False
+
+            # Calcula a próxima data de vencimento
+            if rec_trans.is_active: # Só atualiza se ainda estiver ativa
+                if rec_trans.frequency == 'monthly':
+                    next_due_date_dt += relativedelta(months=1)
+                elif rec_trans.frequency == 'weekly':
+                    next_due_date_dt += relativedelta(weeks=1)
+                elif rec_trans.frequency == 'yearly':
+                    next_due_date_dt += relativedelta(years=1)
+                rec_trans.next_due_date = next_due_date_dt.isoformat()
+            
+            db.session.add(rec_trans) # Adiciona as alterações à sessão
+            db.session.commit() # Comita as alterações
+
+# MODIFICADA: pay_bill_db para lidar com contas originadas de recorrentes (parceladas)
 def pay_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
+        # Se a conta foi gerada por uma transação recorrente
+        if bill.recurring_transaction_origin_id:
+            rec_trans = RecurringTransaction.query.get(bill.recurring_transaction_origin_id)
+            if rec_trans and rec_trans.user_id == user_id: # Garante que pertence ao mesmo usuário
+                # A lógica de installments_paid é controlada pela geração, mas podemos marcar a recorrente como ativa/inativa
+                # se houver uma necessidade mais complexa de sincronia de pagamento vs geração.
+                # Por agora, a geração já incrementa installments_paid.
+                pass # Nenhuma ação extra necessária na recorrente ao pagar a BILL gerada
+        
         bill.status = 'paid'
         db.session.add(bill)
         
@@ -260,6 +351,9 @@ def generate_text_with_gemini(prompt_text):
 @app.route('/')
 @login_required
 def index():
+    # Processa as transações recorrentes do usuário ANTES de carregar a página
+    process_recurring_transactions(current_user.id) # NOVO: Chama a função aqui
+    
     dashboard_data = get_dashboard_data_db(current_user.id)
     
     # --- FILTRAGEM E ORDENAÇÃO PARA TRANSAÇÕES ---
@@ -455,7 +549,8 @@ def get_bill_data(bill_id):
             'description': bill.description,
             'amount': bill.amount,
             'dueDate': bill.dueDate,
-            'status': bill.status
+            'status': bill.status,
+            'recurring_origin_id': bill.recurring_transaction_origin_id # Inclui o ID da recorrência de origem
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -697,6 +792,10 @@ def get_chart_data():
 @app.route('/recurring_transactions')
 @login_required
 def recurring_transactions_page():
+    # Processa as transações recorrentes do usuário ANTES de carregar a página
+    # Chamado aqui para garantir que as contas/transações sejam geradas antes de exibir a lista
+    process_recurring_transactions(current_user.id) # NOVO: Chama a função aqui também
+
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
     recurring_transactions = get_recurring_transactions_db(current_user.id)
     return render_template(
@@ -707,7 +806,7 @@ def recurring_transactions_page():
         current_user=current_user
     )
 
-# ROTA: Adicionar Transação Recorrente
+# ROTA: Adicionar Transação Recorrente (agora aponta para a própria página de recorrentes)
 @app.route('/add_recurring_transaction', methods=['POST'])
 @login_required
 def handle_add_recurring_transaction():
@@ -717,8 +816,10 @@ def handle_add_recurring_transaction():
     frequency = request.form['recurring_frequency']
     start_date = request.form['recurring_start_date']
     category_id = request.form.get('recurring_category_id', type=int)
+    # NOVO: Pega o total de parcelas
+    installments_total = request.form.get('recurring_installments_total', type=int) 
 
-    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id)
+    add_recurring_transaction_db(description, amount, transaction_type, frequency, start_date, current_user.id, category_id, installments_total) # Passa installments_total
     flash('Transação recorrente adicionada com sucesso!', 'success')
     return redirect(url_for('recurring_transactions_page'))
 
@@ -736,7 +837,8 @@ def get_recurring_transaction_data(recurring_id):
             'frequency': recurring_trans.frequency,
             'start_date': recurring_trans.start_date,
             'category_id': recurring_trans.category_id,
-            'is_active': recurring_trans.is_active
+            'is_active': recurring_trans.is_active,
+            'installments_total': recurring_trans.installments_total # NOVO: Retorna installments_total
         })
     return jsonify({'error': 'Transação recorrente não encontrada ou não pertence a este usuário'}), 404
 
@@ -751,8 +853,10 @@ def handle_edit_recurring_transaction(recurring_id):
     start_date = request.form['edit_recurring_start_date']
     category_id = request.form.get('edit_recurring_category_id', type=int)
     is_active = request.form.get('edit_recurring_is_active') == 'on'
+    # NOVO: Pega o total de parcelas editado
+    installments_total = request.form.get('edit_recurring_installments_total', type=int)
 
-    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active):
+    if edit_recurring_transaction_db(recurring_id, description, amount, trans_type, frequency, start_date, current_user.id, category_id, is_active, installments_total): # Passa installments_total
         flash('Transação recorrente atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação recorrente. Verifique se ela existe ou pertence a você.', 'danger')
@@ -805,7 +909,7 @@ if __name__ == '__main__':
 
             if not RecurringTransaction.query.filter_by(user_id=first_user.id).first():
                 salario_category = Category.query.filter_by(name='Salário', type='income').first()
-                alimentacao_category = Category.query.filter_by(name='Alimentação', type='expense').first()
+                contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
 
                 db.session.add(RecurringTransaction(
                     description='Salário Mensal',
@@ -816,18 +920,35 @@ if __name__ == '__main__':
                     next_due_date='2025-07-01',
                     is_active=True,
                     user_id=first_user.id,
-                    category_id=salario_category.id if salario_category else None
+                    category_id=salario_category.id if salario_category else None,
+                    installments_total=1, # Transação única de receita
+                    installments_paid=0
                 ))
                 db.session.add(RecurringTransaction(
-                    description='Assinatura Streaming',
-                    amount=49.90,
+                    description='Aluguel Apartamento',
+                    amount=1500.00,
                     type='expense',
                     frequency='monthly',
-                    start_date='2025-01-10',
-                    next_due_date='2025-07-10',
+                    start_date='2025-01-05',
+                    next_due_date='2025-07-05',
                     is_active=True,
                     user_id=first_user.id,
-                    category_id=alimentacao_category.id if alimentacao_category else None
+                    category_id=contas_fixas_category.id if contas_fixas_category else None,
+                    installments_total=0, # 0 para indicar que não é parcelado, mas recorrente indefinidamente
+                    installments_paid=0
+                ))
+                db.session.add(RecurringTransaction(
+                    description='Compra Parcelada Celular',
+                    amount=150.00, # Valor da parcela
+                    type='expense',
+                    frequency='monthly',
+                    start_date='2025-03-20',
+                    next_due_date='2025-07-20',
+                    is_active=True,
+                    user_id=first_user.id,
+                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Ou uma categoria "Parcelas"
+                    installments_total=10, # Total de 10 parcelas
+                    installments_paid=3 # Já pagou 3 parcelas (se fosse histórico)
                 ))
                 db.session.commit()
                 print("Transações recorrentes de exemplo adicionadas.")
