@@ -132,7 +132,7 @@
                     <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
                     
                     {# NOVO: Link para Transações Recorrentes na navegação #}
-                    <a href="{{ url_for('recurring_transactions_page') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Recorrentes</a>
+                    <a href="{{ url_for('recurring_transactions') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Recorrentes</a>
 
                     {# Botão do menu hambúrguer #}
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
