@@ -48,7 +48,7 @@
             transition: max-height 0.3s ease-out, padding 0.3s ease-out;
         }
         .collapsible-content.expanded {
-            max-height: 500px; /* Um valor grande o suficiente para o conteúdo */
+            max-height: 1000px; /* Aumentado para acomodar mais conteúdo */
             padding-top: 1rem; /* Adiciona um padding quando expandido */
         }
         .arrow-icon {
@@ -618,7 +618,7 @@
                         {% for transaction in income_transactions %}
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                 <div class="flex items-center space-x-3">
-                                    <div class="p-2 rounded-full bg-green-100 text-green-600">
+                                    <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                     </div>
                                     <div>
@@ -645,7 +645,7 @@
                         {% for transaction in expense_transactions %}
                             <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                 <div class="flex items-center space-x-3">
-                                    <div class="p-2 rounded-full bg-red-100 text-red-600">
+                                    <div class="p-2 rounded-full {% if transaction.type == 'expense' %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %}">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
                                     </div>
                                     <div>
@@ -994,7 +994,7 @@
                     installmentsTotalInput.removeAttribute('required');
                 }
                  // Filtra as categorias para o tipo selecionado na Bill de edição
-                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring');
+                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring', data.category_id);
 
             } else {
                 recurringFieldsDiv.classList.add('hidden');

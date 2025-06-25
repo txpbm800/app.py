@@ -179,7 +179,6 @@ def process_recurring_bills(user_id):
             # Caso 1: Bill Mestra é de DESPESA (gera Bills no Contas a Pagar)
             if bill_seed.type == 'expense': 
                 if bill_seed.recurring_frequency == 'installments':
-                    # Verifica se ainda há parcelas a serem geradas
                     if (bill_seed.recurring_installments_generated or 0) < bill_seed.recurring_installments_total:
                         installment_number_to_generate = (bill_seed.recurring_installments_generated or 0) + 1
                         
@@ -216,7 +215,7 @@ def process_recurring_bills(user_id):
                             bills_generated_count += 1
                             print(f"    GENERATED INSTALLMENT: {bill_description} para {next_due_date_dt.isoformat()}")
                         else:
-                            print(f"    INSTALLMENT ALREADY EXISTS: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
+                            print(f"    PARCELA JÁ EXISTENTE: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
                         
                         bill_seed.recurring_installments_generated = (bill_seed.recurring_installments_generated or 0) + 1
                         
@@ -987,7 +986,7 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
-# REMOVIDO: Rota '/recurring_transactions' (será uma funcionalidade do /index)
+# ROTA: Página de Transações Recorrentes (REMOVIDO: Será parte do index)
 # @app.route('/recurring_transactions')
 # @login_required
 # def recurring_transactions():
