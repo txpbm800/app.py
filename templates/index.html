@@ -320,6 +320,24 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
+                        {# NOVO: Tipo da Bill (Receita/Despesa) #}
+                        <div>
+                            <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
+                            <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
+                                <option value="expense">Despesa</option>
+                                <option value="income">Receita</option> {# Para Bills de Receita recorrentes #}
+                            </select>
+                        </div>
+                        {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
+                        <div>
+                            <label for="bill_category_id_recurring" class="block text-sm font-medium text-gray-700 mb-1">Categoria (para Recorrência)</label>
+                            <select id="bill_category_id_recurring" name="bill_category_id_recurring"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Selecione a Categoria</option>
+                                {# Preenchido dinamicamente via JS #}
+                            </select>
+                        </div>
+
                         {# NOVO: Checkbox para marcar como recorrente #}
                         <div class="flex items-center">
                             <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
@@ -352,9 +370,6 @@
                     </form>
                 </div>
             </div>
-
-            {# REMOVIDO: Recurring Transaction Form Section daqui #}
-
 
             <!-- Bills List Section -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
@@ -435,7 +450,7 @@
                                             <div class="font-bold text-xl text-gray-800">
                                                 R$ {{ "%.2f"|format(bill.amount) }}
                                             </div>
-                                            {# NOVO: Indica se veio de recorrência #}
+                                            {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
                                             {% if bill.is_recurring or bill.recurring_transaction_origin_id %} 
                                                 <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
                                                     Recorrente
@@ -443,6 +458,12 @@
                                                         {{ bill.installment_number }}/{{ bill.recurring_installments_total }}
                                                     {% endif %}
                                                 </span>
+                                            {% endif %}
+                                            {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
+                                            {% if bill.type == 'income' %}
+                                                <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
+                                            {% elif bill.type == 'expense' %}
+                                                <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
                                             {% endif %}
                                         </div>
                                     </div>
@@ -709,6 +730,15 @@
                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
+                {# NOVO: Tipo da Bill (Receita/Despesa) no modal de edição #}
+                <div>
+                    <label for="edit_bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
+                    <select id="edit_bill_type" name="edit_bill_type" required>
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+
                 {# NOVO: Checkbox e campos de recorrência para edição de Bill #}
                 <div class="flex items-center">
                     <input type="checkbox" id="edit_is_recurring_bill" name="edit_is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFieldsEdit()">
@@ -765,6 +795,16 @@
                 });
             }
 
+            // Para o formulário de adição de Bill - inicializa categorias de acordo com o tipo padrão (expense)
+            const billTypeSelect = document.getElementById('bill_type');
+            if (billTypeSelect) {
+                billTypeSelect.addEventListener('change', (event) => {
+                    filterCategoriesByType(event.target.value, 'bill_category_id_recurring');
+                });
+                filterCategoriesByType(billTypeSelect.value, 'bill_category_id_recurring'); // Chama na carga inicial
+            }
+
+
             populateCategoryFilter('category_filter');
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -800,6 +840,9 @@
             const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
             if (addBillFrequencySelect) {
                 toggleInstallmentsField('recurring_frequency_bill', 'bill_installments_total_field'); // Inicializa visibilidade de parcelas
+                addBillFrequencySelect.addEventListener('change', (event) => { // Adiciona listener para mudança de frequência
+                    toggleInstallmentsField(event.target.id, 'bill_installments_total_field');
+                });
             }
         });
 
@@ -902,6 +945,7 @@
             const recurringFrequencySelect = document.getElementById('recurring_frequency_bill');
             const installmentsTotalField = document.getElementById('bill_installments_total_field');
             const installmentsTotalInput = document.getElementById('recurring_installments_total_bill');
+            const billTypeSelect = document.getElementById('bill_type'); // Novo: para filtrar categorias do formulário de adição
 
             if (isRecurringCheckbox.checked) {
                 recurringFieldsDiv.classList.remove('hidden');
@@ -914,6 +958,9 @@
                     installmentsTotalField.classList.add('hidden');
                     installmentsTotalInput.removeAttribute('required');
                 }
+                // Filtra as categorias para o tipo selecionado na Bill
+                filterCategoriesByType(billTypeSelect.value, 'bill_category_id_recurring');
+                
             } else {
                 recurringFieldsDiv.classList.add('hidden');
                 recurringFrequencySelect.removeAttribute('required');
@@ -930,12 +977,13 @@
             const installmentsTotalField = document.getElementById('edit_bill_installments_total_field');
             const installmentsTotalInput = document.getElementById('edit_recurring_installments_total_bill');
             const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
+            const billTypeSelectEdit = document.getElementById('edit_bill_type'); // Novo: para filtrar categorias do modal de edição
 
 
             if (isRecurringCheckbox.checked) {
                 recurringFieldsDiv.classList.remove('hidden');
                 recurringFrequencySelect.setAttribute('required', 'true');
-                isActiveRecurringCheckbox.parentElement.classList.remove('hidden'); // Mostra o checkbox de ativa
+                isActiveRecurringCheckbox.parentElement.classList.remove('hidden');
                 
                 // Inicializa o estado do campo de parcelas ao mostrar a seção
                 if (recurringFrequencySelect.value === 'installments') {
@@ -945,12 +993,15 @@
                     installmentsTotalField.classList.add('hidden');
                     installmentsTotalInput.removeAttribute('required');
                 }
+                 // Filtra as categorias para o tipo selecionado na Bill de edição
+                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring');
+
             } else {
                 recurringFieldsDiv.classList.add('hidden');
                 recurringFrequencySelect.removeAttribute('required');
                 installmentsTotalField.classList.add('hidden');
                 installmentsTotalInput.removeAttribute('required');
-                isActiveRecurringCheckbox.parentElement.classList.add('hidden'); // Esconde o checkbox de ativa
+                isActiveRecurringCheckbox.parentElement.classList.add('hidden');
             }
         }
 
@@ -999,28 +1050,27 @@
                     const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
                     const editRecurringInstallmentsTotalBillInput = document.getElementById('edit_recurring_installments_total_bill');
                     const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
+                    const editBillTypeSelect = document.getElementById('edit_bill_type'); // Pega o select de tipo
 
+                    editBillTypeSelect.value = data.type; // Define o tipo da Bill
                     editIsRecurringBillCheckbox.checked = data.is_recurring;
-                    
-                    // Garante que o evento onchange é disparado no select de frequência para reativar o listener
-                    // e controlar a visibilidade do campo de parcelas.
-                    editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly'; // Define valor padrão
-                    
-                    if (data.recurring_installments_total) {
-                        editRecurringInstallmentsTotalBillInput.value = data.recurring_installments_total;
-                    } else {
-                        editRecurringInstallmentsTotalBillInput.value = '';
-                    }
-
+                    editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
+                    editRecurringInstallmentsTotalBillInput.value = data.recurring_installments_total || '';
                     editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
 
-                    // Chama a função para controlar a visibilidade dos campos de recorrência e parcelas
-                    toggleBillRecurringFieldsEdit(); 
+                    // Re-filtra as categorias no modal de edição com base no tipo da Bill
+                    filterCategoriesByType(data.type, 'edit_bill_category_id_recurring', data.category_id);
+
+                    // Garante que a visibilidade dos campos de recorrência e parcelas seja atualizada
+                    // e que os listeners onchange sejam adicionados corretamente
+                    toggleBillRecurringFieldsEdit();
+                    editIsRecurringBillCheckbox.onchange = toggleBillRecurringFieldsEdit; // Adiciona listener
+                    editRecurringFrequencyBillSelect.onchange = toggleBillRecurringFieldsEdit; // Adiciona listener
+                    editBillTypeSelect.onchange = (event) => { // Novo listener para mudança de tipo
+                        filterCategoriesByType(event.target.value, 'edit_bill_category_id_recurring', data.category_id);
+                        toggleBillRecurringFieldsEdit(); // Também atualiza visibilidade se tipo mudar a frequência
+                    };
                     
-                    // Adiciona event listener para garantir que a visibilidade seja atualizada se a frequência mudar
-                    editRecurringFrequencyBillSelect.onchange = toggleBillRecurringFieldsEdit;
-
-
                     editBillForm.action = `/edit_bill/${data.id}`;
                     editBillForm.classList.remove('hidden');
                 }
@@ -1042,6 +1092,10 @@
             const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
             if (editIsRecurringBillCheckbox) {
                 editIsRecurringBillCheckbox.onchange = null;
+            }
+            const editBillTypeSelect = document.getElementById('edit_bill_type');
+            if (editBillTypeSelect) {
+                editBillTypeSelect.onchange = null;
             }
         }
 
