@@ -116,7 +116,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
-# MODIFICADA: add_bill_db agora pode criar Bills recorrentes
+# MODIFICADA: add_bill_db agora pode criar Bills recorrentes (com os novos campos)
 def add_bill_db(description, amount, due_date, user_id, 
                 is_recurring=False, recurring_frequency=None, recurring_installments_total=0, bill_type='expense'): # Adicionado bill_type
     
@@ -170,7 +170,7 @@ def process_recurring_bills(user_id):
 
         print(f"  Verificando Bill recorrente: '{bill_seed.description}' (ID: {bill_seed.id}), Tipo: {bill_seed.type}, Próx. Venc.: {next_due_date_dt}, Hoje: {today}") # Debug
 
-        # Loop to generate ALL occurrences that are due up to today
+        # Loop para gerar TODAS as ocorrências que estão vencidas até hoje
         while next_due_date_dt <= today and bill_seed.is_active_recurring and loop_counter < MAX_GENERATIONS_PER_RUN:
             print(f"  --> Data devida {next_due_date_dt.isoformat()} <= Hoje {today.isoformat()}. Tentando gerar ocorrência...") # Debug
             
@@ -179,6 +179,7 @@ def process_recurring_bills(user_id):
             # Caso 1: Bill Mestra é de DESPESA (gera Bills no Contas a Pagar)
             if bill_seed.type == 'expense': 
                 if bill_seed.recurring_frequency == 'installments':
+                    # Verifica se ainda há parcelas a serem geradas
                     if (bill_seed.recurring_installments_generated or 0) < bill_seed.recurring_installments_total:
                         installment_number_to_generate = (bill_seed.recurring_installments_generated or 0) + 1
                         
@@ -213,9 +214,9 @@ def process_recurring_bills(user_id):
                             )
                             db.session.add(new_generated_bill)
                             bills_generated_count += 1
-                            print(f"    GERADA PARCELA: {bill_description} para {next_due_date_dt.isoformat()}")
+                            print(f"    GENERATED INSTALLMENT: {bill_description} para {next_due_date_dt.isoformat()}")
                         else:
-                            print(f"    PARCELA JÁ EXISTENTE: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
+                            print(f"    INSTALLMENT ALREADY EXISTS: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
                         
                         bill_seed.recurring_installments_generated = (bill_seed.recurring_installments_generated or 0) + 1
                         
