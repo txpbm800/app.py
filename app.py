@@ -166,7 +166,7 @@ def process_recurring_bills(user_id):
         next_due_date_dt = datetime.datetime.strptime(bill_seed.recurring_next_due_date, '%Y-%m-%d').date()
         
         loop_counter = 0
-        MAX_GENERATIONS_PER_RUN = 36 # Safety limit to prevent infinite loops
+        MAX_GENERATIONS_PER_RUN = 36 # Safety limit to prevent infinite loops (3 years of monthly occurrences)
 
         print(f"  Verificando Bill recorrente: '{bill_seed.description}' (ID: {bill_seed.id}), Tipo: {bill_seed.type}, Próx. Venc.: {next_due_date_dt}, Hoje: {today}") # Debug
 
@@ -215,7 +215,7 @@ def process_recurring_bills(user_id):
                             bills_generated_count += 1
                             print(f"    GENERATED INSTALLMENT: {bill_description} para {next_due_date_dt.isoformat()}")
                         else:
-                            print(f"    PARCELA JÁ EXISTENTE: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
+                            print(f"    INSTALLMENT ALREADY EXISTS: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
                         
                         bill_seed.recurring_installments_generated = (bill_seed.recurring_installments_generated or 0) + 1
                         
@@ -284,21 +284,31 @@ def process_recurring_bills(user_id):
             # --- ADVANCE NEXT DUE DATE for the recurring_seed_bill ---
             # Sempre avance a data dentro do loop 'while' para garantir que ele progrida.
             # A condição 'bill_seed.is_active_recurring' no 'while' loop já controla quando parar de processar mais.
-            if bill_seed.is_active_recurring: 
+            
+            # **AQUI ESTÁ A MUDANÇA CRÍTICA:**
+            # A data deve avançar, e só DESATIVAMOS is_active_recurring *após* o avanço,
+            # ou no início da próxima iteração se a data já estiver no futuro.
+            # Isso garante que a próxima data *sempre* seja calculada e salva.
+            
+            if bill_seed.is_active_recurring: # Apenas avança se a recorrência continua a gerar
+                original_next_due_date_for_calc = next_due_date_dt # Usa a data que acabou de ser processada/pulada
+                
                 if bill_seed.recurring_frequency == 'monthly' or bill_seed.recurring_frequency == 'installments':
-                    next_due_date_dt += relativedelta(months=1)
+                    next_due_date_dt = original_next_due_date_for_calc + relativedelta(months=1)
                 elif bill_seed.recurring_frequency == 'weekly':
                     next_due_date_dt += relativedelta(weeks=1)
                 elif bill_seed.recurring_frequency == 'yearly':
                     next_due_date_dt += relativedelta(years=1)
                 
                 bill_seed.recurring_next_due_date = next_due_date_dt.isoformat()
-                print(f"    Next due date updated to: {bill_seed.recurring_next_due_date}")
-            else: # If the recurring bill was deactivated in this loop, its next_due_date should stay as is
-                print(f"    Recurring Bill '{bill_seed.description}' deactivated, not advancing date further.")
+                print(f"    Próximo vencimento da semente atualizado para: {bill_seed.recurring_next_due_date}")
+            else: # Se a recorrência foi desativada (ex: atingiu total de parcelas), não avança mais a data
+                print(f"    Recorrência '{bill_seed.description}' desativada, não avançando mais a data.")
+                # A data permanece a última que foi processada/desativada
+                bill_seed.recurring_next_due_date = bill_seed.recurring_next_due_date 
                 
-            db.session.add(bill_seed) # Add the updated recurring bill (seed) to the session
-            loop_counter += 1 # Increment the safety loop counter
+            db.session.add(bill_seed) # Adiciona a transação recorrente atualizada para a sessão
+            loop_counter += 1 # Incrementa o contador de segurança do loop
             
             # Safety break for potential infinite loops
             if loop_counter >= MAX_GENERATIONS_PER_RUN and next_due_date_dt <= today:
@@ -986,7 +996,7 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
-# ROTA: Página de Transações Recorrentes (REMOVIDO: Será parte do index)
+# REMOVIDO: Rota '/recurring_transactions' (será uma funcionalidade do /index)
 # @app.route('/recurring_transactions')
 # @login_required
 # def recurring_transactions():
