@@ -358,7 +358,7 @@
                                 </select>
                             </div>
                             <div id="bill_installments_total_field" class="hidden">
-                                <label for="recurring_installments_total_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Parcelas</label>
+                                <label for="recurring_installments_total_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# Texto alterado #}
                                 <input type="number" id="recurring_installments_total_bill" name="recurring_installments_total_bill" placeholder="Ex: 12" min="1"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
@@ -451,11 +451,11 @@
                                                 R$ {{ "%.2f"|format(bill.amount) }}
                                             </div>
                                             {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
-                                            {% if bill.is_recurring or bill.recurring_transaction_origin_id %} 
+                                            {% if bill.is_recurring or bill.recurring_parent_id %} {# Mudado de recurring_transaction_origin_id para recurring_parent_id #}
                                                 <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
                                                     Recorrente
-                                                    {% if bill.installment_number and bill.recurring_installments_total %}
-                                                        {{ bill.installment_number }}/{{ bill.recurring_installments_total }}
+                                                    {% if bill.recurring_child_number and bill.is_master_recurring_bill == false %} {# Só mostra se for Bill filha #}
+                                                        {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences if bill.recurring_total_occurrences > 0 else '∞' }}
                                                     {% endif %}
                                                 </span>
                                             {% endif %}
@@ -758,8 +758,8 @@
                         </select>
                     </div>
                     <div id="edit_bill_installments_total_field" class="hidden">
-                        <label for="edit_recurring_installments_total_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Parcelas</label>
-                        <input type="number" id="edit_recurring_installments_total_bill" name="edit_recurring_installments_total_bill" placeholder="Ex: 12" min="1"
+                        <label for="edit_recurring_total_occurrences_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# Texto alterado #}
+                        <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="1"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
@@ -975,7 +975,7 @@
             const recurringFieldsDiv = document.getElementById('edit_bill_recurring_fields');
             const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
             const installmentsTotalField = document.getElementById('edit_bill_installments_total_field');
-            const installmentsTotalInput = document.getElementById('edit_recurring_installments_total_bill');
+            const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); // Corrigido o ID
             const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
             const billTypeSelectEdit = document.getElementById('edit_bill_type'); // Novo: para filtrar categorias do modal de edição
 
@@ -994,7 +994,7 @@
                     installmentsTotalInput.removeAttribute('required');
                 }
                  // Filtra as categorias para o tipo selecionado na Bill de edição
-                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring', data.category_id);
+                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring');
 
             } else {
                 recurringFieldsDiv.classList.add('hidden');
@@ -1048,14 +1048,14 @@
                     // Preenche campos de recorrência no modal de edição de Bill
                     const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                     const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                    const editRecurringInstallmentsTotalBillInput = document.getElementById('edit_recurring_installments_total_bill');
+                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); // Corrigido o ID
                     const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
                     const editBillTypeSelect = document.getElementById('edit_bill_type'); // Pega o select de tipo
 
                     editBillTypeSelect.value = data.type; // Define o tipo da Bill
                     editIsRecurringBillCheckbox.checked = data.is_recurring;
                     editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
-                    editRecurringInstallmentsTotalBillInput.value = data.recurring_installments_total || '';
+                    editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; // Corrigido o ID e o campo
                     editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
 
                     // Re-filtra as categorias no modal de edição com base no tipo da Bill
