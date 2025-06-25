@@ -86,15 +86,15 @@ class Bill(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # NOVOS CAMPOS PARA RECORRÊNCIA E PARCELAMENTO (AGORA NA PRÓPRIA BILL)
-    is_master_recurring_bill = db.Column(db.Boolean, default=False, nullable=False) # É a Bill original que define a recorrência?
+    is_master_recurring_bill = db.Column(db.Boolean, default=False, nullable=False) # É uma conta recorrente (semente)?
     recurring_parent_id = db.Column(db.Integer, db.ForeignKey('bill.id'), nullable=True) # ID da Bill mestra (para Bills geradas)
     recurring_frequency = db.Column(db.String(20), nullable=True) # 'monthly', 'weekly', 'yearly', 'installments'
     recurring_start_date = db.Column(db.String(10), nullable=True) # Data de início da recorrência (original da mestra)
+    recurring_next_due_date = db.Column(db.String(10), nullable=True) # Próxima data de vencimento a ser gerada
     recurring_total_occurrences = db.Column(db.Integer, nullable=True) # Total de ocorrências a gerar (para mestra)
-    recurring_child_number = db.Column(db.Integer, nullable=True) # Número da ocorrência gerada (1, 2, 3...)
-    
-    # Adicionado para manter a consistência do tipo, importante para Bills de receita recorrentes
-    type = db.Column(db.String(10), nullable=False, default='expense') 
+    recurring_installments_generated = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram geradas/pagas
+    is_active_recurring = db.Column(db.Boolean, default=False, nullable=False) # A recorrência ainda está ativa para gerar mais?
+    type = db.Column(db.String(10), nullable=False, default='expense') # Tipo da Bill (expense ou income)
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
@@ -116,44 +116,82 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
+# MODIFICADA: add_bill_db agora pode criar Bills recorrentes
+def add_bill_db(description, amount, due_date, user_id, 
+                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense'): # Adicionado bill_type
+    
+    # Validação para parcelas
+    if is_recurring and recurring_frequency == 'installments' and (recurring_total_occurrences is None or recurring_total_occurrences < 1):
+        recurring_total_occurrences = 1 # Pelo menos 1 parcela se for parcelado
+    elif not is_recurring or recurring_frequency != 'installments':
+        recurring_total_occurrences = 0 # Não parcelado
+
+    new_bill = Bill(
+        description=description,
+        amount=float(amount),
+        dueDate=due_date,
+        status='pending',
+        user_id=user_id,
+        is_master_recurring_bill=is_recurring, # Usa o novo campo
+        recurring_frequency=recurring_frequency if is_recurring else None,
+        recurring_start_date=due_date if is_recurring else None, # Data de início é a primeira due_date
+        recurring_next_due_date=due_date if is_recurring else None, # Próxima a ser gerada é a primeira due_date
+        recurring_total_occurrences=recurring_total_occurrences,
+        recurring_installments_generated=0, # Inicia com 0 geradas
+        is_active_recurring=is_recurring, # Ativa se for recorrente
+        type=bill_type # Salva o tipo da Bill
+    )
+    db.session.add(new_bill)
+    db.session.commit() # Comita imediatamente para obter o ID da Bill, se necessário
+    
+    if new_bill.is_master_recurring_bill and new_bill.is_active_recurring:
+        _generate_future_recurring_bills(new_bill) # Chama a função para gerar as futuras ocorrências
+
 # NOVA FUNÇÃO: Gera Bills filhas (ocorrências futuras) a partir de uma Bill mestra recorrente
 def _generate_future_recurring_bills(master_bill):
     print(f"DEBUG: _generate_future_recurring_bills chamada para master_bill ID: {master_bill.id}, Desc: {master_bill.description}")
     
+    # Assegura que a master_bill tem um ID para ser o parent_id
+    if not master_bill.id:
+        print("ERROR: Master Bill does not have an ID yet. Cannot generate children.")
+        return # Não pode gerar Bills filhas sem o ID da Bill mestra. Isso não deveria acontecer com o commit em add_bill_db.
+
     generated_count_for_master = 0
     current_occurrence_date = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
     
-    # Loop para gerar Bills futuras até o total de ocorrências ou um limite razoável
-    # para recorrências 'mensal', 'semanal', 'anual' (que não têm um total fixo no form).
-    # Consideramos 10 anos de ocorrências para recorrências indefinidas, ou o total especificado.
+    # Define o total de ocorrências a gerar. Se 0 (indefinido), gera para 10 anos.
     total_to_generate = master_bill.recurring_total_occurrences if master_bill.recurring_total_occurrences and master_bill.recurring_total_occurrences > 0 else (10 * 12 if master_bill.recurring_frequency == 'monthly' else (10 * 52 if master_bill.recurring_frequency == 'weekly' else 10))
     
-    # Limpa Bills filhas pendentes existentes para evitar duplicatas ao editar a mestra
+    # Limpa Bills filhas PENDENTES existentes que foram geradas por esta mestra
+    # Isso é crucial ao editar uma recorrência para evitar duplicatas e inconsistências.
     Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=master_bill.user_id, status='pending').delete()
     db.session.commit() # Comita a deleção imediatamente
 
     print(f"DEBUG: Total de ocorrências para gerar para {master_bill.description}: {total_to_generate}")
 
+    # Loop para gerar as ocorrências futuras
     for i in range(1, total_to_generate + 1):
-        if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-            if i > 1: # Avança a data apenas a partir da segunda ocorrência
-                current_occurrence_date += relativedelta(months=1)
-        elif master_bill.recurring_frequency == 'weekly':
-            if i > 1:
-                current_occurrence_date += relativedelta(weeks=1)
-        elif master_bill.recurring_frequency == 'yearly':
-            if i > 1:
-                current_occurrence_date += relativedelta(years=1)
-        
-        # Ignorar ocorrências que já deveriam ter sido pagas/geradas no passado
-        # Mas sempre gerar todas as futuras a partir da data de início da recorrência.
-        # Aqui, a lógica é diferente: estamos gerando TUDO para o futuro, então a data de hoje não importa muito,
-        # Apenas a lógica de i (número da ocorrência).
-        
+        # Calcula a data da ocorrência atual
+        occurrence_date = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() # Sempre começa da start_date para cálculo
+        if i > 1: # Avança a data apenas a partir da segunda ocorrência
+            if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
+                occurrence_date += relativedelta(months=i-1)
+            elif master_bill.recurring_frequency == 'weekly':
+                occurrence_date += relativedelta(weeks=i-1)
+            elif master_bill.recurring_frequency == 'yearly':
+                occurrence_date += relativedelta(years=i-1)
+
+        # Apenas gera Bills filhas para datas a partir do "agora" ou do futuro próximo
+        # Para não re-gerar todas as Bills passadas se a Bill mestra for reativada.
+        # Se a Bill mestra é nova, gerará tudo a partir do start_date.
+        # Se a Bill mestra é editada, queremos gerar apenas as novas ocorrências futuras.
+        # Simplificação: sempre gera todas do start_date até o total_to_generate.
+        # A verificação de duplicatas abaixo é que realmente impede a criação de repetidos.
+
         # Verifica se já existe uma Bill filha específica para esta ocorrência e data
         existing_child_bill = Bill.query.filter_by(
             recurring_parent_id=master_bill.id,
-            dueDate=current_occurrence_date.isoformat(),
+            dueDate=occurrence_date.isoformat(),
             recurring_child_number=i,
             user_id=master_bill.user_id
         ).first()
@@ -163,36 +201,42 @@ def _generate_future_recurring_bills(master_bill):
             if master_bill.recurring_frequency == 'installments' and master_bill.recurring_total_occurrences > 0:
                 child_description = f"{master_bill.description.split(' (Mestra)')[0]} (Parcela {i}/{master_bill.recurring_total_occurrences})"
             else:
-                child_description = master_bill.description.split(' (Mestra)')[0] # Remove o "(Mestra)" da descrição
+                # Remove "(Mestra)" da descrição da Bill filha para recorrências não-parceladas
+                child_description = master_bill.description.replace(' (Mestra)', '') 
+
+            new_child_bill_status = 'pending'
+            # Se a data da ocorrência é no passado, mas não foi gerada, marcamos como "atrasada" para o usuário
+            if occurrence_date < today:
+                new_child_bill_status = 'overdue' # Marcar como atrasada se a data já passou e ainda não foi paga
 
             new_child_bill = Bill(
                 description=child_description,
                 amount=master_bill.amount,
-                dueDate=current_occurrence_date.isoformat(),
-                status='pending',
+                dueDate=occurrence_date.isoformat(),
+                status=new_child_bill_status,
                 user_id=master_bill.user_id,
+                is_master_recurring_bill=False, # A Bill filha NÃO é mestra
                 recurring_parent_id=master_bill.id,      # Link para a Bill mestra
+                recurring_frequency=master_bill.recurring_frequency, # Mantém a frequência da mestra
+                recurring_start_date=master_bill.recurring_start_date, # Mantém a start_date da mestra
+                recurring_next_due_date=None, # Bills filhas não geram mais
+                recurring_total_occurrences=master_bill.recurring_total_occurrences, # Mantém o total para exibição
                 recurring_child_number=i,                # Número da ocorrência gerada
-                # As Bills filhas NÃO são mestras de recorrência e não geram mais
-                is_master_recurring_bill=False, 
-                recurring_frequency=None, 
-                recurring_start_date=None,
-                recurring_next_due_date=None,
-                recurring_installments_total=0,
-                recurring_installments_generated=0,
-                is_active_recurring=False,
+                recurring_installments_generated=0, # Não relevante para Bills filhas
+                is_active_recurring=False, # Bills filhas não estão ativas para gerar mais
                 type=master_bill.type # Herda o tipo da Bill mestra
             )
             db.session.add(new_child_bill)
             generated_count_for_master += 1
-            print(f"    Gerada Bill filha: {child_description} em {current_occurrence_date.isoformat()}") # Debug
+            print(f"    Gerada Bill filha: {child_description} em {occurrence_date.isoformat()} com status {new_child_bill_status}") # Debug
         else:
-            print(f"    Bill filha já existe para {master_bill.description}, ocorrência {i} em {current_occurrence_date.isoformat()}, pulando.") # Debug
+            print(f"    Bill filha já existe para {master_bill.description}, ocorrência {i} em {occurrence_date.isoformat()}, pulando.") # Debug
 
-    master_bill.recurring_occurrences_generated = generated_count_for_master # Atualiza a contagem de gerados na mestra
+    # Atualiza o contador de ocorrências geradas na Bill mestra
+    master_bill.recurring_installments_generated = generated_count_for_master 
     
     # Se todas as ocorrências fixas foram geradas, desativa a mestra
-    if master_bill.recurring_total_occurrences and master_bill.recurring_occurrences_generated >= master_bill.recurring_total_occurrences:
+    if master_bill.recurring_total_occurrences and master_bill.recurring_installments_generated >= master_bill.recurring_total_occurrences:
         master_bill.is_active_recurring = False
         print(f"DEBUG: Master Bill '{master_bill.description}' desativada: todas as ocorrências geradas.")
     else:
@@ -200,7 +244,7 @@ def _generate_future_recurring_bills(master_bill):
         print(f"DEBUG: Master Bill '{master_bill.description}' ainda ativa.")
 
     db.session.add(master_bill) # Salva o estado atualizado da Bill mestra
-    db.session.commit() # Comita todas as alterações relacionadas a esta Bill mestra
+    db.session.commit() # Comita todas as alterações relacionadas a esta Bill mestra e suas filhas
 
 
 def add_transaction_db(description, amount, date, type, user_id, category_id=None):
@@ -216,35 +260,37 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.commit()
 
 
-# MODIFICADA: add_bill_db agora cria Bills recorrentes e aciona a geração em massa
+# MODIFICADA: add_bill_db agora pode criar Bills recorrentes (com os novos campos)
 def add_bill_db(description, amount, due_date, user_id, 
-                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense'): # Alterado para recurring_total_occurrences
+                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense'): # Adicionado bill_type
     
+    # Validação para total de ocorrências
+    if is_recurring and recurring_frequency == 'installments' and (recurring_total_occurrences is None or recurring_total_occurrences < 1):
+        recurring_total_occurrences = 1 
+    elif not is_recurring or recurring_frequency != 'installments':
+        recurring_total_occurrences = 0 
+
     new_bill = Bill(
         description=description,
         amount=float(amount),
         dueDate=due_date,
         status='pending',
         user_id=user_id,
-        is_recurring=is_recurring,
+        is_master_recurring_bill=is_recurring, # Usa o novo campo
         recurring_frequency=recurring_frequency if is_recurring else None,
-        recurring_start_date=due_date if is_recurring else None, # Data de início é a primeira due_date
-        recurring_next_due_date=due_date if is_recurring else None, # Na mestra, usamos como data da última gerada/próxima
-        recurring_total_occurrences=recurring_total_occurrences if is_recurring else 0,
+        recurring_start_date=due_date if is_recurring else None, 
+        recurring_next_due_date=due_date if is_recurring else None, 
+        recurring_total_occurrences=recurring_total_occurrences,
         recurring_installments_generated=0, # Inicia com 0 geradas
         is_active_recurring=is_recurring, # Ativa se for recorrente
         type=bill_type # Salva o tipo da Bill
     )
     db.session.add(new_bill)
-    db.session.commit() # Comita para obter o ID da new_bill (essencial para recurring_parent_id)
+    db.session.commit() # Comita imediatamente para obter o ID da new_bill (essencial para recurring_parent_id)
     
-    if new_bill.is_recurring and new_bill.is_active_recurring:
+    # Chama a geração em massa APENAS se esta é uma Bill mestra e está ativa para gerar
+    if new_bill.is_master_recurring_bill and new_bill.is_active_recurring:
         _generate_future_recurring_bills(new_bill) # Chama a função para gerar as futuras ocorrências
-
-# REMOVIDO: get_recurring_transactions_db
-# REMOVIDO: edit_recurring_transaction_db
-# REMOVIDO: delete_recurring_transaction_db
-
 
 def pay_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
@@ -266,12 +312,16 @@ def pay_bill_db(bill_id, user_id):
             category_id=category_id_for_payment
         )
         
-        # Nesta nova lógica de geração em massa, pagar uma Bill apenas a marca como paga.
-        # A próxima Bill já foi gerada ou será gerada pela mestra.
-        # Não precisamos chamar process_recurring_bills aqui, pois elas já estão no DB.
-        # O que pode acontecer é que a Bill paga era a ULTIMA PARCELA de uma recorrente MESTRA.
-        # Mas essa lógica de desativação já está em _generate_future_recurring_bills.
-        # O importante é que a próxima fatura *já existe* no DB.
+        # A geração em massa já deve ter criado todas as Bills futuras necessárias.
+        # Se a Bill paga é uma "filha" de uma mestra recorrente,
+        # sua mestra já gerou as próximas. Não precisamos fazer nada aqui.
+        # Se a Bill paga é uma MESTRA que por alguma razão ainda não gerou tudo,
+        # a próxima chamada a process_recurring_bills no index/dashboard resolverá.
+        
+        # A lógica de pay_bill_db para recorrentes agora é mais simples:
+        # apenas marca a Bill atual como paga e add uma transação.
+        # A geração de futuras ocorrências é responsabilidade de _generate_future_recurring_bills
+        # que é acionada ao adicionar/editar a mestra ou ao acessar o dashboard.
 
         db.session.commit() # Comita todas as alterações (bill.status e outras)
         return True
@@ -301,15 +351,19 @@ def delete_bill_db(bill_id, user_id):
         # Se a Bill é uma Bill recorrente "mestra", desativa a recorrência e deleta Bills filhas pendentes
         if bill.is_master_recurring_bill:
             bill.is_active_recurring = False
-            # Opcional: deletar todas as Bills FILHAS pendentes geradas por esta mestra
-            generated_child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').all()
-            for child_bill in generated_child_bills:
-                db.session.delete(child_bill)
-            db.session.add(bill) # Salva a Bill mestra com is_active_recurring=False
-            print(f"Recorrência mestra '{bill.description}' desativada e {len(generated_child_bills)} contas filhas pendentes excluídas.")
-        
-        # Se a Bill deletada é uma Bill "filha" de uma recorrência, apenas a deleta
-        # Se não é recorrente nem filha, apenas a deleta.
+            # Congela a próxima data na atual para que não gere mais a partir dela
+            bill.recurring_next_due_date = bill.dueDate 
+            db.session.add(bill) # Adiciona a alteração de status
+            
+            # Deletar todas as Bills PENDENTES geradas por esta recorrência mestra
+            generated_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').all()
+            for gen_bill in generated_bills:
+                db.session.delete(gen_bill)
+            print(f"Recorrência mestra '{bill.description}' desativada e {len(generated_bills)} contas geradas pendentes excluídas.")
+
+
+        # Se a Bill é uma ocorrência gerada por outra recorrência, apenas a deleta
+        # Se a Bill não é recorrente nem gerada por recorrência, apenas a deleta
         db.session.delete(bill)
         db.session.commit()
         return True
@@ -335,11 +389,12 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
         bill.description = description
         bill.amount = float(amount)
         bill.dueDate = dueDate
-        
-        # Se esta Bill é uma Bill mestra (is_master_recurring_bill == True)
+        bill.type = bill_type # Atualiza o tipo da Bill
+
+        # Se a Bill é uma Bill mestra (is_master_recurring_bill == True)
         if bill.is_master_recurring_bill:
-            # Se a recorrência foi desativada ou alterada, deletar futuras e re-gerar
-            old_is_active = bill.is_active_recurring
+            # Capturar o estado antigo para decidir se precisa regenerar
+            old_is_active_recurring = bill.is_active_recurring
             old_frequency = bill.recurring_frequency
             old_total_occurrences = bill.recurring_total_occurrences
 
@@ -347,38 +402,42 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             bill.is_active_recurring = is_active_recurring
             bill.recurring_frequency = recurring_frequency if is_recurring else None
             bill.recurring_total_occurrences = recurring_total_occurrences if is_recurring and recurring_frequency == 'installments' else 0
-            bill.type = bill_type # Atualiza o tipo da Bill
+            
+            # A data de início da recorrência não muda na edição.
+            # A next_due_date será re-calculada pela _generate_future_recurring_bills se for o caso.
 
-            # Apenas re-gera se:
-            # 1. A recorrência foi ativada/reativada
-            # 2. A frequência ou o total de ocorrências mudou (se ainda for recorrente)
+            # Re-gerar Bills futuras se:
+            # 1. A mestra foi ATIVADA (ou reativada)
+            # 2. OU a frequência mudou (e ainda é recorrente)
+            # 3. OU o total de ocorrências mudou (e ainda é recorrente)
             if is_recurring and is_active_recurring and \
-               (not old_is_active or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences):
+               (not old_is_active_recurring or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences):
                 print(f"DEBUG: Editando Bill mestra '{bill.description}'. Parâmetros de recorrência alterados ou reativada. Regenerando futuras ocorrências.")
-                # Deleta futuras ocorrências pendentes e re-gera
                 _generate_future_recurring_bills(bill) # Esta função cuida da deleção e geração
-
-            elif not is_recurring: # Se desativou a recorrência
+            elif not is_recurring and old_is_active_recurring: # Se foi desativada AGORA
                 bill.is_active_recurring = False
                 # Limpar campos de recorrência e deletar futuras ocorrências
                 bill.recurring_frequency = None
-                bill.recurring_start_date = None # Recomeça o start_date se reativar depois
-                bill.recurring_next_due_date = None
+                # bill.recurring_start_date = None # Manter o start_date original
+                bill.recurring_next_due_date = None # Limpa próxima data gerada
                 bill.recurring_total_occurrences = 0
                 bill.recurring_installments_generated = 0
                 # Deleta futuras ocorrências pendentes
                 Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
                 print(f"DEBUG: Master Bill '{bill.description}' desativada, futuras Bills filhas deletadas.")
-            
-            # Se a Bill Mestra não é ou não se tornou recorrente (ou se tornou, mas não está ativa)
-            # e não gerou outras (ou já gerou e não estamos alterando), apenas atualiza os campos básicos
-            # A lógica acima já garante isso.
-
-        else: # Se não é uma Bill mestra, apenas atualiza os campos básicos
-            bill.description = description
-            bill.amount = float(amount)
-            bill.dueDate = dueDate
-            bill.type = bill_type # Atualiza o tipo da Bill
+            elif is_recurring and not is_active_recurring and old_is_active_recurring: # Se está marcada como recorrente, mas foi desativada manualmente
+                print(f"DEBUG: Master Bill '{bill.description}' marcada como inativa manualmente.")
+                # Apenas desativar, mas não apagar as filhas se o usuário quiser reativar depois
+        
+        else: # Se não é uma Bill mestra (ou não se tornou uma)
+            bill.is_master_recurring_bill = False
+            bill.is_active_recurring = False
+            bill.recurring_frequency = None
+            bill.recurring_start_date = None
+            bill.recurring_next_due_date = None
+            bill.recurring_total_occurrences = 0
+            bill.recurring_installments_generated = 0
+            # Nenhuma ação sobre recurring_parent_id, pois ele linka para a mestra
 
         db.session.commit()
         return True
@@ -626,14 +685,15 @@ def get_bill_data(bill_id):
             'amount': bill.amount,
             'dueDate': bill.dueDate,
             'status': bill.status,
-            'is_recurring': bill.is_recurring,
+            'is_master_recurring_bill': bill.is_master_recurring_bill, # Ajustado para novo nome
+            'recurring_parent_id': bill.recurring_parent_id, # Ajustado para novo nome
             'recurring_frequency': bill.recurring_frequency,
             'recurring_start_date': bill.recurring_start_date,
             'recurring_next_due_date': bill.recurring_next_due_date,
-            'recurring_installments_total': bill.recurring_installments_total,
+            'recurring_total_occurrences': bill.recurring_total_occurrences, # Ajustado para novo nome
             'recurring_installments_generated': bill.recurring_installments_generated,
             'is_active_recurring': bill.is_active_recurring,
-            'type': bill.type
+            'type': bill.type # Retorna o tipo
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -646,12 +706,12 @@ def handle_edit_bill(bill_id):
     
     is_recurring = request.form.get('edit_is_recurring_bill') == 'on'
     recurring_frequency = request.form.get('edit_recurring_frequency_bill')
-    recurring_total_occurrences = request.form.get('edit_recurring_total_occurrences_bill', type=int) # NOVO: Pega o total de ocorrências editado
+    recurring_total_occurrences = request.form.get('edit_recurring_total_occurrences_bill', type=int)
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
-                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type): # Passa o total de ocorrências
+                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type):
         flash('Conta atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
@@ -930,68 +990,68 @@ if __name__ == '__main__':
                 db.session.add(Bill( 
                     description='Salário Mensal (Mestra)', 
                     amount=3000.00,
-                    dueDate='2024-01-01', # Data de início original (passado para gerar tudo)
-                    status='pending', # O status aqui da mestra é irrelevante, as filhas terão status
+                    dueDate='2024-01-01', # Data da primeira ocorrência a ser gerada
+                    status='pending', # Colocado como pending para ser processado
                     user_id=first_user.id,
                     is_master_recurring_bill=True, # É a Bill mestra
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-01',
-                    recurring_next_due_date='2024-01-01', # Força a geração a partir do passado
+                    recurring_next_due_date='2024-01-01', # Força a geração para o mês atual/passado
                     recurring_total_occurrences=0, # 0 para indefinido
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='income' 
+                    type='income' # Adiciona o tipo para que process_recurring_bills possa gerar TRANSACTION
                 ))
 
                 # Exemplo 2: Aluguel Apartamento (despesa, recorrente mensal - GERA BILLS FILHAS)
                 db.session.add(Bill(
                     description='Aluguel Apartamento (Mestra)',
                     amount=1500.00,
-                    dueDate='2024-01-05', # Data de início original
+                    dueDate='2024-01-05', # Data da primeira ocorrência a ser gerada
                     status='pending',
                     user_id=first_user.id,
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-05',
-                    recurring_next_due_date='2024-01-05', # Força a geração a partir do passado
+                    recurring_next_due_date='2024-01-05', # Força a geração para o mês atual/passado
                     recurring_total_occurrences=0,
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense' # Explicitamente despesa
                 ))
                 
                 # Exemplo 3: Internet Fibra (despesa, recorrente mensal - GERA BILLS FILHAS)
                 db.session.add(Bill(
                     description='Internet Fibra (Mestra)',
                     amount=99.90,
-                    dueDate='2024-01-10', # Data de início original
+                    dueDate='2024-01-10', # Data da primeira ocorrência a ser gerada
                     status='pending',
                     user_id=first_user.id,
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-10',
-                    recurring_next_due_date='2024-01-10', # Força a geração a partir do passado
+                    recurring_next_due_date='2024-01-10', # Força a geração para o mês atual/passado
                     recurring_total_occurrences=0,
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense' # Explicitamente despesa
                 ))
 
-                # Exemplo 4: Compra Parcelada Tênis (despesa, parcelada - GERA BILLS SEQUENCIAIS FILHAS)
+                # Exemplo 4: Compra Parcelada Tênis (despesa, parcelada - GERA BILLS SEQUENCIAIS)
                 db.session.add(Bill(
-                    description='Compra Parcelada Tênis (Mestra)',
+                    description='Compra Parcelada Tênis (Mestra)', # Esta é a Bill "mestra" que gerará parcelas
                     amount=100.00, # Valor de UMA parcela
-                    dueDate='2024-01-01', # Data de início original (passado para gerar tudo)
-                    status='pending',
+                    dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
+                    status='pending', # O status aqui pode ser irrelevante para a mestra, mas mantemos
                     user_id=first_user.id,
                     is_master_recurring_bill=True,
                     recurring_frequency='installments',
                     recurring_start_date='2024-01-01',
-                    recurring_next_due_date='2024-01-01', # Força a geração a partir do passado
+                    recurring_next_due_date='2024-01-01', # Força a geração da primeira parcela para o passado
                     recurring_total_occurrences=5, # Total de 5 parcelas
                     recurring_installments_generated=0, # Começa do zero para teste
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense' # Explicitamente despesa
                 ))
                 
                 db.session.commit()
