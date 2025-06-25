@@ -116,7 +116,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
     db.session.add(new_transaction)
     db.session.commit()
 
-# MODIFICADA: add_bill_db agora pode criar Bills recorrentes (com os novos campos)
+# MODIFICADA: add_bill_db agora pode criar Bills recorrentes
 def add_bill_db(description, amount, due_date, user_id, 
                 is_recurring=False, recurring_frequency=None, recurring_installments_total=0, bill_type='expense'): # Adicionado bill_type
     
@@ -183,14 +183,14 @@ def process_recurring_bills(user_id):
                         installment_number_to_generate = (bill_seed.recurring_installments_generated or 0) + 1
                         
                         # Verifica se a conta para esta parcela e data já foi gerada para EVITAR DUPLICATAS
-                        existing_bill_for_installment = Bill.query.filter_by(
+                        existing_bill = Bill.query.filter_by(
                             recurring_transaction_origin_id=bill_seed.id, # Link to the original recurring Bill
                             dueDate=next_due_date_dt.isoformat(),
                             installment_number=installment_number_to_generate,
                             user_id=user_id
                         ).first()
 
-                        if not existing_bill_for_installment:
+                        if not existing_bill:
                             bill_description = f"{bill_seed.description.split(' (Mestra)')[0]} (Parcela {installment_number_to_generate}/{bill_seed.recurring_installments_total})"
                             
                             new_generated_bill = Bill(
@@ -215,7 +215,7 @@ def process_recurring_bills(user_id):
                             bills_generated_count += 1
                             print(f"    GERADA PARCELA: {bill_description} para {next_due_date_dt.isoformat()}")
                         else:
-                            print(f"    PARCELA JÁ EXISTENTE: '{bill_seed.description}' parcela {existing_bill_for_installment.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
+                            print(f"    PARCELA JÁ EXISTENTE: '{bill_seed.description}' parcela {existing_bill.installment_number} em {next_due_date_dt.isoformat()}, pulando.")
                         
                         bill_seed.recurring_installments_generated = (bill_seed.recurring_installments_generated or 0) + 1
                         
@@ -253,9 +253,9 @@ def process_recurring_bills(user_id):
                         )
                         db.session.add(new_generated_bill)
                         bills_generated_count += 1
-                        print(f"    GERADA CONTA FIXA: {new_generated_bill.description} para {next_due_date_dt.isoformat()}")
+                        print(f"    GENERATED FIXED BILL: {new_generated_bill.description} para {next_due_date_dt.isoformat()}")
                     else:
-                        print(f"    CONTA FIXA JÁ EXISTENTE: '{bill_seed.description}' em {next_due_date_dt.isoformat()}, pulando.")
+                        print(f"    FIXED BILL ALREADY EXISTS: '{bill_seed.description}' em {next_due_date_dt.isoformat()}, pulando.")
             
             # --- Se a Bill Mestra é de RECEITA, ela deve gerar uma TRANSACTION, NÃO UMA BILL ---
             elif bill_seed.type == 'income': 
@@ -276,9 +276,9 @@ def process_recurring_bills(user_id):
                     )
                     db.session.add(new_income_transaction) 
                     transactions_generated_count += 1
-                    print(f"  GERADA RECEITA: {bill_seed.description} para {next_due_date_dt.isoformat()}")
+                    print(f"  GENERATED INCOME: {bill_seed.description} para {next_due_date_dt.isoformat()}")
                 else:
-                    print(f"  RECEITA JÁ EXISTENTE: '{bill_seed.description}' em {next_due_date_dt.isoformat()}, pulando.")
+                    print(f"  INCOME ALREADY EXISTS: '{bill_seed.description}' em {next_due_date_dt.isoformat()}, pulando.")
 
 
             # --- ADVANCE NEXT DUE DATE for the recurring_seed_bill ---
@@ -723,7 +723,6 @@ def handle_edit_transaction(transaction_id):
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
     return redirect(url_for('index'))
 
-# ROTA: Obter dados de uma Bill para edição (AGORA INCLUI DADOS DE RECORRÊNCIA)
 @app.route('/get_bill_data/<int:bill_id>', methods=['GET'])
 @login_required
 def get_bill_data(bill_id):
@@ -746,7 +745,6 @@ def get_bill_data(bill_id):
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
-# ROTA: Salvar edições de uma Bill (AGORA INCLUI DADOS DE RECORRÊNCIA)
 @app.route('/edit_bill/<int:bill_id>', methods=['POST'])
 @login_required
 def handle_edit_bill(bill_id):
@@ -988,7 +986,7 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
-# ROTA: Página de Transações Recorrentes (REMOVIDO: Será parte do index)
+# REMOVIDO: Rota '/recurring_transactions' (será uma funcionalidade do /index)
 # @app.route('/recurring_transactions')
 # @login_required
 # def recurring_transactions():
