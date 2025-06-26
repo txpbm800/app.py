@@ -135,8 +135,10 @@ def _generate_future_recurring_bills(master_bill):
     # Recalcula a próxima data de vencimento da Mestra ANTES DE GERAR
     current_occurrence_date_from_master_start = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
     
-    # Define o total de ocorrências a gerar. Se 0 (indefinido), gera para 10 anos.
-    total_to_generate = master_bill.recurring_total_occurrences if master_bill.recurring_total_occurrences and master_bill.recurring_total_occurrences > 0 else (10 * 12 if master_bill.recurring_frequency == 'monthly' else (10 * 52 if master_bill.recurring_frequency == 'weekly' else 10))
+    # Define o total de ocorrências a gerar.
+    # Se 0 (indefinido), gera 12 ocorrências (1 ano de meses ou 12 semanas para semanais, etc.).
+    # Isso evita uma geração excessiva para recorrências "indefinidas".
+    total_to_generate = master_bill.recurring_total_occurrences if master_bill.recurring_total_occurrences and master_bill.recurring_total_occurrences > 0 else 12 
     
     print(f"DEBUG: Total de ocorrências para gerar para {master_bill.description}: {total_to_generate}")
 
@@ -250,13 +252,13 @@ def _generate_future_recurring_bills(master_bill):
     db.session.add(master_bill) # Adiciona a Bill mestra atualizada para a sessão
     db.session.commit() # Comita todas as alterações deste lote de processamento
 
-# FUNÇÃO PRINCIPAL QUE É CHAMADA NA ROTA / E /PAY_BILL
+# FUNÇÃO QUE É CHAMADA NA ROTA / E /PAY_BILL
 def process_recurring_bills_on_access(user_id):
     # As variáveis 'bills_generated_count' e 'transactions_generated_count'
-    # precisam ser inicializadas dentro desta função, pois elas são contadores
-    # específicos para a execução desta chamada.
-    bills_generated_count = 0 # Inicialização da variável
-    transactions_generated_count = 0 # Inicialização da variável
+    # não são mais usadas aqui para contagem de flash messages,
+    # pois a geração em massa acontece dentro de _generate_future_recurring_bills.
+    # A mensagem flash agora é exibida por _generate_future_recurring_bills.
+    pass # Removido o conteúdo que causava NameError
 
     # Buscar apenas Bills que são a "semente" da recorrência e ainda estão ativas para gerar novas ocorrências
     # E cuja `recurring_next_due_date` é <= TODAY_DATE
@@ -274,17 +276,12 @@ def process_recurring_bills_on_access(user_id):
         # Aciona a geração em massa para esta Bill mestra.
         # _generate_future_recurring_bills já lida com o loop interno e avanço da data da semente.
         _generate_future_recurring_bills(bill_seed)
-        # As contagens de bills_generated_count e transactions_generated_count
-        # são internas a _generate_future_recurring_bills e não retornam aqui.
-        # Para ter uma contagem consolidada para o flash message, teríamos que adaptar _generate_future_recurring_bills
-        # para retornar as contagens e somá-las aqui. Por simplicidade, o flash message será mais genérico.
         
-    # Mensagens flash genéricas aqui, já que a contagem detalhada seria complexa
-    # se _generate_future_bills não retornar as contagens.
-    if bills_generated_count > 0 or transactions_generated_count > 0:
-        flash(f"{bills_generated_count} novas contas e {transactions_generated_count} transações geradas automaticamente!", 'info')
-    else:
-        print("Nenhuma conta ou transação recorrente gerada nesta execução principal.") # Debug
+    # Mensagens flash já são emitidas por _generate_future_recurring_bills
+    # if bills_generated_count > 0 or transactions_generated_count > 0:
+    #    flash(f"{bills_generated_count} novas contas e {transactions_generated_count} transações geradas automaticamente!", 'info')
+    # else:
+    #    print("Nenhuma conta ou transação recorrente gerada nesta execução principal.") # Debug
 
 
 def add_bill_db(description, amount, due_date, user_id, 
@@ -524,7 +521,11 @@ def generate_text_with_gemini(prompt_text):
 def index():
     # Processa as transações recorrentes do usuário ANTES de carregar a página
     # para que as contas/transações geradas apareçam no dashboard.
-    process_recurring_bills_on_access(current_user.id) # CHAMADO AQUI
+    # Com a nova lógica de geração em massa, esta chamada é para garantir que:
+    # 1. As Bills mestras recém-adicionadas (ou editadas) gerem suas ocorrências.
+    # 2. As Bills mestras que não geraram todas as suas ocorrências devidas (ex: app ficou offline)
+    #    gerem o restante até hoje.
+    process_recurring_bills_on_access(current_user.id) 
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
@@ -727,7 +728,7 @@ def get_bill_data(bill_id):
             'status': bill.status,
             'is_master_recurring_bill': bill.is_master_recurring_bill,
             'recurring_parent_id': bill.recurring_parent_id,
-            'recurring_child_number': bill.recurring_child_number, # NOVO
+            'recurring_child_number': bill.recurring_child_number,
             'recurring_frequency': bill.recurring_frequency,
             'recurring_start_date': bill.recurring_start_date,
             'recurring_next_due_date': bill.recurring_next_due_date,
@@ -1072,7 +1073,7 @@ if __name__ == '__main__':
                     description='Compra Parcelada Tênis (Mestra)', # Esta é a Bill "mestra" que gerará parcelas
                     amount=100.00, # Valor de UMA parcela
                     dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
-                    status='pending', # O status aqui pode ser irrelevante para a mestra, mas mantemos
+                    status='pending',
                     user_id=first_user.id,
                     is_master_recurring_bill=True,
                     recurring_frequency='installments',
