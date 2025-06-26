@@ -251,10 +251,12 @@
             </div>
         </div>
 
-        {# COLUNA DE FORMULÁRIOS (Nova Transação, Nova Conta a Pagar) #}
-        {# Esta div agrupa os dois formulários no lado esquerdo do desktop #}
+        {# NOVO: Grid principal para os formulários e as listas, garantindo o layout de 2 colunas no desktop #}
+        {# Este grid conterá 2 "linhas" lógicas no desktop: a primeira para os formulários, a segunda para as listas. #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
-            <div class="col-span-1 space-y-6"> 
+            
+            {# COLUNA ESQUERDA: Formulário de Nova Transação e Nova Conta a Pagar (irão para a primeira linha no mobile) #}
+            <div class="col-span-1 space-y-6"> {# Esta div vai agrupar os dois formulários e ocupar a primeira coluna #}
                 <!-- Transaction Form Section (Colapsável) -->
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
@@ -381,12 +383,12 @@
                 </div>
             </div> {# Fim da COLUNA ESQUERDA (Formulários) #}
 
-            {# COLUNA DIREITA: Todas as Listas de Dados #}
-            {# Esta div principal é o grid 2x2 para as 4 listas no desktop #}
+            {# COLUNA DIREITA: Todas as Listas de Dados (Contas a Pagar, Últimas Transações, Receitas, Despesas) #}
+            {# Este div principal terá um grid interno para organizar as 4 listas em 2x2 no desktop #}
             <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 
                 <!-- Bills List Section (Contas a Pagar) - TOP-LEFT -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow col-span-1"> {# Col-span-1 para ocupar uma coluna #}
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Removido col-span aqui, o grid pai já define #}
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
@@ -526,7 +528,7 @@
                 </div>
 
                 <!-- Transaction List Section (Últimas Transações) - TOP-RIGHT -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Não precisa de col-span aqui, o grid pai já define #}
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Removido col-span aqui, o grid pai já define #}
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
                     {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
                     <div class="mb-4 space-y-2">
@@ -629,8 +631,8 @@
                     </div>
                 </div>
             
-                <!-- Income List Section - BOTTOM-LEFT -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# mt-6 para mobile spacing, md:mt-0 para desktop #}
+                <!-- Income List Section -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# Removido mt-6 aqui #}
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                     <div class="space-y-3">
                         {% if not income_transactions %}
@@ -656,8 +658,8 @@
                         </div>
                     </div>
 
-                    <!-- Expense List Section - BOTTOM-RIGHT -->
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# mt-6 para mobile spacing #}
+                    <!-- Expense List Section -->
+                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# Removido mt-6 aqui #}
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                         <div class="space-y-3">
                             {% if not expense_transactions %}
@@ -682,7 +684,7 @@
                             {% endif %}
                         </div>
                     </div>
-                </div> {# Fim do novo div que agrupa Receitas e Despesas #}
+                </div> {# Fim do novo div que agrupa Últimas Transações, Receitas e Despesas #}
 
 
             </div> {# Fim do CONTÊINER DE GRADE UNIFICADO para Formulários e Listas #}
