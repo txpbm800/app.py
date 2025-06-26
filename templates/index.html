@@ -367,7 +367,7 @@
                             <div id="bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
                                 <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
                                 <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
 
@@ -851,7 +851,7 @@
             const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
             if (addBillFrequencySelect) {
                 // Garante que a label e placeholder são atualizados na carga inicial
-                updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill'); 
+                updateRecurringOccurrenceLabel(addBillFrequencySelect.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill'); 
                 addBillFrequencySelect.addEventListener('change', (event) => {
                     updateRecurringOccurrenceLabel(event.target.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill');
                 });
@@ -999,7 +999,7 @@
                 updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
 
                 // Filtra as categorias para o tipo selecionado na Bill de edição
-                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring');
+                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring', data.category_id);
 
             } else {
                 recurringFieldsDiv.classList.add('hidden');
@@ -1021,19 +1021,19 @@
             if (frequencySelect.value === 'installments') {
                 label.textContent = 'Total de Parcelas';
                 input.placeholder = 'Ex: 12';
-                input.min = '1';
+                input.min = '1'; // Parcelas devem ser no mínimo 1
                 input.setAttribute('required', 'true');
                 input.parentElement.classList.remove('hidden'); // Garante que o campo esteja visível
             } else {
                 label.textContent = 'Total de Ocorrências (0 para Indefinido)';
                 input.placeholder = '0 para Indefinido';
-                input.min = '0';
+                input.min = '0'; // 0 para indefinido
                 input.removeAttribute('required');
                 // Ocultar o campo se não for de interesse para frequências fixas
                 if (frequencySelect.value !== 'installments') {
-                    document.getElementById(inputId).parentElement.classList.add('hidden');
+                    input.parentElement.classList.remove('hidden'); // Manter visível mas com 0 para indefinido
                 } else {
-                     document.getElementById(inputId).parentElement.classList.remove('hidden');
+                    input.parentElement.classList.remove('hidden'); // Manter visível mas com 0 para indefinido
                 }
             }
         }
@@ -1081,7 +1081,7 @@
                     // Preenche campos de recorrência no modal de edição de Bill
                     const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                     const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
+                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill');
                     const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
                     const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
                     const editBillTypeSelect = document.getElementById('edit_bill_type'); 
@@ -1096,12 +1096,15 @@
                     filterCategoriesByType(data.type, 'edit_bill_category_id_recurring', data.category_id);
 
                     // Garante que a visibilidade dos campos de recorrência e parcelas seja atualizada
-                    // e que os listeners onchange sejam adicionados corretamente
                     toggleBillRecurringFieldsEdit();
+                    // Garante que a label e placeholder são atualizados
+                    updateRecurringOccurrenceLabel(editRecurringFrequencyBillSelect.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
+
+
                     editIsRecurringBillCheckbox.onchange = toggleBillRecurringFieldsEdit; 
                     editRecurringFrequencyBillSelect.onchange = (event) => { 
                         updateRecurringOccurrenceLabel(event.target.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
-                        toggleBillRecurringFieldsEdit(); // Também atualiza visibilidade se tipo mudar a frequência
+                        toggleBillRecurringFieldsEdit(); 
                     };
                     editBillTypeSelect.onchange = (event) => { 
                         filterCategoriesByType(event.target.value, 'edit_bill_category_id_recurring', data.category_id);
