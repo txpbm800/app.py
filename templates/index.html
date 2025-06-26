@@ -121,6 +121,13 @@
         .close-button:hover {
             color: #333;
         }
+
+        /* NOVO: Estilo para a área de rolagem da lista de contas */
+        .bills-scroll-area {
+            max-height: 400px; /* Altura máxima da área de rolagem */
+            overflow-y: auto; /* Adiciona barra de rolagem vertical quando o conteúdo excede a altura */
+            padding-right: 10px; /* Espaço para a barra de rolagem */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -350,7 +357,7 @@
                                 <label for="recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
                                 <select id="recurring_frequency_bill" name="recurring_frequency_bill"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    onchange="toggleInstallmentsField('recurring_frequency_bill', 'bill_total_occurrences_field')"> {# Corrigido o ID do campo de parcelas #}
+                                    onchange="updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill')"> {# Corrigido o ID do campo de parcelas e adicionado onchange #}
                                     <option value="monthly">Mensal</option>
                                     <option value="weekly">Semanal</option>
                                     <option value="yearly">Anual</option>
@@ -358,7 +365,7 @@
                                 </select>
                             </div>
                             <div id="bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
-                                <label for="recurring_total_occurrences_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# Texto alterado #}
+                                <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
                                 <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
@@ -417,86 +424,88 @@
                     </form>
                 </div>
 
-
-                <div class="space-y-4">
-                    {% if not bills %}
-                        <div class="text-center py-8 flex flex-col items-center justify-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
-                            <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
-                        </div>
-                    {% else %}
-                        {% for bill in bills %}
-                            {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
-                            <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50 shadow-lg{% else %}border-gray-200 bg-white hover:border-blue-300 hover:shadow-md{% endif %}">
-                                <div class="flex items-center justify-between flex-wrap gap-2">
-                                    <div class="flex-1 min-w-0">
-                                        <div class="flex items-center space-x-2 mb-2">
-                                            <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
-                                            {% if is_overdue %}
-                                                <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                                                    Em atraso
-                                                </span>
-                                            {% elif bill.status == 'paid' %} {# Mostra status "pago" #}
-                                                <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                                                    Pago
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                        <div class="flex items-center space-x-4 text-sm text-gray-600">
-                                            <div class="flex items-center space-x-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                <span>Vencimento: {{ bill.dueDate }}</span>
+                {# NOVO: Div com barra de rolagem para a lista de contas #}
+                <div class="bills-scroll-area">
+                    <div class="space-y-4">
+                        {% if not bills %}
+                            <div class="text-center py-8 flex flex-col items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
+                                <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
+                            </div>
+                        {% else %}
+                            {% for bill in bills %}
+                                {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
+                                <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50 shadow-lg{% else %}border-gray-200 bg-white hover:border-blue-300 hover:shadow-md{% endif %}">
+                                    <div class="flex items-center justify-between flex-wrap gap-2">
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center space-x-2 mb-2">
+                                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
+                                                {% if is_overdue %}
+                                                    <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                                                        Em atraso
+                                                    </span>
+                                                {% elif bill.status == 'paid' %} {# Mostra status "pago" #}
+                                                    <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                                        Pago
+                                                    </span>
+                                                {% endif %}
                                             </div>
-                                            <div class="font-bold text-xl text-gray-800">
-                                                R$ {{ "%.2f"|format(bill.amount) }}
+                                            <div class="flex items-center space-x-4 text-sm text-gray-600">
+                                                <div class="flex items-center space-x-1">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                    <span>Vencimento: {{ bill.dueDate }}</span>
+                                                </div>
+                                                <div class="font-bold text-xl text-gray-800">
+                                                    R$ {{ "%.2f"|format(bill.amount) }}
+                                                </div>
+                                                {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
+                                                {% if bill.is_master_recurring_bill or bill.recurring_parent_id %} {# Verifica se é mestra ou filha #}
+                                                    <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                                        Recorrente
+                                                        {% if bill.recurring_child_number and bill.recurring_total_occurrences > 0 %} {# Só mostra se for Bill filha e tiver total > 0 #}
+                                                            {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences }}
+                                                        {% elif bill.is_master_recurring_bill and bill.recurring_total_occurrences == 0 %} {# É mestra e indefinida #}
+                                                            (Indefinido)
+                                                        {% endif %}
+                                                    </span>
+                                                {% endif %}
+                                                {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
+                                                {% if bill.type == 'income' %}
+                                                    <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
+                                                {% elif bill.type == 'expense' %}
+                                                    <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
+                                                {% endif %}
                                             </div>
-                                            {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
-                                            {% if bill.is_master_recurring_bill or bill.recurring_parent_id %} {# Verifica se é mestra ou filha #}
-                                                <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                                    Recorrente
-                                                    {% if bill.recurring_child_number and bill.recurring_total_occurrences > 0 %} {# Só mostra se for Bill filha e tiver total > 0 #}
-                                                        {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences }}
-                                                    {% elif bill.is_master_recurring_bill and bill.recurring_total_occurrences == 0 %} {# É mestra e indefinida #}
-                                                        (Indefinido)
-                                                    {% endif %}
-                                                </span>
-                                            {% endif %}
-                                            {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
-                                            {% if bill.type == 'income' %}
-                                                <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
-                                            {% elif bill.type == 'expense' %}
-                                                <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
-                                            {% endif %}
                                         </div>
-                                    </div>
-                                    
-                                    <div class="flex flex-col space-y-2 ml-auto">
-                                        <div class="flex space-x-2">
-                                            {% if bill.status == 'pending' %} {# Apenas mostra pagar/editar se for pendente #}
-                                                <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST">
-                                                    <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                        Pagar
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                            <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                Editar
-                                            </button>
-                                        </div>
-                                        <div class="flex space-x-2">
-                                            {% if bill.status == 'pending' %} {# Apenas mostra remarcar se for pendente #}
-                                                <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full">
-                                                    <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
-                                                    <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
-                                                        Remarcar
-                                                    </button>
-                                                </form>
-                                            {% endif %}
-                                            <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
-                                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                    Excluir
+                                        
+                                        <div class="flex flex-col space-y-2 ml-auto">
+                                            <div class="flex space-x-2">
+                                                {% if bill.status == 'pending' %} {# Apenas mostra pagar/editar se for pendente #}
+                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST">
+                                                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                            Pagar
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                    Editar
                                                 </button>
-                                            </form>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                {% if bill.status == 'pending' %} {# Apenas mostra remarcar se for pendente #}
+                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full">
+                                                        <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
+                                                        <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
+                                                            Remarcar
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
+                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                        Excluir
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -752,7 +761,7 @@
                         <label for="edit_recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
                         <select id="edit_recurring_frequency_bill" name="edit_recurring_frequency_bill"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onchange="toggleInstallmentsField('edit_recurring_frequency_bill', 'edit_bill_total_occurrences_field')"> {# Corrigido o ID do campo de parcelas #}
+                            onchange="updateRecurringOccurrenceLabel('edit_recurring_frequency_bill', 'edit_recurring_total_occurrences_label', 'edit_recurring_total_occurrences_bill')"> {# Corrigido o ID do campo de parcelas #}
                             <option value="monthly">Mensal</option>
                             <option value="weekly">Semanal</option>
                             <option value="yearly">Anual</option>
@@ -760,7 +769,7 @@
                         </select>
                     </div>
                     <div id="edit_bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
-                        <label for="edit_recurring_total_occurrences_bill" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> 
+                        <label for="edit_recurring_total_occurrences_bill" id="edit_recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
                         <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
@@ -841,9 +850,10 @@
             }
             const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
             if (addBillFrequencySelect) {
-                toggleInstallmentsField('recurring_frequency_bill', 'bill_installments_total_field'); // Inicializa visibilidade de parcelas
-                addBillFrequencySelect.addEventListener('change', (event) => { // Adiciona listener para mudança de frequência
-                    toggleInstallmentsField(event.target.id, 'bill_installments_total_field');
+                // Garante que a label e placeholder são atualizados na carga inicial
+                updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill'); 
+                addBillFrequencySelect.addEventListener('change', (event) => {
+                    updateRecurringOccurrenceLabel(event.target.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill');
                 });
             }
         });
@@ -945,21 +955,18 @@
             const isRecurringCheckbox = document.getElementById('is_recurring_bill');
             const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
             const recurringFrequencySelect = document.getElementById('recurring_frequency_bill');
-            const installmentsTotalField = document.getElementById('bill_installments_total_field');
+            const installmentsTotalField = document.getElementById('bill_total_occurrences_field'); // Corrigido o ID
             const installmentsTotalInput = document.getElementById('recurring_total_occurrences_bill'); // Corrigido o ID
-            const billTypeSelect = document.getElementById('bill_type'); // Novo: para filtrar categorias do formulário de adição
+            const recurringTotalOccurrencesLabel = document.getElementById('recurring_total_occurrences_label'); // Corrigido o ID
+            const billTypeSelect = document.getElementById('bill_type'); 
 
             if (isRecurringCheckbox.checked) {
                 recurringFieldsDiv.classList.remove('hidden');
                 recurringFrequencySelect.setAttribute('required', 'true');
-                // Inicializa o estado do campo de parcelas ao mostrar a seção
-                if (recurringFrequencySelect.value === 'installments') {
-                    installmentsTotalField.classList.remove('hidden');
-                    installmentsTotalInput.setAttribute('required', 'true');
-                } else {
-                    installmentsTotalField.classList.add('hidden');
-                    installmentsTotalInput.removeAttribute('required');
-                }
+                
+                // Inicializa a label e placeholder na carga inicial/ativação
+                updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
+                
                 // Filtra as categorias para o tipo selecionado na Bill
                 filterCategoriesByType(billTypeSelect.value, 'bill_category_id_recurring');
                 
@@ -976,10 +983,11 @@
             const isRecurringCheckbox = document.getElementById('edit_is_recurring_bill');
             const recurringFieldsDiv = document.getElementById('edit_bill_recurring_fields');
             const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
-            const installmentsTotalField = document.getElementById('edit_bill_total_occurrences_field'); // Corrigido o ID
-            const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); // Corrigido o ID
+            const installmentsTotalField = document.getElementById('edit_bill_total_occurrences_field'); 
+            const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
+            const recurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); // Corrigido o ID
             const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
-            const billTypeSelectEdit = document.getElementById('edit_bill_type'); // Novo: para filtrar categorias do modal de edição
+            const billTypeSelectEdit = document.getElementById('edit_bill_type'); 
 
 
             if (isRecurringCheckbox.checked) {
@@ -987,16 +995,11 @@
                 recurringFrequencySelect.setAttribute('required', 'true');
                 isActiveRecurringCheckbox.parentElement.classList.remove('hidden');
                 
-                // Inicializa o estado do campo de parcelas ao mostrar a seção
-                if (recurringFrequencySelect.value === 'installments') {
-                    installmentsTotalField.classList.remove('hidden');
-                    installmentsTotalInput.setAttribute('required', 'true');
-                } else {
-                    installmentsTotalField.classList.add('hidden');
-                    installmentsTotalInput.removeAttribute('required');
-                }
-                 // Filtra as categorias para o tipo selecionado na Bill de edição
-                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring', data.category_id);
+                // Inicializa a label e placeholder na carga inicial/ativação
+                updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
+
+                // Filtra as categorias para o tipo selecionado na Bill de edição
+                filterCategoriesByType(billTypeSelectEdit.value, 'edit_bill_category_id_recurring');
 
             } else {
                 recurringFieldsDiv.classList.add('hidden');
@@ -1004,6 +1007,34 @@
                 installmentsTotalField.classList.add('hidden');
                 installmentsTotalInput.removeAttribute('required');
                 isActiveRecurringCheckbox.parentElement.classList.add('hidden');
+            }
+        }
+
+        // NOVA FUNÇÃO: Atualiza a label e placeholder do campo "Total de Ocorrências"
+        function updateRecurringOccurrenceLabel(frequencySelectId, labelId, inputId) {
+            const frequencySelect = document.getElementById(frequencySelectId);
+            const label = document.getElementById(labelId);
+            const input = document.getElementById(inputId);
+
+            if (!frequencySelect || !label || !input) return;
+
+            if (frequencySelect.value === 'installments') {
+                label.textContent = 'Total de Parcelas';
+                input.placeholder = 'Ex: 12';
+                input.min = '1';
+                input.setAttribute('required', 'true');
+                input.parentElement.classList.remove('hidden'); // Garante que o campo esteja visível
+            } else {
+                label.textContent = 'Total de Ocorrências (0 para Indefinido)';
+                input.placeholder = '0 para Indefinido';
+                input.min = '0';
+                input.removeAttribute('required');
+                // Ocultar o campo se não for de interesse para frequências fixas
+                if (frequencySelect.value !== 'installments') {
+                    document.getElementById(inputId).parentElement.classList.add('hidden');
+                } else {
+                     document.getElementById(inputId).parentElement.classList.remove('hidden');
+                }
             }
         }
 
@@ -1050,14 +1081,15 @@
                     // Preenche campos de recorrência no modal de edição de Bill
                     const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                     const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); // Corrigido o ID
+                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
+                    const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
                     const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
-                    const editBillTypeSelect = document.getElementById('edit_bill_type'); // Pega o select de tipo
+                    const editBillTypeSelect = document.getElementById('edit_bill_type'); 
 
-                    editBillTypeSelect.value = data.type; // Define o tipo da Bill
-                    editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; // Ajustado para novo nome do campo
+                    editBillTypeSelect.value = data.type; 
+                    editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; 
                     editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
-                    editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; // Corrigido o ID e o campo
+                    editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; 
                     editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
 
                     // Re-filtra as categorias no modal de edição com base no tipo da Bill
@@ -1066,11 +1098,14 @@
                     // Garante que a visibilidade dos campos de recorrência e parcelas seja atualizada
                     // e que os listeners onchange sejam adicionados corretamente
                     toggleBillRecurringFieldsEdit();
-                    editIsRecurringBillCheckbox.onchange = toggleBillRecurringFieldsEdit; // Adiciona listener
-                    editRecurringFrequencyBillSelect.onchange = toggleBillRecurringFieldsEdit; // Adiciona listener
-                    editBillTypeSelect.onchange = (event) => { // Novo listener para mudança de tipo
-                        filterCategoriesByType(event.target.value, 'edit_bill_category_id_recurring', data.category_id);
+                    editIsRecurringBillCheckbox.onchange = toggleBillRecurringFieldsEdit; 
+                    editRecurringFrequencyBillSelect.onchange = (event) => { 
+                        updateRecurringOccurrenceLabel(event.target.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
                         toggleBillRecurringFieldsEdit(); // Também atualiza visibilidade se tipo mudar a frequência
+                    };
+                    editBillTypeSelect.onchange = (event) => { 
+                        filterCategoriesByType(event.target.value, 'edit_bill_category_id_recurring', data.category_id);
+                        toggleBillRecurringFieldsEdit();
                     };
                     
                     editBillForm.action = `/edit_bill/${data.id}`;
