@@ -366,8 +366,8 @@
                             </div>
                             <div id="bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
                                 <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                                <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>
 
@@ -379,128 +379,128 @@
             </div>
 
             <!-- Bills List Section -->
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                    <span>Contas a Pagar</span>
-                </h2>
-                {# CONTROLES DE FILTRO E ORDENAÇÃO PARA CONTAS #}
-                <div class="mb-4 space-y-2">
-                    <form id="bills-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
-                        <input type="hidden" name="transaction_type" value="{{ current_transaction_type_filter or '' }}">
-                        <input type="hidden" name="start_date" value="{{ current_start_date or '' }}">
-                        <input type="hidden" name="end_date" value="{{ current_end_date or '' }}">
-                        <input type="hidden" name="sort_by_transactions" value="{{ current_sort_by_transactions or 'date' }}">
-                        <input type="hidden" name="order_transactions" value="{{ current_order_transactions or 'desc' }}">
-                        <input type="hidden" name="category_filter" value="{{ current_category_filter or '' }}">
+            {# NOVO: Estrutura de grid para os itens das listas abaixo #}
+            <div class="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                    <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                        <span>Contas a Pagar</span>
+                    </h2>
+                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA CONTAS #}
+                    <div class="mb-4 space-y-2">
+                        <form id="bills-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
+                            <input type="hidden" name="transaction_type" value="{{ current_transaction_type_filter or '' }}">
+                            <input type="hidden" name="start_date" value="{{ current_start_date or '' }}">
+                            <input type="hidden" name="end_date" value="{{ current_end_date or '' }}">
+                            <input type="hidden" name="sort_by_transactions" value="{{ current_sort_by_transactions or 'date' }}">
+                            <input type="hidden" name="order_transactions" value="{{ current_order_transactions or 'desc' }}">
+                            <input type="hidden" name="category_filter" value="{{ current_category_filter or '' }}">
 
-                        <div>
-                            <label for="bill_status_filter" class="block text-xs font-medium text-gray-700 mb-1">Status:</label>
-                            <select id="bill_status_filter" name="bill_status" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="">Todos</option>
-                                <option value="pending" {% if current_bill_status_filter == 'pending' %}selected{% endif %}>Pendentes</option>
-                                <option value="paid" {% if current_bill_status_filter == 'paid' %}selected{% endif %}>Pagos</option>
-                                <option value="overdue" {% if current_bill_status_filter == 'overdue' %}selected{% endif %}>Atrasados</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="sort_by_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
-                            <select id="sort_by_bills" name="sort_by_bills" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="dueDate" {% if current_sort_by_bills == 'dueDate' %}selected{% endif %}>Vencimento</option>
-                                <option value="amount" {% if current_sort_by_bills == 'amount' %}selected{% endif %}>Valor</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="order_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
-                            <select id="order_bills" name="order_bills" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                <option value="asc" {% if current_order_bills == 'asc' %}selected{% endif %}>Crescente</option>
-                                <option value="desc" {% if current_order_bills == 'desc' %}selected{% endif %}>Decrescente</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
-                    </form>
-                </div>
-
-                {# NOVO: Div com barra de rolagem para a lista de contas #}
-                <div class="bills-scroll-area">
-                    <div class="space-y-4">
-                        {% if not bills %}
-                            <div class="text-center py-8 flex flex-col items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
-                                <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
+                            <div>
+                                <label for="bill_status_filter" class="block text-xs font-medium text-gray-700 mb-1">Status:</label>
+                                <select id="bill_status_filter" name="bill_status" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="">Todos</option>
+                                    <option value="pending" {% if current_bill_status_filter == 'pending' %}selected{% endif %}>Pendentes</option>
+                                    <option value="paid" {% if current_bill_status_filter == 'paid' %}selected{% endif %}>Pagos</option>
+                                    <option value="overdue" {% if current_bill_status_filter == 'overdue' %}selected{% endif %}>Atrasados</option>
+                                </select>
                             </div>
-                        {% else %}
-                            {% for bill in bills %}
-                                {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
-                                <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50 shadow-lg{% else %}border-gray-200 bg-white hover:border-blue-300 hover:shadow-md{% endif %}">
-                                    <div class="flex items-center justify-between flex-wrap gap-2">
-                                        <div class="flex-1 min-w-0">
-                                            <div class="flex items-center space-x-2 mb-2">
-                                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
-                                                {% if is_overdue %}
-                                                    <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                                                        Em atraso
-                                                    </span>
-                                                {% elif bill.status == 'paid' %} {# Mostra status "pago" #}
-                                                    <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                                                        Pago
-                                                    </span>
-                                                {% endif %}
-                                            </div>
-                                            <div class="flex items-center space-x-4 text-sm text-gray-600">
-                                                <div class="flex items-center space-x-1">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                                                    <span>Vencimento: {{ bill.dueDate }}</span>
+                            <div>
+                                <label for="sort_by_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
+                                <select id="sort_by_bills" name="sort_by_bills" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="dueDate" {% if current_sort_by_bills == 'dueDate' %}selected{% endif %}>Vencimento</option>
+                                    <option value="amount" {% if current_sort_by_bills == 'amount' %}selected{% endif %}>Valor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="order_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
+                                <select id="order_bills" name="order_bills" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                    <option value="asc" {% if current_order_bills == 'asc' %}selected{% endif %}>Crescente</option>
+                                    <option value="desc" {% if current_order_bills == 'desc' %}selected{% endif %}>Decrescente</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
+                        </form>
+                    </div>
+
+                    {# NOVO: Div com barra de rolagem para a lista de contas #}
+                    <div class="bills-scroll-area">
+                        <div class="space-y-4">
+                            {% if not bills %}
+                                <div class="text-center py-8 flex flex-col items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
+                                    <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
+                                </div>
+                            {% else %}
+                                {% for bill in bills %}
+                                    {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
+                                    <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50 shadow-lg{% else %}border-gray-200 bg-white hover:border-blue-300 hover:shadow-md{% endif %}">
+                                        <div class="flex items-center justify-between flex-wrap gap-2">
+                                            <div class="flex-1 min-w-0">
+                                                <div class="flex items-center space-x-2 mb-2">
+                                                    <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
+                                                    {% if is_overdue %}
+                                                        <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                                                            Em atraso
+                                                        </span>
+                                                    {% elif bill.status == 'paid' %} {# Mostra status "pago" #}
+                                                        <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                                                            Pago
+                                                        </span>
+                                                    {% endif %}
                                                 </div>
-                                                <div class="font-bold text-xl text-gray-800">
-                                                    R$ {{ "%.2f"|format(bill.amount) }}
+                                                <div class="flex items-center space-x-4 text-sm text-gray-600">
+                                                    <div class="flex items-center space-x-1">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                        <span>Vencimento: {{ bill.dueDate }}</span>
+                                                    </div>
+                                                    <div class="font-bold text-xl text-gray-800">
+                                                        R$ {{ "%.2f"|format(bill.amount) }}
+                                                    </div>
+                                                    {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
+                                                    {% if bill.is_master_recurring_bill or bill.recurring_parent_id %} {# Verifica se é mestra ou filha #}
+                                                        <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                                                            Recorrente
+                                                            {% if bill.recurring_child_number and bill.recurring_total_occurrences and bill.recurring_total_occurrences > 0 %} {# Só mostra se for Bill filha e tiver total > 0 #}
+                                                                {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences }}
+                                                            {% elif bill.is_master_recurring_bill and bill.recurring_total_occurrences == 0 %} {# É mestra e indefinida #}
+                                                                (Indefinido)
+                                                            {% endif %}
+                                                        </span>
+                                                    {% endif %}
+                                                    {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
+                                                    {% if bill.type == 'income' %}
+                                                        <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
+                                                    {% elif bill.type == 'expense' %}
+                                                        <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
+                                                    {% endif %}
                                                 </div>
-                                                {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
-                                                {% if bill.is_master_recurring_bill or bill.recurring_parent_id %} {# Verifica se é mestra ou filha #}
-                                                    <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                                        Recorrente
-                                                        {% if bill.recurring_child_number and bill.recurring_total_occurrences > 0 %} {# Só mostra se for Bill filha e tiver total > 0 #}
-                                                            {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences }}
-                                                        {% elif bill.is_master_recurring_bill and bill.recurring_total_occurrences == 0 %} {# É mestra e indefinida #}
-                                                            (Indefinido)
-                                                        {% endif %}
-                                                    </span>
-                                                {% endif %}
-                                                {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
-                                                {% if bill.type == 'income' %}
-                                                    <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
-                                                {% elif bill.type == 'expense' %}
-                                                    <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
-                                                {% endif %}
                                             </div>
-                                        </div>
-                                        
-                                        <div class="flex flex-col space-y-2 ml-auto">
-                                            <div class="flex space-x-2">
-                                                {% if bill.status == 'pending' %} {# Apenas mostra pagar/editar se for pendente #}
-                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST">
+                                            
+                                            {# Botoes de Ação para cada conta - AGRUPADOS EM FLEX #}
+                                            <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 ml-auto mt-2 sm:mt-0 w-full sm:w-auto">
+                                                {% if bill.status == 'pending' %}
+                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="w-full sm:w-auto">
                                                         <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                             Pagar
                                                         </button>
                                                     </form>
                                                 {% endif %}
-                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full sm:w-auto">
                                                     Editar
                                                 </button>
-                                            </div>
-                                            <div class="flex space-x-2">
-                                                {% if bill.status == 'pending' %} {# Apenas mostra remarcar se for pendente #}
-                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full">
+                                                {% if bill.status == 'pending' %}
+                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full sm:w-auto">
                                                         <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
                                                         <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
                                                             Remarcar
                                                         </button>
                                                     </form>
                                                 {% endif %}
-                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="w-full sm:w-auto">
                                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                         Excluir
                                                     </button>
@@ -508,109 +508,109 @@
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Transaction List Section -->
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
-                {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
-                <div class="mb-4 space-y-2">
-                    <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
-                        <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
-                        <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
-                        <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
-
-                        <div>
-                            <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
-                            <select id="transaction_type_filter" name="transaction_type" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                <option value="">Todos</option>
-                                <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
-                                <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
-                            </select>
-                        </div>
-                        {# Filtro por Categoria #}
-                        <div>
-                            <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
-                            <select id="category_filter" name="category_filter" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                <option value="">Todas</option>
-                                {% for category in all_categories %}
-                                    <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
-                                        {{ category[2] }} ({{ category[1]|capitalize }})
-                                    </option>
                                 {% endfor %}
-                            </select>
+                            {% endif %}
                         </div>
-                        <div>
-                            <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
-                            <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                        </div>
-                        <div>
-                            <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
-                            <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                        </div>
-                        <div>
-                            <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
-                            <select id="sort_by_transactions" name="sort_by_transactions" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
-                                <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
-                            <select id="order_transactions" name="order_transactions" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
-                                <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
-                    </form>
+                    </div>
                 </div>
 
+                <!-- Transaction List Section -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
+                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
+                    <div class="mb-4 space-y-2">
+                        <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
+                            <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
+                            <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
+                            <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
 
-                <div class="space-y-3">
-                    {% if not transactions %}
-                        <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
-                    {% else %}
-                        {% for transaction in transactions %}
-                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                <div class="flex items-center space-x-3">
-                                    <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                            <div>
+                                <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
+                                <select id="transaction_type_filter" name="transaction_type" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todos</option>
+                                    <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
+                                    <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
+                                </select>
+                            </div>
+                            {# Filtro por Categoria #}
+                            <div>
+                                <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
+                                <select id="category_filter" name="category_filter" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todas</option>
+                                    {% for category in all_categories %}
+                                        <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
+                                            {{ category[2] }} ({{ category[1]|capitalize }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
+                                <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
+                                <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
+                                <select id="sort_by_transactions" name="sort_by_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
+                                    <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
+                                <select id="order_transactions" name="order_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
+                                    <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
+                        </form>
+                    </div>
+
+
+                    <div class="space-y-3">
+                        {% if not transactions %}
+                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
+                        {% else %}
+                            {% for transaction in transactions %}
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                            <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                            {# Exibe a categoria #}
+                                            <p class="text-xs text-gray-400">
+                                                Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                        <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                        {# Exibe a categoria #}
-                                        <p class="text-xs text-gray-400">
-                                            Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="flex flex-col space-y-2 ml-auto">
-                                    <div class="flex space-x-2">
-                                        <!-- Botão Editar Transação -->
-                                        <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                            Editar
-                                        </button>
-                                    </div>
-                                    <div class="flex space-x-2">
-                                        <!-- Botão Excluir Transação -->
-                                        <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
-                                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                Excluir
+                                    <div class="flex flex-col space-y-2 ml-auto">
+                                        <div class="flex space-x-2">
+                                            <!-- Botão Editar Transação -->
+                                            <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                Editar
                                             </button>
-                                        </form>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <!-- Botão Excluir Transação -->
+                                            <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                    Excluir
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -955,9 +955,9 @@
             const isRecurringCheckbox = document.getElementById('is_recurring_bill');
             const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
             const recurringFrequencySelect = document.getElementById('recurring_frequency_bill');
-            const installmentsTotalField = document.getElementById('bill_total_occurrences_field'); // Corrigido o ID
-            const installmentsTotalInput = document.getElementById('recurring_total_occurrences_bill'); // Corrigido o ID
-            const recurringTotalOccurrencesLabel = document.getElementById('recurring_total_occurrences_label'); // Corrigido o ID
+            const installmentsTotalField = document.getElementById('bill_total_occurrences_field'); 
+            const installmentsTotalInput = document.getElementById('recurring_total_occurrences_bill'); 
+            const recurringTotalOccurrencesLabel = document.getElementById('recurring_total_occurrences_label'); 
             const billTypeSelect = document.getElementById('bill_type'); 
 
             if (isRecurringCheckbox.checked) {
@@ -985,7 +985,7 @@
             const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
             const installmentsTotalField = document.getElementById('edit_bill_total_occurrences_field'); 
             const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
-            const recurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); // Corrigido o ID
+            const recurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); 
             const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
             const billTypeSelectEdit = document.getElementById('edit_bill_type'); 
 
@@ -1030,10 +1030,8 @@
                 input.min = '0'; // 0 para indefinido
                 input.removeAttribute('required');
                 // Ocultar o campo se não for de interesse para frequências fixas
-                if (frequencySelect.value !== 'installments') {
-                    input.parentElement.classList.remove('hidden'); // Manter visível mas com 0 para indefinido
-                } else {
-                    input.parentElement.classList.remove('hidden'); // Manter visível mas com 0 para indefinido
+                if (input.parentElement.classList.contains('hidden')) { // Só remove se já estava hidden
+                    input.parentElement.classList.remove('hidden');
                 }
             }
         }
@@ -1081,7 +1079,7 @@
                     // Preenche campos de recorrência no modal de edição de Bill
                     const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                     const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill');
+                    const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
                     const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
                     const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
                     const editBillTypeSelect = document.getElementById('edit_bill_type'); 
