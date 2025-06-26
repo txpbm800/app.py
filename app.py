@@ -116,7 +116,8 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         category_id=category_id
     )
     db.session.add(new_transaction)
-    db.session.commit()
+    # NÃO COMIte aqui. O commit será feito pelo caller (pay_bill_db ou _generate_future_recurring_bills)
+    # Isso evita commits duplicados e inconsistências em transações maiores.
 
 # FUNÇÃO CENTRAL AUXILIAR: Gera Bills filhas (ocorrências futuras) a partir de uma Bill mestra recorrente
 def _generate_future_recurring_bills(master_bill):
@@ -156,16 +157,24 @@ def _generate_future_recurring_bills(master_bill):
                 occurrence_date_for_child += relativedelta(years=i-1)
 
         # VERIFICAÇÃO DE DUPLICATAS MAIS PRECISA PARA EVITAR REGERAÇÃO APÓS DELETE
-        # A Bill mestra NUNCA deve ser considerada uma "filha" e, portanto, não terá recurring_child_number
-        # Apenas Bills filhas terão recurring_child_number
-        existing_child_bill = Bill.query.filter_by(
-            recurring_parent_id=master_bill.id,
-            dueDate=occurrence_date_for_child.isoformat(),
-            recurring_child_number=i, # IMPORTANTE: verifica se a CHILD_NUMBER já foi gerada para aquela data
-            user_id=master_bill.user_id
-        ).first()
+        existing_child_item = None
+        if master_bill.type == 'expense':
+            existing_child_item = Bill.query.filter_by(
+                recurring_parent_id=master_bill.id,
+                dueDate=occurrence_date_for_child.isoformat(),
+                recurring_child_number=i, # IMPORTANTE: verifica se a CHILD_NUMBER já foi gerada para aquela data
+                user_id=master_bill.user_id
+            ).first()
+        elif master_bill.type == 'income':
+             existing_child_item = Transaction.query.filter_by(
+                description=master_bill.description.replace(' (Mestra)', ''), # Usa a descrição da mestra
+                date=occurrence_date_for_child.isoformat(),
+                type='income',
+                user_id=master_bill.user_id
+            ).first()
 
-        if not existing_child_bill:
+
+        if not existing_child_item:
             # Constrói a descrição para a Bill filha (Parcela X/Y ou apenas "Descrição Recorrente")
             if master_bill.recurring_frequency == 'installments' and master_bill.recurring_total_occurrences > 0:
                 child_description = f"{master_bill.description.split(' (Mestra)')[0]} (Parcela {i}/{master_bill.recurring_total_occurrences})"
@@ -316,14 +325,25 @@ def pay_bill_db(bill_id, user_id):
         category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
 
         # Adiciona a transação comum correspondente ao pagamento (SEMPE DESPESA)
-        add_transaction_db(
-            f"Pagamento: {bill.description}",
-            bill.amount,
-            datetime.date.today().isoformat(),
-            'expense', # Pagamento é sempre uma despesa
-            user_id,
-            category_id=category_id_for_payment
-        )
+        # Verifica se já existe uma transação de pagamento para esta bill e data
+        existing_payment_transaction = Transaction.query.filter_by(
+            description=f"Pagamento: {bill.description}",
+            date=datetime.date.today().isoformat(),
+            type='expense',
+            user_id=user_id
+        ).first()
+
+        if not existing_payment_transaction:
+            add_transaction_db( # Agora add_transaction_db não comita, então o commit final aqui é o único.
+                f"Pagamento: {bill.description}",
+                bill.amount,
+                datetime.date.today().isoformat(),
+                'expense', # Pagamento é sempre uma despesa
+                user_id,
+                category_id=category_id_for_payment
+            )
+        else:
+            print(f"DEBUG: Transação de pagamento para '{bill.description}' em {datetime.date.today().isoformat()} já existe. Pulando.")
         
         # A Bill paga pode ser uma Bill mestra ou uma Bill filha gerada
         # Em ambos os casos, queremos garantir que a Bill mestra associada
@@ -506,38 +526,38 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    transactions_query = Transaction.query.filter_by(user_id=current_user.id)
+    transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) # Renomeado para evitar conflito
 
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
-        transactions_query = transactions_query.filter_by(type=transaction_type_filter)
+        transactions_query_obj = transactions_query_obj.filter_by(type=transaction_type_filter)
 
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     if start_date:
-        transactions_query = transactions_query.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date, db.Date))
+        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date, db.Date))
     if end_date:
-        transactions_query = transactions_query.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date, db.Date))
+        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date, db.Date))
 
     category_filter_id = request.args.get('category_filter', type=int)
     if category_filter_id:
-        transactions_query = transactions_query.filter_by(category_id=category_filter_id)
+        transactions_query_obj = transactions_query_obj.filter_by(category_id=category_filter_id)
 
     sort_by_transactions = request.args.get('sort_by_transactions', 'date')
     order_transactions = request.args.get('order_transactions', 'desc')
 
     if sort_by_transactions == 'date':
         if order_transactions == 'asc':
-            transactions_query = transactions_query.order_by(Transaction.date.asc())
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.asc())
         else:
-            transactions_query = transactions_query.order_by(Transaction.date.desc())
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.desc())
     elif sort_by_transactions == 'amount':
         if order_transactions == 'asc':
-            transactions_query = transactions_query.order_by(Transaction.amount.asc())
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.asc())
         else:
-            transactions_query = transactions_query.order_by(Transaction.amount.desc())
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.desc())
             
-    all_transactions = transactions_query.all()
+    all_transactions = transactions_query_obj.all() # Execute a consulta aqui
     
     income_transactions = [t for t in all_transactions if t.type == 'income']
     expense_transactions = [t for t in all_transactions if t.type == 'expense']
@@ -545,7 +565,7 @@ def index():
 
     # Bills a serem exibidas: apenas as Bills que NÃO são mestras de recorrência
     # (ou seja, são Bills criadas manualmente ou Bills filhas geradas).
-    bills_query = Bill.query.filter(
+    bills_query_obj = Bill.query.filter( # Renomeado para evitar conflito
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
     )
@@ -554,27 +574,27 @@ def index():
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
         if bill_status_filter == 'overdue':
             today_str = datetime.date.today().isoformat()
-            bills_query = bills_query.filter(Bill.dueDate < today_str, Bill.status == 'pending')
+            bills_query_obj = bills_query_obj.filter(Bill.dueDate < today_str, Bill.status == 'pending')
         else:
-            bills_query = bills_query.filter_by(status=bill_status_filter)
+            bills_query_obj = bills_query_obj.filter_by(status=bill_status_filter)
     elif not bill_status_filter:
-         bills_query = bills_query.filter_by(status='pending')
+         bills_query_obj = bills_query_obj.filter_by(status='pending')
 
     sort_by_bills = request.args.get('sort_by_bills', 'dueDate')
     order_bills = request.args.get('order_bills', 'asc')
 
     if sort_by_bills == 'dueDate':
         if order_bills == 'asc':
-            bills_query = bills_query.order_by(Bill.dueDate.asc())
+            bills_query_obj = bills_query_obj.order_by(Bill.dueDate.asc())
         else:
-            bills_query = bills_query.order_by(Bill.dueDate.desc())
+            bills_query_obj = bills_query_obj.order_by(Bill.dueDate.desc())
     elif sort_by_bills == 'amount':
         if order_bills == 'asc':
-            bills_query = bills_query.order_by(Bill.amount.asc())
+            bills_query_obj = bills_query_obj.order_by(Bill.amount.asc())
         else:
-            bills_query = bills_query.order_by(Bill.amount.desc())
+            bills_query_obj = bills_query_obj.order_by(Bill.amount.desc())
             
-    filtered_bills = bills_query.all()
+    filtered_bills = bills_query_obj.all() # Execute a consulta aqui
 
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
     
@@ -1026,7 +1046,7 @@ if __name__ == '__main__':
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-05',
-                    recurring_next_due_date='2024-01-05', # Força a geração a partir do passado
+                    recurring_next_due_date='2024-01-05', # Força a geração para o mês atual/passado
                     recurring_total_occurrences=0,
                     recurring_installments_generated=0,
                     is_active_recurring=True,
