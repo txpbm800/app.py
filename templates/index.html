@@ -251,140 +251,143 @@
             </div>
         </div>
 
-        <!-- CONTÊINER DE GRADE UNIFICADO para Formulários e Listas -->
+        {# NOVO: Grid principal para os formulários e as listas, garantindo o layout de 2 colunas no desktop #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
-            <!-- Transaction Form Section (Colapsável) -->
-            <div class="rounded-lg shadow-md bg-white card-shadow">
-                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
-                    <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
-                    <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </button>
-                <div id="transaction-form-content" class="collapsible-content">
-                    <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
-                        <div>
-                            <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                            <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        </div>
-                        <div>
-                            <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                            <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        </div>
-                        <div>
-                            <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                            <input type="date" id="date" name="date" value="{{ current_date }}" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                        </div>
-                        <div>
-                            <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                            <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')">
-                                <option value="income">Receita</option>
-                                <option value="expense">Despesa</option>
-                            </select>
-                        </div>
-                        {# Campo de seleção de categoria para adicionar transação #}
-                        <div>
-                            <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                            <select id="category_id" name="category_id"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                <option value="">Selecione a Categoria</option>
-                                {# Preenchido dinamicamente via JS #}
-                            </select>
-                        </div>
-                        <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                            Adicionar Transação
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Bill Form Section (Colapsável, AGORA INCLUI RECORRÊNCIA) -->
-            <div class="rounded-lg shadow-md bg-white card-shadow">
-                <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
-                    <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
-                    <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </button>
-                <div id="bill-form-content" class="collapsible-content">
-                    <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
-                        <div>
-                            <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                            <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                            <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
-                            <input type="date" id="bill-due-date" name="bill_due_date" value="{{ current_date }}" required
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        
-                        {# NOVO: Tipo da Bill (Receita/Despesa) #}
-                        <div>
-                            <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
-                            <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
-                                <option value="expense">Despesa</option>
-                                <option value="income">Receita</option> {# Para Bills de Receita recorrentes #}
-                            </select>
-                        </div>
-                        {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
-                        <div>
-                            <label for="bill_category_id_recurring" class="block text-sm font-medium text-gray-700 mb-1">Categoria (para Recorrência)</label>
-                            <select id="bill_category_id_recurring" name="bill_category_id_recurring"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Selecione a Categoria</option>
-                                {# Preenchido dinamicamente via JS #}
-                            </select>
-                        </div>
-
-                        {# NOVO: Checkbox para marcar como recorrente #}
-                        <div class="flex items-center">
-                            <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
-                            <label for="is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
-                        </div>
-
-                        {# Campos de recorrência (ocultos por padrão) #}
-                        <div id="bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
+            
+            {# COLUNA ESQUERDA: Formulário de Nova Transação e Nova Conta a Pagar #}
+            <div class="col-span-1 space-y-6"> {# Esta div vai agrupar os dois formulários e ocupar a primeira coluna #}
+                <!-- Transaction Form Section (Colapsável) -->
+                <div class="rounded-lg shadow-md bg-white card-shadow">
+                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
+                        <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
+                        <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div id="transaction-form-content" class="collapsible-content">
+                        <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
-                                <label for="recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
-                                <select id="recurring_frequency_bill" name="recurring_frequency_bill"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    onchange="updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill')"> {# Corrigido o ID do campo de parcelas e adicionado onchange #}
-                                    <option value="monthly">Mensal</option>
-                                    <option value="weekly">Semanal</option>
-                                    <option value="yearly">Anual</option>
-                                    <option value="installments">Parcelas</option>
+                                <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                                <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                                <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                                <input type="date" id="date" name="date" value="{{ current_date }}" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <div>
+                                <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                                <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')">
+                                    <option value="income">Receita</option>
+                                    <option value="expense">Despesa</option>
                                 </select>
                             </div>
-                            <div id="bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
-                                <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                                <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
+                            {# Campo de seleção de categoria para adicionar transação #}
+                            <div>
+                                <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                                <select id="category_id" name="category_id"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option value="">Selecione a Categoria</option>
+                                    {# Preenchido dinamicamente via JS #}
+                                </select>
+                            </div>
+                            <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                                Adicionar Transação
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Bill Form Section (Colapsável, AGORA INCLUI RECORRÊNCIA) -->
+                <div class="rounded-lg shadow-md bg-white card-shadow">
+                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
+                        <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
+                        <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div id="bill-form-content" class="collapsible-content">
+                        <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
+                            <div>
+                                <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                                <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
-                        </div>
+                            <div>
+                                <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                                <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+                                <input type="date" id="bill-due-date" name="bill_due_date" value="{{ current_date }}" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            
+                            {# NOVO: Tipo da Bill (Receita/Despesa) #}
+                            <div>
+                                <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
+                                <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
+                                    <option value="expense">Despesa</option>
+                                    <option value="income">Receita</option> {# Para Bills de Receita recorrentes #}
+                                </select>
+                            </div>
+                            {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
+                            <div>
+                                <label for="bill_category_id_recurring" class="block text-sm font-medium text-gray-700 mb-1">Categoria (para Recorrência)</label>
+                                <select id="bill_category_id_recurring" name="bill_category_id_recurring"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Selecione a Categoria</option>
+                                    {# Preenchido dinamicamente via JS #}
+                                </select>
+                            </div>
 
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                            Adicionar Conta
-                        </button>
-                    </form>
+                            {# NOVO: Checkbox para marcar como recorrente #}
+                            <div class="flex items-center">
+                                <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
+                                <label for="is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
+                            </div>
+
+                            {# Campos de recorrência (ocultos por padrão) #}
+                            <div id="bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
+                                <div>
+                                    <label for="recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
+                                    <select id="recurring_frequency_bill" name="recurring_frequency_bill"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        onchange="updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill')"> {# Corrigido o ID do campo de parcelas e adicionado onchange #}
+                                        <option value="monthly">Mensal</option>
+                                        <option value="weekly">Semanal</option>
+                                        <option value="yearly">Anual</option>
+                                        <option value="installments">Parcelas</option>
+                                    </select>
+                                </div>
+                                <div id="bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
+                                    <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
+                                    <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                </div>
+                            </div>
+
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                                Adicionar Conta
+                            </button>
+                        </form>
+                    </div>
                 </div>
-            </div>
+            </div> {# Fim da COLUNA ESQUERDA #}
 
-            {# ESTE DIV AGRUPA AS TRÊS LISTAS (Contas a Pagar, Receitas, Despesas) e as posiciona em 2 colunas #}
-            {# col-span-1 no mobile, col-span-2 no desktop para ocupar toda a largura disponível abaixo dos formulários #}
-            <div class="col-span-1 lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {# COLUNA DIREITA: Todas as Listas de Dados (Contas a Pagar, Últimas Transações, Receitas, Despesas) #}
+            {# Esta div vai ocupar a segunda coluna no desktop. Dentro dela, criaremos um grid 2x2 para as 4 listas. #}
+            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 
-                <!-- Bills List Section -->
-                {# bills-list-container para aplicar a rolagem e espaçamento #}
-                <div class="col-span-1 md:col-span-2 rounded-lg shadow-md bg-white p-6 card-shadow"> {# Ajustado para ocupar toda a largura #}
+                <!-- Bills List Section (Contas a Pagar) - TOP-LEFT -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Não precisa de col-span aqui, o grid pai já define #}
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
@@ -523,106 +526,102 @@
                     </div>
                 </div>
 
-                {# NOVO DIV ENVOLVEDOR para "Últimas Transações", "Minhas Receitas" e "Minhas Despesas" #}
-                {# Este div ocupará a segunda coluna no desktop (col-span-1) e terá seu próprio grid interno #}
-                <div class="col-span-1 grid grid-cols-1 gap-6 items-start"> 
-                    <!-- Transaction List Section (Últimas Transações) -->
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
-                        {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
-                        <div class="mb-4 space-y-2">
-                            <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
-                                <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
-                                <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
-                                <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
+                <!-- Transaction List Section (Últimas Transações) - TOP-RIGHT -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Removido col-span aqui, o grid pai já define #}
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
+                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
+                    <div class="mb-4 space-y-2">
+                        <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
+                            <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
+                            <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
+                            <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
 
-                                <div>
-                                    <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
-                                    <select id="transaction_type_filter" name="transaction_type" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                        <option value="">Todos</option>
-                                        <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
-                                        <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
-                                    </select>
-                                </div>
-                                {# Filtro por Categoria #}
-                                <div>
-                                    <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
-                                    <select id="category_filter" name="category_filter" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                        <option value="">Todas</option>
-                                        {% for category in all_categories %}
-                                            <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
-                                                {{ category[2] }} ({{ category[1]|capitalize }})
-                                            </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
-                                    <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                </div>
-                                <div>
-                                    <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
-                                    <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                </div>
-                                <div>
-                                    <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
-                                    <select id="sort_by_transactions" name="sort_by_transactions" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                        <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
-                                        <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
-                                    <select id="order_transactions" name="order_transactions" 
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                        <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
-                                        <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
-                                    </select>
-                                </div>
-                                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
-                            </form>
-                        </div>
+                            <div>
+                                <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
+                                <select id="transaction_type_filter" name="transaction_type" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todos</option>
+                                    <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
+                                    <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
+                                </select>
+                            </div>
+                            {# Filtro por Categoria #}
+                            <div>
+                                <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
+                                <select id="category_filter" name="category_filter" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todas</option>
+                                    {% for category in all_categories %}
+                                        <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
+                                            {{ category[2] }} ({{ category[1]|capitalize }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
+                                <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
+                                <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
+                                <select id="sort_by_transactions" name="sort_by_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
+                                    <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
+                                <select id="order_transactions" name="order_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
+                                    <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
+                        </form>
+                    </div>
 
 
-                        <div class="space-y-3">
-                            {% if not transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
-                            {% else %}
-                                {% for transaction in transactions %}
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                                            </div>
-                                            <div>
-                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                                {# Exibe a categoria #}
-                                                <p class="text-xs text-gray-400">
-                                                    Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
-                                                </p>
-                                            </div>
+                    <div class="space-y-3">
+                        {% if not transactions %}
+                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
+                        {% else %}
+                            {% for transaction in transactions %}
+                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                         </div>
-                                        <div class="flex flex-col space-y-2 ml-auto">
-                                            <div class="flex space-x-2">
-                                                <!-- Botão Editar Transação -->
-                                                <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                    Editar
+                                        <div>
+                                            <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                            <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                            {# Exibe a categoria #}
+                                            <p class="text-xs text-gray-400">
+                                                Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col space-y-2 ml-auto">
+                                        <div class="flex space-x-2">
+                                            <!-- Botão Editar Transação -->
+                                            <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                Editar
+                                            </button>
+                                        </div>
+                                        <div class="flex space-x-2">
+                                            <!-- Botão Excluir Transação -->
+                                            <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                    Excluir
                                                 </button>
-                                            </div>
-                                            <div class="flex space-x-2">
-                                                <!-- Botão Excluir Transação -->
-                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
-                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                        Excluir
-                                                    </button>
-                                                </form>
-                                            </div>
+                                            </form>
                                         </div>
                                     </div>
                                 </div>
@@ -632,7 +631,7 @@
                 </div>
             
                 <!-- Income List Section -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# mt-6 para mobile spacing, md:mt-0 para desktop #}
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> {# mt-6 para mobile spacing #}
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                     <div class="space-y-3">
                         {% if not income_transactions %}
@@ -659,7 +658,7 @@
                     </div>
 
                     <!-- Expense List Section -->
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# mt-6 para mobile spacing, md:mt-0 para desktop #}
+                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> {# mt-6 para mobile spacing #}
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                         <div class="space-y-3">
                             {% if not expense_transactions %}
@@ -684,7 +683,7 @@
                             {% endif %}
                         </div>
                     </div>
-                </div> {# Fim do novo div que agrupa Receitas e Despesas #}
+                </div> {# Fim do novo div que agrupa Últimas Transações, Receitas e Despesas #}
 
 
             </div> {# Fim do CONTÊINER DE GRADE UNIFICADO para Formulários e Listas #}
