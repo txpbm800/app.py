@@ -328,11 +328,11 @@ def pay_bill_db(bill_id, user_id):
         # Isso garante que mesmo que se pague a mesma Bill mais de uma vez no mesmo dia,
         # cada pagamento gere uma transação única.
         # Usa o ID da Bill e a data atual para criar uma descrição única para CADA PAGAMENTO.
-        payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id} - {datetime.date.today().isoformat()})"
+        payment_transaction_description = f"Pagamento: {bill.description} (Bill ID: {bill.id} - {datetime.date.today().isoformat()})"
         
         # Procura por uma transação de pagamento com a MESMA DESCRIÇÃO EXATA
-        # Isso significa que, se você pagar o "Aluguel" (ID 1) no dia 27/06, e depois pagar o "Aluguel" (ID 2) no mesmo dia,
-        # ambas serão registradas. Se tentar pagar a mesma Bill (ID 1) duas vezes no mesmo dia, a segunda será ignorada.
+        # Isso significa que, se você pagar a mesma Bill (ID 1) no dia 27/06, e depois tentar pagar novamente a mesma Bill (ID 1) no mesmo dia,
+        # a segunda transação NÃO será adicionada para evitar duplicatas para o MESMO ID de Bill no MESMO DIA.
         existing_payment_transaction = Transaction.query.filter_by(
             description=payment_transaction_description, # Usar a descrição única para filtro
             date=datetime.date.today().isoformat(),
@@ -537,6 +537,11 @@ def index():
     
     transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
 
+    # --- NOVO: FILTRO POR MÊS ATUAL PARA TRANSAÇÕES EXIBIDAS ---
+    current_month_year_str = datetime.date.today().strftime('%Y-%m')
+    transactions_query_obj = transactions_query_obj.filter(db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str)
+
+
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
         transactions_query_obj = transactions_query_obj.filter_by(type=transaction_type_filter)
@@ -578,6 +583,10 @@ def index():
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
     )
+
+    # --- NOVO: FILTRO POR MÊS ATUAL PARA CONTAS A PAGAR EXIBIDAS ---
+    bills_query_obj = bills_query_obj.filter(db.func.strftime('%Y-%m', Bill.dueDate) == current_month_year_str)
+
 
     bill_status_filter = request.args.get('bill_status')
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
