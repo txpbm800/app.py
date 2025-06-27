@@ -116,8 +116,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         category_id=category_id
     )
     db.session.add(new_transaction)
-    # NÃO COMIte aqui. O commit será feito pelo caller (pay_bill_db ou _generate_future_recurring_bills)
-    # Isso evita commits duplicados e inconsistências em transações maiores.
+    # db.session.commit() # REMOVIDO: O commit será feito pelo caller (_generate_future_recurring_bills ou pay_bill_db)
 
 # FUNÇÃO CENTRAL AUXILIAR: Gera Bills filhas (ocorrências futuras) a partir de uma Bill mestra recorrente
 def _generate_future_recurring_bills(master_bill):
@@ -325,7 +324,7 @@ def pay_bill_db(bill_id, user_id):
         category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
 
         # Adiciona a transação comum correspondente ao pagamento (SEMPE DESPESA)
-        # Verifica se já existe uma transação de pagamento para esta bill e data
+        # VERIFICA AGORA SE JÁ EXISTE UMA TRANSAÇÃO DE PAGAMENTO PARA EVITAR DUPLICATAS
         existing_payment_transaction = Transaction.query.filter_by(
             description=f"Pagamento: {bill.description}",
             date=datetime.date.today().isoformat(),
@@ -334,17 +333,19 @@ def pay_bill_db(bill_id, user_id):
         ).first()
 
         if not existing_payment_transaction:
-            add_transaction_db( # Agora add_transaction_db não comita, então o commit final aqui é o único.
-                f"Pagamento: {bill.description}",
-                bill.amount,
-                datetime.date.today().isoformat(),
-                'expense', # Pagamento é sempre uma despesa
-                user_id,
+            new_payment_transaction = Transaction(
+                description=f"Pagamento: {bill.description}",
+                amount=bill.amount,
+                date=datetime.date.today().isoformat(),
+                type='expense', # Pagamento é sempre uma despesa
+                user_id=user_id,
                 category_id=category_id_for_payment
             )
+            db.session.add(new_payment_transaction)
+            print(f"DEBUG: Transação de pagamento criada para '{bill.description}'.")
         else:
-            print(f"DEBUG: Transação de pagamento para '{bill.description}' em {datetime.date.today().isoformat()} já existe. Pulando.")
-        
+            print(f"DEBUG: Transação de pagamento para '{bill.description}' em {datetime.date.today().isoformat()} já existe. Pulando a criação.")
+
         # A Bill paga pode ser uma Bill mestra ou uma Bill filha gerada
         # Em ambos os casos, queremos garantir que a Bill mestra associada
         # tenha sua próxima ocorrência gerada (ou que o processo se encerre).
@@ -352,7 +353,7 @@ def pay_bill_db(bill_id, user_id):
         master_bill_to_process = None
         if bill.is_master_recurring_bill: # Se a Bill paga é a mestra em si
             master_bill_to_process = bill
-            print(f"Pagamento da Bill Mestra recorrente '{bill.description}'. Acionando _generate_future_recurring_bills.")
+            print(f"DEBUG: Pagamento da Bill Mestra recorrente '{bill.description}'. Acionando _generate_future_recurring_bills.")
         elif bill.recurring_parent_id: # Se a Bill paga é uma filha de uma mestra
             master_bill_to_process = Bill.query.filter_by(
                 id=bill.recurring_parent_id, # Link para a Bill mestra
@@ -360,7 +361,7 @@ def pay_bill_db(bill_id, user_id):
                 is_master_recurring_bill=True 
             ).first()
             if master_bill_to_process:
-                print(f"Pagamento de Bill filha '{bill.description}'. Acionando _generate_future_recurring_bills da mestra '{master_bill_to_process.description}'.")
+                print(f"DEBUG: Pagamento de Bill filha '{bill.description}'. Acionando _generate_future_recurring_bills da mestra '{master_bill_to_process.description}'.")
             else:
                 print(f"DEBUG: Bill filha paga, mas mestra recorrente não encontrada ou inativa: {bill.recurring_parent_id}")
 
@@ -369,7 +370,7 @@ def pay_bill_db(bill_id, user_id):
         elif master_bill_to_process and not master_bill_to_process.is_active_recurring:
             print(f"DEBUG: Mestra '{master_bill_to_process.description}' está inativa. Nenhuma nova geração.")
         
-        db.session.commit() # Comita todas as alterações (bill.status e outras)
+        db.session.commit() # Comita todas as alterações (bill.status, e a nova transação se criada)
         return True
     return False
 
