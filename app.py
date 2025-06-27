@@ -116,7 +116,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         category_id=category_id
     )
     db.session.add(new_transaction)
-    # db.session.commit() # REMOVIDO: O commit será feito pelo caller (_generate_future_recurring_bills ou pay_bill_db)
+    db.session.commit() # Adicionado de volta o commit para transações avulsas
 
 # FUNÇÃO CENTRAL AUXILIAR: Gera Bills filhas (ocorrências futuras) a partir de uma Bill mestra recorrente
 def _generate_future_recurring_bills(master_bill):
@@ -324,10 +324,17 @@ def pay_bill_db(bill_id, user_id):
         category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
 
         # Adiciona a transação comum correspondente ao pagamento (SEMPE DESPESA)
-        # VERIFICA AGORA SE JÁ EXISTE UMA TRANSAÇÃO DE PAGAMENTO PARA ESTA BILL ESPECÍFICA NO DIA
-        payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id})" # Torna a descrição única por Bill paga
+        # GERA UMA DESCRIÇÃO DE TRANSAÇÃO MAIS ESPECÍFICA PARA EVITAR DUPLICATAS NA TABELA DE TRANSAÇÕES
+        # Isso garante que mesmo que se pague a mesma Bill mais de uma vez no mesmo dia,
+        # cada pagamento gere uma transação única.
+        # Usa o ID da Bill e a data atual para criar uma descrição única para CADA PAGAMENTO.
+        payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id} - {datetime.date.today().isoformat()})"
+        
+        # Procura por uma transação de pagamento com a MESMA DESCRIÇÃO EXATA
+        # Isso significa que, se você pagar o "Aluguel" (ID 1) no dia 27/06, e depois pagar o "Aluguel" (ID 2) no mesmo dia,
+        # ambas serão registradas. Se tentar pagar a mesma Bill (ID 1) duas vezes no mesmo dia, a segunda será ignorada.
         existing_payment_transaction = Transaction.query.filter_by(
-            description=payment_transaction_description,
+            description=payment_transaction_description, # Usar a descrição única para filtro
             date=datetime.date.today().isoformat(),
             type='expense',
             user_id=user_id
@@ -345,7 +352,7 @@ def pay_bill_db(bill_id, user_id):
             db.session.add(new_payment_transaction)
             print(f"DEBUG: Transação de pagamento criada para '{payment_transaction_description}'.")
         else:
-            print(f"DEBUG: Transação de pagamento para '{payment_transaction_description}' em {datetime.date.today().isoformat()} já existe. Pulando a criação.")
+            print(f"DEBUG: Transação de pagamento para '{payment_transaction_description}' já existe. Pulando a criação.")
         
         # A Bill paga pode ser uma Bill mestra ou uma Bill filha gerada
         # Em ambos os casos, queremos garantir que a Bill mestra associada
