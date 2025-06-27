@@ -324,9 +324,10 @@ def pay_bill_db(bill_id, user_id):
         category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
 
         # Adiciona a transação comum correspondente ao pagamento (SEMPE DESPESA)
-        # VERIFICA AGORA SE JÁ EXISTE UMA TRANSAÇÃO DE PAGAMENTO PARA EVITAR DUPLICATAS
+        # VERIFICA AGORA SE JÁ EXISTE UMA TRANSAÇÃO DE PAGAMENTO PARA ESTA BILL ESPECÍFICA NO DIA
+        payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id})" # Torna a descrição única por Bill paga
         existing_payment_transaction = Transaction.query.filter_by(
-            description=f"Pagamento: {bill.description}",
+            description=payment_transaction_description,
             date=datetime.date.today().isoformat(),
             type='expense',
             user_id=user_id
@@ -334,7 +335,7 @@ def pay_bill_db(bill_id, user_id):
 
         if not existing_payment_transaction:
             new_payment_transaction = Transaction(
-                description=f"Pagamento: {bill.description}",
+                description=payment_transaction_description, # Usar a descrição única
                 amount=bill.amount,
                 date=datetime.date.today().isoformat(),
                 type='expense', # Pagamento é sempre uma despesa
@@ -342,10 +343,10 @@ def pay_bill_db(bill_id, user_id):
                 category_id=category_id_for_payment
             )
             db.session.add(new_payment_transaction)
-            print(f"DEBUG: Transação de pagamento criada para '{bill.description}'.")
+            print(f"DEBUG: Transação de pagamento criada para '{payment_transaction_description}'.")
         else:
-            print(f"DEBUG: Transação de pagamento para '{bill.description}' em {datetime.date.today().isoformat()} já existe. Pulando a criação.")
-
+            print(f"DEBUG: Transação de pagamento para '{payment_transaction_description}' em {datetime.date.today().isoformat()} já existe. Pulando a criação.")
+        
         # A Bill paga pode ser uma Bill mestra ou uma Bill filha gerada
         # Em ambos os casos, queremos garantir que a Bill mestra associada
         # tenha sua próxima ocorrência gerada (ou que o processo se encerre).
@@ -527,7 +528,7 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) # Renomeado para evitar conflito
+    transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
 
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
@@ -566,7 +567,7 @@ def index():
 
     # Bills a serem exibidas: apenas as Bills que NÃO são mestras de recorrência
     # (ou seja, são Bills criadas manualmente ou Bills filhas geradas).
-    bills_query_obj = Bill.query.filter( # Renomeado para evitar conflito
+    bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
     )
