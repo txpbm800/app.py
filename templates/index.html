@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Financeira Pessoal (Python Flask)</title>
     <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
-    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('[https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap)');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7fafc; /* Cor de fundo suave */
@@ -127,51 +127,42 @@
             max-height: 400px; /* Altura máxima da área de rolagem */
             overflow-y: auto; /* Adiciona barra de rolagem vertical quando o conteúdo excede a altura */
             padding-right: 10px; /* Espaço para a barra de rolagem */
-            border-radius: 0.5rem; /* Para combinar com o arredondamento dos cards */
         }
 
-        /* Ajustes finos para o layout dos botões dentro do card de bill */
-        .bill-card-actions {
+        /* Estilo específico para alinhar os botões de ação nas bills */
+        .bill-actions-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Duas colunas iguais */
-            gap: 0.5rem; /* Espaçamento entre os botões */
-            margin-top: 1rem; /* Espaçamento acima dos botões */
-            align-items: center; /* Alinha verticalmente os itens no grid */
+            /* Duas colunas. A primeira para o botão "Pagar", a segunda para "Editar". */
+            /* A linha de baixo terá "Remarcar" (input + botão) e "Excluir". */
+            grid-template-columns: repeat(2, minmax(0, 1fr)); 
+            gap: 0.5rem; /* Espaçamento entre os itens do grid */
             width: 100%; /* Ocupa a largura total disponível */
         }
-        .bill-card-actions form,
-        .bill-card-actions button {
-            width: 100%; /* Botões e forms ocupam a largura total da sua célula de grid */
-            min-width: 0; /* Permite encolher se necessário */
-        }
-        .bill-card-actions .bill-reschedule-form {
-            grid-column: span 2; /* O formulário de remarcar ocupa as duas colunas */
-            display: flex; /* Transforma o form em flex para alinhar input e botão */
-            gap: 0.5rem; /* Espaçamento entre input e botão */
-        }
-        .bill-card-actions .bill-reschedule-form input[type="date"] {
-            flex-grow: 1; /* Permite que o input preencha o espaço disponível */
-            min-width: 80px; /* Reduzido min-width para maior adaptabilidade */
-        }
-        .bill-card-actions .col-span-2 { /* Garante que o botão excluir ocupe a linha inteira */
-            grid-column: span 2;
+
+        /* Responsividade para o grid de botões - garantir que ele se ajuste */
+        @media (min-width: 640px) { /* Em telas pequenas (sm) e maiores */
+            .bill-actions-grid {
+                /* Permite que o grid de botões ocupe a largura que precisar, sem forçar 100% da linha pai */
+                width: auto;
+                /* Impede que o flex-item encolha o conteúdo */
+                flex-shrink: 0; 
+                max-width: 280px; /* Limita a largura para não esticar demais em telas muito grandes */
+            }
+            .bill-actions-grid form, .bill-actions-grid button {
+                width: auto; /* Deixa os itens ajustarem sua largura */
+                min-width: 80px; /* Garante uma largura mínima para botões */
+            }
         }
 
-        /* Garante que os cards das listas tenham uma altura mínima e flex-grow */
-        .list-card {
-            display: flex;
-            flex-direction: column;
-            min-height: 300px; /* Altura mínima para os cards de lista */
-        }
-        .list-card .list-scroll-area {
-            flex-grow: 1; /* Permite que a área de rolagem ocupe o espaço restante */
-            min-height: 100px; /* Altura mínima para a área de rolagem, mesmo que vazia */
+        /* Estilo para o input de data dentro do form de remarcar */
+        .bill-reschedule-form input[type="date"] {
+            min-width: 120px; /* Garante que o input de data não seja muito pequeno */
         }
 
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
-    <div class="max-w-7xl mx-auto"> {# Esta div envolve todo o conteúdo principal para centralizá-lo #}
+    <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
             <nav class="relative"> {# Adicionado relative para posicionamento do dropdown #}
@@ -183,7 +174,7 @@
 
                     {# Botão do menu hambúrguer #}
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
-                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                     </button>
 
                     {# Dropdown do menu de usuário #}
@@ -228,7 +219,7 @@
             <div class="rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-blue-700">Saldo Atual</h3>
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up h-5 w-5 text-blue-600"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up h-5 w-5 text-blue-600"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
                 </div>
                 <div class="mt-2">
                     <div class="text-3xl font-bold {% if dashboard.balance >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
@@ -244,7 +235,7 @@
             <div class="rounded-xl bg-gradient-to-br from-green-50 to-green-100 border-green-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-green-700">Receitas</h3>
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5 text-green-600"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5 text-green-600"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                 </div>
                 <div class="mt-2">
                     <div class="text-3xl font-bold text-green-600">
@@ -260,7 +251,7 @@
             <div class="rounded-xl bg-gradient-to-br from-red-50 to-red-100 border-red-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-red-700">Despesas</h3>
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5 text-red-600"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5 text-red-600"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
                 </div>
                 <div class="mt-2">
                     <div class="text-3xl font-bold text-red-600">
@@ -276,7 +267,7 @@
             <div class="rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-orange-700">Contas a Pagar</h3>
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-5 w-5 text-orange-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-5 w-5 text-orange-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                 </div>
                 <div class="mt-2">
                     <div class="text-3xl font-bold text-orange-600">
@@ -289,9 +280,8 @@
             </div>
         </div>
 
-        {# Grid principal que organiza TODO o conteúdo em 2 colunas amplas no desktop #}
-        {# Esta div contém os 2 Formulários E as 4 Listas, organizando-os. #}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {# Grid principal que divide a área em 2 colunas grandes (formulários à esquerda, listas à direita) #}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             
             {# COLUNA ESQUERDA: Formulário de Nova Transação e Nova Conta a Pagar #}
             <div class="col-span-1 space-y-6"> 
@@ -299,7 +289,7 @@
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
-                        <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg id="transaction-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
@@ -347,7 +337,7 @@
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
-                        <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
@@ -419,16 +409,15 @@
                         </form>
                     </div>
                 </div>
-            </div> {# Fim da COLUNA ESQUERDA (Formulários) #}
+            </div> {# Fim da COLUNA ESQUERDA #}
 
-            {# SEGUNDA COLUNA (Lado Direito): Container para as 4 listas que se organizarão em 2x2 #}
-            {# Removido o col-span-1 do grid principal, ele será controlado pelo grid interno #}
+            {# COLUNA DIREITA: Container com grid 2x2 para as 4 listas #}
             <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 items-start">
                 
-                <!-- Bills List Section (Contas a Pagar) - TOP-LEFT deste sub-grid -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow list-card"> {# Adicionado list-card #}
+                <!-- Bills List Section (Contas a Pagar) - TOP-LEFT -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
-                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
                     </h2>
                     {# CONTROLES DE FILTRO E ORDENAÇÃO PARA CONTAS #}
@@ -476,17 +465,17 @@
                         <div class="space-y-4">
                             {% if not bills %}
                                 <div class="text-center py-8 flex flex-col items-center justify-center">
-                                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="64" height="64" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
                                     <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
                                 </div>
                             {% else %}
                                 {% for bill in bills %}
                                     {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
                                     <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50{% else %}border-gray-200 bg-white{% endif %} hover:border-blue-300 hover:shadow-md">
-                                        {# Conteúdo do card flex para alinhar item e botões #}
+                                        {# Linha principal: Descrição, Valor, Detalhes e Botões #}
                                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap w-full"> {# w-full para preencher a largura do card #}
                                             {# Detalhes da Conta (Descrição, Vencimento, Valor) #}
-                                            <div class="flex-1 min-w-0 pr-4"> {# Adicionado pr-4 para espaço antes dos botões #}
+                                            <div class="flex-1 min-w-0">
                                                 <div class="flex items-center space-x-2 mb-2">
                                                     <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
                                                     {% if is_overdue %}
@@ -501,7 +490,7 @@
                                                 </div>
                                                 <div class="flex flex-wrap gap-x-4 text-sm text-gray-600 items-center"> {# Adicionado items-center para alinhamento vertical #}
                                                     <div class="flex items-center space-x-1">
-                                                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                         <span>Vencimento: {{ bill.dueDate }}</span>
                                                     </div>
                                                     <div class="font-bold text-xl text-gray-800">
@@ -527,8 +516,8 @@
                                                 </div>
                                             </div>
                                             
-                                            {# Botoes de Ação para cada conta - AGRUPADOS EM GRID PARA CONTROLE PRECISO #}
-                                            <div class="grid grid-cols-2 gap-2 w-full sm:w-auto mt-4 sm:mt-0"> {# Usando grid para 2 colunas #}
+                                            {# Botoes de Ação para cada conta - AGRUPADOS EM FLEX #}
+                                            <div class="grid grid-cols-2 gap-2 w-full sm:w-auto mt-4 sm:mt-0 bill-actions"> {# Usando grid para 2 colunas #}
                                                 {% if bill.status == 'pending' %}
                                                     <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="col-span-1"> {# ocupa 1 coluna #}
                                                         <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
@@ -562,8 +551,8 @@
                     </div>
                 </div>
 
-                <!-- Transaction List Section (Últimas Transações) - TOP-RIGHT deste sub-grid -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow list-card"> {# Adicionado list-card #}
+                <!-- Transaction List Section (Últimas Transações) - TOP-RIGHT -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
                     {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
                     <div class="mb-4 space-y-2">
@@ -634,7 +623,7 @@
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                         <div class="flex items-center space-x-3">
                                             <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                                <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
@@ -669,7 +658,7 @@
                 </div>
             
                 <!-- Income List Section -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6 md:mt-0"> {# Removido mt-6 aqui #}
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                     <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
                         <div class="space-y-3">
@@ -680,7 +669,7 @@
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                             <div class="flex items-center space-x-3">
                                                 <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                                                 </div>
                                                 <div>
                                                     <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
@@ -698,7 +687,7 @@
                     </div>
 
                     <!-- Expense List Section -->
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> {# mt-6 para mobile spacing #}
+                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                         <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
                             <div class="space-y-3">
@@ -709,7 +698,7 @@
                                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                             <div class="flex items-center space-x-3">
                                                 <div class="p-2 rounded-full {% if transaction.type == 'expense' %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %}">
-                                                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
                                                 </div>
                                                 <div>
                                                     <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
@@ -725,9 +714,10 @@
                             </div>
                         </div>
                     </div>
-                </div> {# Fim da COLUNA DIREITA (das 4 listas) #}
+                </div> {# Fim do NOVO div que agrupa as 3 listas (Contas a Pagar, Receitas, Despesas) #}
 
-            </div> {# Fim do CONTÊINER DE GRADE PRINCIPAL #}
+
+            </div> {# Fim do CONTÊINER DE GRADE UNIFICADO para Formulários e Listas #}
 
 
         </div>
@@ -825,7 +815,7 @@
                         </div>
                         <div id="edit_bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
                             <label for="edit_recurring_total_occurrences_bill" id="edit_recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
+                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
