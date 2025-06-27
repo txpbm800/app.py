@@ -124,41 +124,36 @@
 
         /* Estilo para a área de rolagem para TODAS as listas */
         .list-scroll-area { 
-            max-height: 400px; /* Altura máxima da área de rolagem para todas as listas */
+            max-height: 400px; /* Altura máxima da área de rolagem */
             overflow-y: auto; /* Adiciona barra de rolagem vertical quando o conteúdo excede a altura */
             padding-right: 10px; /* Espaço para a barra de rolagem */
         }
-        /* Estilo específico para alinhar os botões de ação nas bills */
-        .bill-actions {
-            display: grid; /* Usa grid para organizar os botões */
-            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Duas colunas de largura igual */
-            gap: 0.5rem; /* Espaçamento entre os botões */
+        /* Ajuste para o container de ações da bill */
+        .bill-actions-container {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Duas colunas */
+            gap: 0.5rem; /* Espaçamento entre os itens */
             width: 100%; /* Ocupa a largura total no mobile */
-        }
-        @media (min-width: 640px) { /* Para telas pequenas (sm) e maiores */
-            .bill-actions {
-                grid-template-columns: repeat(2, minmax(0, 1fr)); /* Mantém 2 colunas */
-                width: auto; /* Permite que o container de botões encolha */
-                flex-shrink: 0; /* Impede que ele encolha além do conteúdo */
-            }
-        }
-        @media (min-width: 768px) { /* Para telas medias (md) e maiores */
-            .bill-actions {
-                 /* Ajusta o grid para 2x2 com espaçamento quando cabe. */
-                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                 width: 100%; /* Mantém 100% da largura da sua coluna pai */
-                 max-width: 250px; /* Limita a largura para que não estique demais */
-            }
-        }
-        @media (min-width: 1024px) { /* Para telas grandes (lg) e maiores */
-             .bill-actions {
-                 /* Continua com 2x2 */
-                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                 width: 100%; /* Mantém 100% da largura da sua coluna pai */
-                 max-width: 250px; /* Limita a largura para que não estique demais */
-             }
+            flex-shrink: 0; /* Impede que encolha excessivamente */
+            margin-top: 0.5rem; /* Espaçamento da info acima */
         }
 
+        /* Ajustes responsivos para telas maiores */
+        @media (min-width: 640px) { /* sm */
+            .bill-actions-container {
+                width: auto; /* Permite que ocupe apenas o espaço necessário */
+                margin-left: auto; /* Empurra para a direita */
+                margin-top: 0; /* Remove margem superior no desktop */
+            }
+        }
+        /* Estilo para o input de remarcar dentro do form para garantir que ele se estique */
+        .bill-actions-container .form-remarcar input[type="date"] {
+            flex-grow: 1; /* Permite que o input de data ocupe o espaço restante */
+            min-width: 90px; /* Garante uma largura mínima para o input de data */
+        }
+        .bill-actions-container form {
+            width: 100%; /* Formulários também devem se esticar */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -517,26 +512,28 @@
                                             </div>
                                             
                                             {# Botoes de Ação para cada conta - AGRUPADOS EM FLEX #}
-                                            <div class="flex flex-col space-y-2 w-full sm:w-auto mt-4 sm:mt-0 bill-actions"> {# Adicionado bill-actions #}
+                                            <div class="bill-actions-container"> {# Usando a nova classe bill-actions-container #}
                                                 {% if bill.status == 'pending' %}
-                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="w-full"> {# w-full para o form #}
+                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST">
                                                         <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                             Pagar
                                                         </button>
                                                     </form>
                                                 {% endif %}
-                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full"> {# w-full #}
+                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                     Editar
                                                 </button>
                                                 {% if bill.status == 'pending' %}
-                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full"> {# w-full para o form #}
-                                                        <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
+                                                    {# Grupo Remarcar #}
+                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center col-span-2"> {# col-span-2 para ocupar ambas as colunas #}
+                                                        <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm flex-1" required> {# flex-1 para preencher largura #}
                                                         <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
                                                             Remarcar
                                                         </button>
                                                     </form>
                                                 {% endif %}
-                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="w-full"> {# w-full #}
+                                                {# Botão Excluir (sempre visível) #}
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');">
                                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                         Excluir
                                                     </button>
@@ -657,7 +654,7 @@
                 </div>
             
                 <!-- Income List Section -->
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                     <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
                         <div class="space-y-3">
@@ -686,7 +683,7 @@
                     </div>
 
                     <!-- Expense List Section -->
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
                         <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                         <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
                             <div class="space-y-3">
@@ -814,7 +811,7 @@
                         </div>
                         <div id="edit_bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
                             <label for="edit_recurring_total_occurrences_bill" id="edit_recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
+                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
