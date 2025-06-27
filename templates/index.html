@@ -1,9 +1,11 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Financeira Pessoal (Python Flask)</title>
+    <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -120,12 +122,43 @@
             color: #333;
         }
 
-        /* Estilo para a área de rolagem da lista de contas */
-        .list-scroll-area { /* Renomeado de bills-scroll-area para ser genérico */
-            max-height: 400px; /* Altura máxima da área de rolagem */
+        /* Estilo para a área de rolagem para TODAS as listas */
+        .list-scroll-area { 
+            max-height: 400px; /* Altura máxima da área de rolagem para todas as listas */
             overflow-y: auto; /* Adiciona barra de rolagem vertical quando o conteúdo excede a altura */
             padding-right: 10px; /* Espaço para a barra de rolagem */
         }
+        /* Estilo específico para alinhar os botões de ação nas bills */
+        .bill-actions {
+            display: grid; /* Usa grid para organizar os botões */
+            grid-template-columns: repeat(2, minmax(0, 1fr)); /* Duas colunas de largura igual */
+            gap: 0.5rem; /* Espaçamento entre os botões */
+            width: 100%; /* Ocupa a largura total no mobile */
+        }
+        @media (min-width: 640px) { /* Para telas pequenas (sm) e maiores */
+            .bill-actions {
+                grid-template-columns: repeat(2, minmax(0, 1fr)); /* Mantém 2 colunas */
+                width: auto; /* Permite que o container de botões encolha */
+                flex-shrink: 0; /* Impede que ele encolha além do conteúdo */
+            }
+        }
+        @media (min-width: 768px) { /* Para telas medias (md) e maiores */
+            .bill-actions {
+                 /* Ajusta o grid para 2x2 com espaçamento quando cabe. */
+                 grid-template-columns: repeat(2, minmax(0, 1fr));
+                 width: 100%; /* Mantém 100% da largura da sua coluna pai */
+                 max-width: 250px; /* Limita a largura para que não estique demais */
+            }
+        }
+        @media (min-width: 1024px) { /* Para telas grandes (lg) e maiores */
+             .bill-actions {
+                 /* Continua com 2x2 */
+                 grid-template-columns: repeat(2, minmax(0, 1fr));
+                 width: 100%; /* Mantém 100% da largura da sua coluna pai */
+                 max-width: 250px; /* Limita a largura para que não estique demais */
+             }
+        }
+
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -180,7 +213,9 @@
             {% endwith %}
         </div>
 
+        <!-- Dashboard Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Saldo Atual Card -->
             <div class="rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-blue-700">Saldo Atual</h3>
@@ -196,6 +231,7 @@
                 </div>
             </div>
 
+            <!-- Receitas Card -->
             <div class="rounded-xl bg-gradient-to-br from-green-50 to-green-100 border-green-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-green-700">Receitas</h3>
@@ -211,6 +247,7 @@
                 </div>
             </div>
 
+            <!-- Despesas Card -->
             <div class="rounded-xl bg-gradient-to-br from-red-50 to-red-100 border-red-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-red-700">Despesas</h3>
@@ -226,6 +263,7 @@
                 </div>
             </div>
 
+            <!-- Contas a Pagar Card -->
             <div class="rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 p-6 card-shadow card-hover transition-all duration-300">
                 <div class="flex items-center justify-between space-y-0 pb-2">
                     <h3 class="text-sm font-medium text-orange-700">Contas a Pagar</h3>
@@ -247,6 +285,7 @@
             
             {# COLUNA ESQUERDA: Formulário de Nova Transação e Nova Conta a Pagar #}
             <div class="col-span-1 space-y-6"> 
+                <!-- Transaction Form Section (Colapsável) -->
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Transação</h2>
@@ -294,6 +333,7 @@
                     </div>
                 </div>
 
+                <!-- Bill Form Section (Colapsável, AGORA INCLUI RECORRÊNCIA) -->
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
@@ -372,9 +412,10 @@
             </div> {# Fim da COLUNA ESQUERDA #}
 
             {# COLUNA DIREITA: Container com grid 2x2 para as 4 listas #}
-            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 items-start">
+            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> {# Removido col-span-1 md:col-span-2 #}
+                <!-- Bills List Section (Contas a Pagar) - TOP-LEFT -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
@@ -420,7 +461,7 @@
                     </div>
 
                     {# Div com barra de rolagem para a lista de contas #}
-                    <div class="bills-scroll-area">
+                    <div class="list-scroll-area">
                         <div class="space-y-4">
                             {% if not bills %}
                                 <div class="text-center py-8 flex flex-col items-center justify-center">
@@ -476,34 +517,30 @@
                                             </div>
                                             
                                             {# Botoes de Ação para cada conta - AGRUPADOS EM FLEX #}
-                                            <div class="flex flex-col space-y-2 w-full sm:w-auto mt-4 sm:mt-0"> {# Empilha no mobile, lado a lado no desktop #}
-                                                <div class="flex space-x-2 w-full"> {# Primeira linha de botoes #}
-                                                    {% if bill.status == 'pending' %}
-                                                        <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="flex-1"> {# flex-1 para preencher largura #}
-                                                            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                                Pagar
-                                                            </button>
-                                                        </form>
-                                                    {% endif %}
-                                                    <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm flex-1"> {# flex-1 #}
-                                                        Editar
-                                                    </button>
-                                                </div>
-                                                <div class="flex space-x-2 w-full"> {# Segunda linha de botoes #}
-                                                    {% if bill.status == 'pending' %}
-                                                        <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center flex-1"> {# flex-1 para o form, items-center para alinhar input e botão #}
-                                                            <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
-                                                            <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
-                                                                Remarcar
-                                                            </button>
-                                                        </form>
-                                                    {% endif %}
-                                                    <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="flex-1"> {# flex-1 #}
-                                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                            Excluir
+                                            <div class="flex flex-col space-y-2 w-full sm:w-auto mt-4 sm:mt-0 bill-actions"> {# Adicionado bill-actions #}
+                                                {% if bill.status == 'pending' %}
+                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="w-full"> {# w-full para o form #}
+                                                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                            Pagar
                                                         </button>
                                                     </form>
-                                                </div>
+                                                {% endif %}
+                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full"> {# w-full #}
+                                                    Editar
+                                                </button>
+                                                {% if bill.status == 'pending' %}
+                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center w-full"> {# w-full para o form #}
+                                                        <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm w-full" required>
+                                                        <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
+                                                            Remarcar
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="w-full"> {# w-full #}
+                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                        Excluir
+                                                    </button>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
@@ -513,6 +550,7 @@
                     </div>
                 </div>
 
+                <!-- Transaction List Section (Últimas Transações) - TOP-RIGHT -->
                 <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
                     {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
@@ -575,53 +613,13 @@
                     </div>
 
 
-                    <div class="space-y-3">
-                        {% if not transactions %}
-                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
-                        {% else %}
-                            {% for transaction in transactions %}
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                    <div class="flex items-center space-x-3">
-                                        <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                                        </div>
-                                        <div>
-                                            <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                            <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                            {# Exibe a categoria #}
-                                            <p class="text-xs text-gray-400">
-                                                Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div class="flex flex-col space-y-2 ml-auto">
-                                        <div class="flex space-x-2">
-                                            <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                Editar
-                                            </button>
-                                        </div>
-                                        <div class="flex space-x-2">
-                                            <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
-                                                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                    Excluir
-                                                </button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-            
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
-                    <div class="space-y-3">
-                        {% if not income_transactions %}
-                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma receita encontrada</p>
-                        {% else %}
-                            {% for transaction in income_transactions %}
-                                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
+                        <div class="space-y-3">
+                            {% if not transactions %}
+                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
+                            {% else %}
+                                {% for transaction in transactions %}
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
                                         <div class="flex items-center space-x-3">
                                             <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
@@ -629,40 +627,90 @@
                                             <div>
                                                 <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
                                                 <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                                {# Exibe a categoria #}
+                                                <p class="text-xs text-gray-400">
+                                                    Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                                </p>
                                             </div>
                                         </div>
-                                        <div class="font-bold text-lg text-green-600">
-                                            + R$ {{ "%.2f"|format(transaction.amount) }}
+                                        <div class="flex flex-col space-y-2 ml-auto">
+                                            <div class="flex space-x-2">
+                                                <!-- Botão Editar Transação -->
+                                                <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                    Editar
+                                                </button>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                <!-- Botão Excluir Transação -->
+                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                        Excluir
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
                                 {% endfor %}
                             {% endif %}
                         </div>
                     </div>
-
-                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
-                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
+                </div>
+            
+                <!-- Income List Section -->
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
+                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
                         <div class="space-y-3">
-                            {% if not expense_transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma despesa encontrada</p>
+                            {% if not income_transactions %}
+                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma receita encontrada</p>
                             {% else %}
-                                {% for transaction in expense_transactions %}
+                                {% for transaction in income_transactions %}
                                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="p-2 rounded-full {% if transaction.type == 'expense' %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                                            <div class="flex items-center space-x-3">
+                                                <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                                    <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                            <div class="font-bold text-lg text-green-600">
+                                                + R$ {{ "%.2f"|format(transaction.amount) }}
                                             </div>
                                         </div>
-                                        <div class="font-bold text-lg text-red-600">
-                                            - R$ {{ "%.2f"|format(transaction.amount) }}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Expense List Section -->
+                    <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
+                        <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
+                            <div class="space-y-3">
+                                {% if not expense_transactions %}
+                                    <p class="text-gray-500 text-center py-4 text-md">Nenhuma despesa encontrada</p>
+                                {% else %}
+                                    {% for transaction in expense_transactions %}
+                                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                                            <div class="flex items-center space-x-3">
+                                                <div class="p-2 rounded-full {% if transaction.type == 'expense' %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %}">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                                    <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                                </div>
+                                            </div>
+                                            <div class="font-bold text-lg text-red-600">
+                                                - R$ {{ "%.2f"|format(transaction.amount) }}
+                                            </div>
                                         </div>
-                                    </div>
-                                {% endfor %}
-                            {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div> {# Fim do NOVO div que agrupa as 3 listas (Contas a Pagar, Receitas, Despesas) #}
@@ -673,11 +721,13 @@
 
         </div>
 
+        <!-- Modal de Edição (Transação e Conta) -->
         <div id="edit-modal" class="modal">
             <div class="modal-content">
                 <span class="close-button" onclick="closeEditModal()">&times;</span>
                 <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
                 
+                <!-- Formulário de Edição de Transação (inicialmente oculto) -->
                 <form id="edit-transaction-form" method="POST" class="space-y-4 hidden">
                     <input type="hidden" id="edit_transaction_id" name="transaction_id">
                     <div>
@@ -716,6 +766,7 @@
                     </button>
                 </form>
 
+                <!-- Formulário de Edição de Conta (MODIFICADO para incluir recorrência) -->
                 <form id="edit-bill-form" method="POST" class="space-y-4 hidden">
                     <input type="hidden" id="edit_bill_id" name="bill_id">
                     <div>
@@ -763,7 +814,7 @@
                         </div>
                         <div id="edit_bill_total_occurrences_field" class="hidden"> {# Corrigido o ID do campo de parcelas #}
                             <label for="edit_recurring_total_occurrences_bill" id="edit_recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"> {# min="0" para indefinido #}
+                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
@@ -780,6 +831,7 @@
             </div>
         </div>
 
+        <!-- JavaScript para funcionalidades -->
         <script>
             // Array global para armazenar todas as categorias
             let allCategories = []; 
