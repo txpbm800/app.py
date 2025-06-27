@@ -331,8 +331,8 @@ def pay_bill_db(bill_id, user_id):
         payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id} - {datetime.date.today().isoformat()})"
         
         # Procura por uma transação de pagamento com a MESMA DESCRIÇÃO EXATA
-        # Isso significa que, se você pagar o "Aluguel" (ID 1) no dia 27/06, e depois pagar o "Aluguel" (ID 2) no mesmo dia,
-        # ambas serão registradas. Se tentar pagar a mesma Bill (ID 1) duas vezes no mesmo dia, a segunda será ignorada.
+        # Isso significa que, se você pagar a mesma Bill (ID 1) no dia 27/06, e depois tentar pagar novamente a mesma Bill (ID 1) no mesmo dia,
+        # a segunda transação NÃO será adicionada para evitar duplicatas para o MESMO ID de Bill no MESMO DIA.
         existing_payment_transaction = Transaction.query.filter_by(
             description=payment_transaction_description, # Usar a descrição única para filtro
             date=datetime.date.today().isoformat(),
@@ -496,23 +496,47 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
 
 
 def get_dashboard_data_db(user_id):
-    all_transactions = Transaction.query.filter_by(user_id=user_id).all()
-    all_bills = Bill.query.filter_by(user_id=user_id).all()
-
-    total_income = sum(t.amount for t in all_transactions if t.type == 'income')
-    total_expenses = sum(t.amount for t in all_transactions if t.type == 'expense')
-    balance = total_income - total_expenses
+    # Saldo Atual: continua sendo o total acumulado
+    all_transactions_for_balance = Transaction.query.filter_by(user_id=user_id).all()
+    total_income_balance = sum(t.amount for t in all_transactions_for_balance if t.type == 'income')
+    total_expenses_balance = sum(t.amount for t in all_transactions_for_balance if t.type == 'expense')
+    balance = total_income_balance - total_expenses_balance
     
-    # IMPORTANTE: A lista de pending_bills agora inclui as bills geradas
-    pending_bills = [b for b in all_bills if b.status == 'pending']
-    total_pending_bills_amount = sum(b.amount for b in pending_bills)
+    # Filtro por mês atual para Receitas, Despesas e Contas a Pagar
+    current_month_year_str = datetime.date.today().strftime('%Y-%m')
+
+    # Receitas do Mês Atual
+    monthly_income_transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.type == 'income',
+        db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str
+    ).all()
+    total_income_current_month = sum(t.amount for t in monthly_income_transactions)
+
+    # Despesas do Mês Atual
+    monthly_expense_transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.type == 'expense',
+        db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str
+    ).all()
+    total_expenses_current_month = sum(t.amount for t in monthly_expense_transactions)
+
+    # Contas a Pagar do Mês Atual (apenas as pendentes)
+    # Exclui Bills mestras e filtra pelo mês atual
+    pending_bills_current_month = Bill.query.filter(
+        Bill.user_id == user_id,
+        Bill.is_master_recurring_bill == False,
+        Bill.status == 'pending',
+        db.func.strftime('%Y-%m', Bill.dueDate) == current_month_year_str
+    ).all()
+    total_pending_bills_current_month_amount = sum(b.amount for b in pending_bills_current_month)
     
     return {
         'balance': balance,
-        'totalIncome': total_income,
-        'totalExpenses': total_expenses,
-        'totalPendingBills': total_pending_bills_amount,
-        'pendingBillsList': pending_bills
+        'totalIncome': total_income_current_month, # Agora é do mês atual
+        'totalExpenses': total_expenses_current_month, # Agora é do mês atual
+        'totalPendingBills': total_pending_bills_current_month_amount, # Agora é do mês atual
+        'pendingBillsList': pending_bills_current_month # Lista de bills pendentes do mês atual
     }
 
 def generate_text_with_gemini(prompt_text):
@@ -536,6 +560,11 @@ def index():
     dashboard_data = get_dashboard_data_db(current_user.id)
     
     transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
+
+    # --- NOVO: FILTRO POR MÊS ATUAL PARA ÚLTIMAS TRANSAÇÕES EXIBIDAS NA LISTA ---
+    current_month_year_str = datetime.date.today().strftime('%Y-%m')
+    transactions_query_obj = transactions_query_obj.filter(db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str)
+
 
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
@@ -578,6 +607,10 @@ def index():
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
     )
+
+    # --- NOVO: FILTRO POR MÊS ATUAL PARA CONTAS A PAGAR EXIBIDAS NA LISTA ---
+    bills_query_obj = bills_query_obj.filter(db.func.strftime('%Y-%m', Bill.dueDate) == current_month_year_str)
+
 
     bill_status_filter = request.args.get('bill_status')
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
