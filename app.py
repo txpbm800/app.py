@@ -403,26 +403,58 @@ def delete_transaction_db(transaction_id, user_id):
 def delete_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
-        print(f"DEBUG: Tentando excluir Bill ID: {bill.id}, Descrição: '{bill.description}', É Mestra Recorrente: {bill.is_master_recurring_bill}")
-        # Se a Bill é uma Bill recorrente "mestra", primeiro exclua todas as suas contas filhas associadas.
-        # Isso garante uma remoção limpa de todas as ocorrências relacionadas.
+        print(f"DEBUG: Tentando excluir Bill ID: {bill.id}, Descrição: '{bill.description}', É Mestra Recorrente: {bill.is_master_recurring_bill}, Parent ID: {bill.recurring_parent_id}")
+
         if bill.is_master_recurring_bill:
-            # Exclui todas as contas filhas (pendentes e pagas) vinculadas a esta conta mestra.
-            # Isso é crucial para uma remoção completa da série recorrente.
+            # Se é uma Bill mestra, exclua todas as suas filhas e depois a própria mestra.
             child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id).all()
             for child_bill in child_bills:
                 db.session.delete(child_bill)
-                print(f"DEBUG: Excluindo Bill filha: ID {child_bill.id}, Descrição: '{child_bill.description}'")
+                print(f"DEBUG: Excluindo Bill filha (do mestre): ID {child_bill.id}, Descrição: '{child_bill.description}'")
             print(f"DEBUG: Excluídas {len(child_bills)} contas filhas para a mestra '{bill.description}'.")
             
-            # A própria conta mestra é então excluída abaixo.
-            print(f"DEBUG: Conta mestra recorrente '{bill.description}' (ID: {bill.id}) e suas filhas marcadas para exclusão.")
-        
-        # Exclui a própria conta (seja ela mestra, filha ou uma conta não recorrente).
-        db.session.delete(bill)
-        db.session.commit()
-        print(f"DEBUG: Bill ID {bill_id} excluída e commit realizado.")
-        return True
+            db.session.delete(bill) # Exclui a Bill mestra em si
+            db.session.commit()
+            print(f"DEBUG: Conta mestra '{bill.description}' (ID: {bill.id}) e suas filhas excluídas e commit realizado.")
+            return True
+
+        elif bill.recurring_parent_id:
+            # Se é uma Bill filha, o usuário provavelmente quer cancelar a série inteira.
+            # Encontre a Bill mestra e desative-a, depois exclua todas as suas filhas (incluindo a que está sendo excluída).
+            master_bill = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
+            if master_bill:
+                print(f"DEBUG: Bill filha '{bill.description}' (ID: {bill.id}) está sendo excluída. Tentando cancelar a série mestra '{master_bill.description}'.")
+                
+                master_bill.is_active_recurring = False # Desativa a geração futura
+                master_bill.recurring_frequency = None # Limpa os campos de recorrência
+                master_bill.recurring_start_date = None
+                master_bill.recurring_next_due_date = None
+                master_bill.recurring_total_occurrences = 0
+                master_bill.recurring_installments_generated = 0
+                db.session.add(master_bill) # Salva as alterações na Bill mestra
+
+                # Exclui todas as filhas associadas a esta Bill mestra (incluindo a que acabou de ser clicada)
+                all_children_of_master = Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=user_id).all()
+                for child in all_children_of_master:
+                    db.session.delete(child)
+                    print(f"DEBUG: Excluindo outra Bill filha (do mestre): ID {child.id}, Descrição: '{child.description}'")
+                
+                db.session.commit()
+                print(f"DEBUG: Série recorrente da mestra '{master_bill.description}' (ID: {master_bill.id}) cancelada e todas as suas filhas excluídas.")
+                return True
+            else:
+                print(f"DEBUG: Bill filha '{bill.description}' (ID: {bill.id}) excluída, mas a mestra recorrente (ID: {bill.recurring_parent_id}) não foi encontrada ou não é mestra.")
+                # Se a mestra não foi encontrada, apenas exclua a Bill filha em si.
+                db.session.delete(bill)
+                db.session.commit()
+                return True # Ainda considera um sucesso por excluir a filha
+        else:
+            # É uma Bill regular, não recorrente. Apenas a exclua.
+            db.session.delete(bill)
+            db.session.commit()
+            print(f"DEBUG: Bill não recorrente '{bill.description}' (ID: {bill.id}) excluída e commit realizado.")
+            return True
+    
     print(f"DEBUG: Bill ID {bill_id} não encontrada ou não pertence ao usuário {user_id}.")
     return False
 
