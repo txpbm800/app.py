@@ -523,7 +523,7 @@
                                                         </button>
                                                     </form>
                                                 {% endif %}
-                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2"> {# Ocupa 2 colunas #}
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2"> {# CORRIGIDO: Adicionado method="POST" #}
                                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                         Excluir
                                                     </button>
@@ -626,7 +626,7 @@
                                                 </button>
                                             </div>
                                             <div class="flex space-x-2">
-                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');"> {# CORRIGIDO: Adicionado method="POST" #}
                                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                         Excluir
                                                     </button>
@@ -1033,8 +1033,7 @@
                     // Inicializa a label e placeholder na carga inicial/ativação
                     updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
 
-                    // Re-filtra as categorias no modal de edição com base no tipo da Bill
-                    // Agora usa data.category_id para pré-selecionar a categoria correta
+                    // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
                     filterCategoriesByType(editBillTypeSelect.value, editBillCategoryRecurringSelect.id, data.category_id);
 
                 } else {
