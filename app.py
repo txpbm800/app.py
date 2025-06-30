@@ -5,13 +5,14 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
 import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
-import google.generativeai as genai
+import calendar # Para obter o número de dias no mês
+# import google.generativeai as genai # Comentado, pois não há rota de IA no código fornecido.
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido) ---
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
-genai.configure(api_key=GEMINI_API_KEY)
+# --- CONFIGURAÇÃO DA API KEY GEMINI (mantido, mas precisa ser descomentado se for usar a rota /profile/ai_insight) ---
+# GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
+# genai.configure(api_key=GEMINI_API_KEY)
 
 # Configuração da Chave Secreta para Flask-Login e Flask-WTF
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma_chave_secreta_muito_complexa_e_aleatoria')
@@ -36,6 +37,10 @@ class User(UserMixin, db.Model):
     
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
+    # Corrigido: backref para orçamentos e metas devem ser únicas para evitar conflitos de nomes no User
+    budgets = db.relationship('Budget', backref='user_budget_owner', lazy=True, cascade='all, delete-orphan')
+    goals = db.relationship('Goal', backref='user_goal_owner', lazy=True, cascade='all, delete-orphan')
+
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -52,22 +57,47 @@ def load_user(user_id):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False) # Removido unique=True aqui para permitir a mesma categoria para diferentes usuários, se necessário
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
-    
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # Adicionado user_id para categoria
+
     transactions = db.relationship('Transaction', backref='category', lazy=True)
+    # Adicionado relacionamento para orçamentos
+    budgets = db.relationship('Budget', backref='category', lazy=True) 
+
+    # Garante que a combinação de nome e tipo seja única por usuário
+    __table_args__ = (db.UniqueConstraint('name', 'type', 'user_id', name='_user_category_type_uc'),)
+
 
     def __repr__(self):
         return f"<Category {self.name} ({self.type})>"
+
+# NEW: Modelo Account (Conta bancária/Carteira)
+class Account(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    balance = db.Column(db.Float, default=0.0)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    transactions = db.relationship('Transaction', backref='account', lazy=True)
+    bills = db.relationship('Bill', backref='account_bill', lazy=True) # backref 'account_bill' para evitar conflito com 'account' de Transaction
+
+    __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_user_account_uc'),)
+
+    def __repr__(self):
+        return f"<Account {self.name} (Balance: {self.balance:.2f})>"
+
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    date = db.Column(db.String(10), nullable=False)
+    date = db.Column(db.String(10), nullable=False) # Armazenar como String YYYY-MM-DD
     type = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True) # Ligação com Account
+
 
     def __repr__(self):
         return f"<Transaction {self.description} - {self.amount}>"
@@ -77,8 +107,8 @@ class Bill(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    dueDate = db.Column(db.String(10), nullable=False)
-    status = db.Column(db.String(10), nullable=False)
+    dueDate = db.Column(db.String(10), nullable=False) # Data de vencimento como string
+    status = db.Column(db.String(10), nullable=False) # 'pending', 'paid', 'overdue'
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     # NOVOS CAMPOS PARA RECORRÊNCIA E PARCELAMENTO (AGORA NA PRÓPRIA BILL)
@@ -93,7 +123,13 @@ class Bill(db.Model):
     recurring_installments_generated = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram geradas/pagas
     is_active_recurring = db.Column(db.Boolean, default=False, nullable=False) # A recorrência ainda está ativa para gerar mais?
     type = db.Column(db.String(10), nullable=False, default='expense') # Tipo da Bill (expense ou income)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True) # NOVO CAMPO: Para Bills mestras de receita
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True) # NOVO CAMPO: Para Bills mestras de receita (e para bills filhas)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True) # Conta associada à Bill
+    
+    # Novo campo para rastrear a transação gerada pelo pagamento da conta
+    payment_transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=True)
+    payment_transaction = db.relationship('Transaction', foreign_keys=[payment_transaction_id], post_update=True)
+
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
@@ -105,12 +141,9 @@ class Budget(db.Model):
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     budget_amount = db.Column(db.Float, nullable=False)
     month_year = db.Column(db.String(7), nullable=False) # 'YYYY-MM'
-    current_spent = db.Column(db.Float, default=0.0, nullable=False)
+    current_spent = db.Column(db.Float, default=0.0, nullable=False) # Campo para rastrear o gasto atual
 
-    # Corrigido: backref deve ser única para o modelo User
-    user = db.relationship('User', backref='user_budgets', lazy=True)
-    category = db.relationship('Category', backref='budgets', lazy=True)
-
+    # Garante que só haja um orçamento por categoria por mês para um usuário
     __table_args__ = (db.UniqueConstraint('user_id', 'category_id', 'month_year', name='_user_category_month_uc'),)
 
     def __repr__(self):
@@ -125,47 +158,166 @@ class Goal(db.Model):
     due_date = db.Column(db.String(10), nullable=True) # YYYY-MM-DD
     status = db.Column(db.String(20), default='in_progress', nullable=False) # 'in_progress', 'achieved', 'abandoned'
 
-    # Corrigido: backref deve ser única para o modelo User
-    user = db.relationship('User', backref='user_goals', lazy=True)
-
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
 
 
-# --- Funções de Lógica de Negócios (ORDEM OTIMIZADA) ---
+# --- Funções de Lógica de Negócios ---
 
 # Define 'TODAY_DATE' aqui para que esteja disponível para TODAS as funções abaixo que a utilizam
 TODAY_DATE = datetime.date.today()
 
-# FUNÇÕES AUXILIARES DE ADIÇÃO/EDIÇÃO/EXCLUSÃO SIMPLES (precisam de db.session.add/commit)
-def add_transaction_db(description, amount, date, type, user_id, category_id=None):
+# Função auxiliar para obter o mês/ano atual
+def get_current_month_year_str():
+    return datetime.date.today().strftime('%Y-%m')
+
+# Função auxiliar para obter o primeiro e último dia de um mês/ano
+def get_month_start_end_dates(month_year_str):
+    year, month = map(int, month_year_str.split('-'))
+    start_date = datetime.date(year, month, 1)
+    end_date = start_date.replace(day=calendar.monthrange(year, month)[1])
+    return start_date, end_date
+
+# --- LÓGICA DE TRANSAÇÕES E ORÇAMENTOS ---
+def add_transaction_db(description, amount, date, type, user_id, category_id=None, account_id=None):
+    amount = float(amount)
+    # Converte a string de data para objeto date
+    date_obj = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+
     new_transaction = Transaction(
         description=description,
-        amount=float(amount),
-        date=date,
+        amount=amount,
+        date=date, # Armazenar como string no BD
         type=type,
         user_id=user_id,
-        category_id=category_id
+        category_id=category_id,
+        account_id=account_id
     )
     db.session.add(new_transaction)
-    db.session.flush() # Use flush to get ID before commit
+    db.session.flush() # flush para obter new_transaction.id antes do commit
 
-    # Logic to update budget current_spent for expenses
+    # Atualiza o saldo da conta
+    if account_id:
+        account = Account.query.get(account_id)
+        if account:
+            if type == 'income':
+                account.balance += amount
+            else: # expense
+                account.balance -= amount
+
+    # Lógica para atualizar o orçamento (apenas para despesas)
     if type == 'expense' and category_id:
-        transaction_month_year = datetime.datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m')
+        transaction_month_year = date_obj.strftime('%Y-%m')
         budget = Budget.query.filter_by(
             user_id=user_id,
             category_id=category_id,
             month_year=transaction_month_year
         ).first()
         if budget:
-            budget.current_spent += float(amount)
+            budget.current_spent += amount
             db.session.add(budget)
-            print(f"DEBUG: Budget for category {category_id} updated. New spent: {budget.current_spent}")
+            print(f"DEBUG: Budget for category {Category.query.get(category_id).name} updated. New spent: {budget.current_spent}")
         else:
-            print(f"DEBUG: No active budget found for category {category_id} in {transaction_month_year} for user {user_id}. Transaction added without budget update.")
+            print(f"DEBUG: No budget found for category {category_id} in {transaction_month_year} for user {user_id}. Transaction added without budget update.")
     
     db.session.commit()
+
+def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None, account_id=None):
+    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
+    if not transaction:
+        return False
+
+    old_amount = transaction.amount
+    old_type = transaction.type
+    old_category_id = transaction.category_id
+    old_account_id = transaction.account_id
+    old_date_obj = datetime.datetime.strptime(transaction.date, '%Y-%m-%d').date()
+
+    new_amount = float(amount)
+    new_date_obj = datetime.datetime.strptime(date, '%Y-%m-%d').date()
+
+    # Reverter impacto da transação antiga
+    if old_account_id:
+        old_account = Account.query.get(old_account_id)
+        if old_account:
+            if old_type == 'income':
+                old_account.balance -= old_amount
+            else: # expense
+                old_account.balance += old_amount
+
+    if old_type == 'expense' and old_category_id:
+        old_month_year = old_date_obj.strftime('%Y-%m')
+        old_budget = Budget.query.filter_by(
+            user_id=user_id,
+            category_id=old_category_id,
+            month_year=old_month_year
+        ).first()
+        if old_budget:
+            old_budget.current_spent -= old_amount
+            db.session.add(old_budget)
+
+    # Aplicar impacto da nova transação
+    transaction.description = description
+    transaction.amount = new_amount
+    transaction.date = date # Armazenar como string
+    transaction.type = type
+    transaction.category_id = category_id
+    transaction.account_id = account_id
+
+    if account_id:
+        new_account = Account.query.get(account_id)
+        if new_account:
+            if type == 'income':
+                new_account.balance += new_amount
+            else: # expense
+                new_account.balance -= new_amount
+
+    if type == 'expense' and category_id:
+        new_month_year = new_date_obj.strftime('%Y-%m')
+        new_budget = Budget.query.filter_by(
+            user_id=user_id,
+            category_id=category_id,
+            month_year=new_month_year
+        ).first()
+        if new_budget:
+            new_budget.current_spent += new_amount
+            db.session.add(new_budget)
+        else:
+            print(f"DEBUG: No budget found for category {category_id} in {new_month_year} for user {user_id} after edit.")
+
+    db.session.commit()
+    return True
+
+def delete_transaction_db(transaction_id, user_id):
+    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
+    if not transaction:
+        return False
+
+    # Reverte o saldo da conta
+    if transaction.account_id:
+        account = Account.query.get(transaction.account_id)
+        if account:
+            if transaction.type == 'income':
+                account.balance -= transaction.amount
+            else: # expense
+                account.balance += transaction.amount
+
+    # Reverte o valor gasto no orçamento (se for despesa)
+    if transaction.type == 'expense' and transaction.category_id:
+        transaction_month_year = datetime.datetime.strptime(transaction.date, '%Y-%m-%d').strftime('%Y-%m')
+        budget = Budget.query.filter_by(
+            user_id=user_id,
+            category_id=transaction.category_id,
+            month_year=transaction_month_year
+        ).first()
+        if budget:
+            budget.current_spent -= transaction.amount
+            db.session.add(budget)
+            print(f"DEBUG: Budget for category {transaction.category.name} updated after deletion. New spent: {budget.current_spent}")
+    
+    db.session.delete(transaction)
+    db.session.commit()
+    return True
 
 # FUNÇÃO CENTRAL AUXILIAR: Gera Bills filhas (ocorrências futuras) a partir de uma Bill mestra recorrente
 def _generate_future_recurring_bills(master_bill):
@@ -178,16 +330,16 @@ def _generate_future_recurring_bills(master_bill):
     generated_count_for_master = 0
     
     # Limpa Bills filhas PENDENTES existentes que foram geradas por esta mestra
-    # Esta linha pode ser ajustada para não apagar bills já pagas
+    # Manter bills já pagas
     Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=master_bill.user_id, status='pending').delete()
-    db.session.commit() # Comita a deleção imediatamente
+    db.session.commit()
 
     # Recalcula a próxima data de vencimento da Mestra ANTES DE GERAR
+    # Converte a string da data inicial para objeto date
     current_occurrence_date_from_master_start = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
     
     # Define o total de ocorrências a gerar.
-    # Se 0 (indefinido), gera 12 ocorrências (1 ano de meses ou 12 semanas para semanaais, etc.).
-    # Isso evita uma geração excessiva para recorrências "indefinidas".
+    # Se 0 (indefinido), gera um número razoável de ocorrências futuras (ex: 12 para 1 ano)
     total_to_generate = master_bill.recurring_total_occurrences if master_bill.recurring_total_occurrences and master_bill.recurring_total_occurrences > 0 else 12
     
     print(f"DEBUG: Total de ocorrências para gerar para {master_bill.description}: {total_to_generate}")
@@ -195,89 +347,67 @@ def _generate_future_recurring_bills(master_bill):
     # Loop para gerar as ocorrências futuras
     for i in range(1, total_to_generate + 1):
         # Calcula a data da ocorrência atual (i-ésima ocorrência)
+        # Começa sempre da recurring_start_date e avança de acordo com a frequência
         occurrence_date_for_child = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
         
-        if i > 1: # Avança a data apenas a partir da segunda ocorrência
-            if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-                occurrence_date_for_child += relativedelta(months=i-1)
-            elif master_bill.recurring_frequency == 'weekly':
-                occurrence_date_for_child += relativedelta(weeks=i-1)
-            elif master_bill.recurring_frequency == 'yearly':
-                occurrence_date_for_child += relativedelta(years=i-1)
+        # Avança a data pelo número de períodos (i-1 porque a primeira é a start_date)
+        if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
+            occurrence_date_for_child += relativedelta(months=i-1)
+        elif master_bill.recurring_frequency == 'weekly':
+            occurrence_date_for_child += relativedelta(weeks=i-1)
+        elif master_bill.recurring_frequency == 'yearly':
+            occurrence_date_for_child += relativedelta(years=i-1)
 
-        # VERIFICAÇÃO DE DUPLICATAS MAIS PRECISA PARA EVITAR REGERAÇÃO APÓS DELETE
-        existing_child_item = None
-        if master_bill.type == 'expense': # Apenas Bills de despesa geram Bills filhas
-            existing_child_item = Bill.query.filter_by(
-                recurring_parent_id=master_bill.id,
-                dueDate=occurrence_date_for_child.isoformat(),
-                recurring_child_number=i, # IMPORTANTE: verifica se a CHILD_NUMBER já foi gerada para aquela data
-                user_id=master_bill.user_id
-            ).first()
-        elif master_bill.type == 'income': # Apenas Bills de receita geram Transações filhas
-            existing_child_item = Transaction.query.filter_by(
-                description=master_bill.description.replace(' (Mestra)', ''), # Usa a descrição da mestra
-                date=occurrence_date_for_child.isoformat(),
-                type='income',
-                user_id=master_bill.user_id
-            ).first()
-
+        # Verifica se já existe uma Bill filha para esta ocorrência específica (evita duplicatas ao re-gerar)
+        existing_child_item = Bill.query.filter_by(
+            recurring_parent_id=master_bill.id,
+            dueDate=occurrence_date_for_child.isoformat(),
+            recurring_child_number=i,
+            user_id=master_bill.user_id
+        ).first()
 
         if not existing_child_item:
             # Constrói a descrição para a Bill filha (Parcela X/Y ou apenas "Descrição Recorrente")
             if master_bill.recurring_frequency == 'installments' and master_bill.recurring_total_occurrences > 0:
-                child_description = f"{master_bill.description.split(' (Mestra)')[0]} (Parcela {i}/{master_bill.recurring_total_occurrences})"
+                child_description = f"{master_bill.description.replace(' (Mestra)', '')} (Parcela {i}/{master_bill.recurring_total_occurrences})"
             else:
-                child_description = master_bill.description.replace(' (Mestra)', '') # Remove "(Mestra)" da descrição
+                child_description = master_bill.description.replace(' (Mestra)', '')
 
             # Define o status inicial da Bill filha
             new_child_bill_status = 'pending'
-            if occurrence_date_for_child < TODAY_DATE: # Usa TODAY_DATE
-                new_child_bill_status = 'overdue' # Marcar como atrasada
+            if occurrence_date_for_child < TODAY_DATE:
+                new_child_bill_status = 'overdue' # Marcar como atrasada se a data de vencimento já passou
 
-            if master_bill.type == 'expense': # Se a mestra é de despesa, gera uma Bill
-                new_child_bill = Bill(
-                    description=child_description,
-                    amount=master_bill.amount,
-                    dueDate=occurrence_date_for_child.isoformat(),
-                    status=new_child_bill_status, # Status definido aqui
-                    user_id=master_bill.user_id,
-                    recurring_parent_id=master_bill.id,      # Link para a Bill mestra
-                    recurring_child_number=i,                # Número da ocorrência gerada
-                    is_master_recurring_bill=False, # A Bill filha NÃO é mestra
-                    recurring_frequency=None, # Não aplicável para filhas
-                    recurring_start_date=None, # Não aplicável para filhas
-                    recurring_next_due_date=None, # Não aplicável para filhas
-                    recurring_total_occurrences=0, # Não aplicável para filhas
-                    recurring_installments_generated=0, # Não aplicável para filhas
-                    is_active_recurring=False, # Bills filhas não estão ativas para gerar mais
-                    type='expense' # A Bill gerada é de despesa
-                )
-                db.session.add(new_child_bill)
-                generated_count_for_master += 1
-                print(f"    Gerada Bill filha: {child_description} em {occurrence_date_for_child.isoformat()} com status {new_child_bill_status}") # Debug
-            
-            # REMOVIDO: Lógica para gerar Transaction de income a partir de Bill mestra de income
-            # elif master_bill.type == 'income':
-            #     new_generated_transaction = Transaction(
-            #         description=child_description,
-            #         amount=master_bill.amount,
-            #         date=occurrence_date_for_child.isoformat(),
-            #         type='income',
-            #         user_id=master_bill.user_id,
-            #         category_id=master_bill.category_id
-            #     )
-            #     db.session.add(new_generated_transaction)
-            #     generated_count_for_master += 1
-            #     print(f"    Gerada Transaction filha (Receita): {child_description} em {occurrence_date_for_child.isoformat()}")
-
+            new_child_bill = Bill(
+                description=child_description,
+                amount=master_bill.amount,
+                dueDate=occurrence_date_for_child.isoformat(),
+                status=new_child_bill_status,
+                user_id=master_bill.user_id,
+                recurring_parent_id=master_bill.id,
+                recurring_child_number=i,
+                is_master_recurring_bill=False, # A Bill filha NÃO é mestra
+                recurring_frequency=None, # Não aplicável para filhas
+                recurring_start_date=None, # Não aplicável para filhas
+                recurring_next_due_date=None, # Não aplicável para filhas
+                recurring_total_occurrences=0, # Não aplicável para filhas
+                recurring_installments_generated=0, # Não aplicável para filhas
+                is_active_recurring=False, # Bills filhas não geram mais
+                type=master_bill.type, # Mantém o tipo (expense/income) da mestra
+                category_id=master_bill.category_id, # Mantém a categoria da mestra
+                account_id=master_bill.account_id # Mantém a conta da mestra
+            )
+            db.session.add(new_child_bill)
+            generated_count_for_master += 1
+            print(f"    Gerada Bill filha: {child_description} em {occurrence_date_for_child.isoformat()} com status {new_child_bill_status}")
         else:
-            print(f"    Bill/Transaction filha já existe para {master_bill.description}, ocorrência {i} em {occurrence_date_for_child.isoformat()}, pulando.") # Debug
+            print(f"    Bill filha já existe para {master_bill.description}, ocorrência {i} em {occurrence_date_for_child.isoformat()}, pulando.")
 
     # Atualiza o contador de ocorrências geradas na Bill mestra
     master_bill.recurring_installments_generated = generated_count_for_master
     
-    # Recalcula a data de "next_due_date" da mestra para o FINAL do ciclo de geração em massa
+    # Recalcula a data de "next_due_date" da mestra para o final do ciclo de geração em massa
+    # Esta é a data a partir da qual a próxima "leva" de bills deve ser gerada, se for indefinida
     final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
     if master_bill.recurring_total_occurrences > 0: # Se tem um total fixo, avança por esse total
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
@@ -288,15 +418,23 @@ def _generate_future_recurring_bills(master_bill):
             final_next_due_date_after_bulk_gen += relativedelta(years=master_bill.recurring_total_occurrences)
     else: # Para recorrências indefinidas (total_occurrences == 0), avança para a data de hoje + 1 período
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1) # Usa TODAY_DATE
+            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
         elif master_bill.recurring_frequency == 'weekly':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(weeks=1) # Usa TODAY_DATE
+            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(weeks=1)
         elif master_bill.recurring_frequency == 'yearly':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1) # Usa TODAY_DATE
+            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1)
         
-        # Garante que a data não retroceda para indefinidos (se a calculated_date for anterior à start_date)
-        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date(): # Corrigido o nome da variável aqui
-            final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
+        # Garante que a data não retroceda e esteja sempre no futuro se a recorrência for contínua
+        if final_next_due_date_after_bulk_gen <= datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() or \
+           final_next_due_date_after_bulk_gen <= TODAY_DATE:
+            # Se a nova data calculada for no passado ou no presente, avança para o próximo período a partir de HOJE.
+            if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
+                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
+            elif master_bill.recurring_frequency == 'weekly':
+                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(weeks=1)
+            elif master_bill.recurring_frequency == 'yearly':
+                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1)
+
 
     master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
     print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' atualizado para o fim da geração em massa: {master_bill.recurring_next_due_date}")
@@ -306,22 +444,19 @@ def _generate_future_recurring_bills(master_bill):
         master_bill.is_active_recurring = False
         print(f"DEBUG: Master Bill '{master_bill.description}' desativada: todas as {master_bill.recurring_total_occurrences} ocorrências foram geradas.")
     else:
-        # Se is_active_recurring é True, mantém True, se false (porque era passado), mantém false
-        # Não muda a ativação a menos que atinja o total
         print(f"DEBUG: Master Bill '{master_bill.description}' ainda ativa (indefinida ou não atingiu total).")
 
-    db.session.add(master_bill) # Adiciona a Bill mestra atualizada para a sessão
-    db.session.commit() # Comita todas as alterações deste lote de processamento
+    db.session.add(master_bill)
+    db.session.commit()
 
-# FUNÇÃO PRINCIPAL QUE É CHAMADA NA ROTA / E /PAY_BILL
+# FUNÇÃO PRINCIPAL QUE É CHAMADA NA ROTA /
 def process_recurring_bills_on_access(user_id):
-    # Buscar apenas Bills que são a "semente" da recorrência e ainda estão ativas para gerar novas ocorrências
-    # E cuja recurring_next_due_date é <= TODAY_DATE
+    """Processa Bills mestras recorrentes que precisam gerar novas ocorrências."""
     recurring_seed_bills_to_process = Bill.query.filter(
         Bill.user_id == user_id,
         Bill.is_master_recurring_bill == True,
         Bill.is_active_recurring == True,
-        db.cast(Bill.recurring_next_due_date, db.Date) <= TODAY_DATE # Apenas as mestras que estão "vencidas"
+        db.cast(Bill.recurring_next_due_date, db.Date) <= TODAY_DATE
     ).all()
     
     print(f"\n--- process_recurring_bills_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
@@ -330,12 +465,10 @@ def process_recurring_bills_on_access(user_id):
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
         
-    # Mensagens flash já são emitidas por _generate_future_recurring_bills.
-    # Não é necessário um flash message consolidado aqui.
-
 def add_bill_db(description, amount, due_date, user_id, 
-                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense', category_id=None): # Adicionado bill_type e category_id
+                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense', category_id=None, account_id=None):
     
+    amount = float(amount)
     # Validação para total de ocorrências
     if is_recurring and recurring_frequency == 'installments' and (recurring_total_occurrences is None or recurring_total_occurrences < 1):
         recurring_total_occurrences = 1 
@@ -344,368 +477,415 @@ def add_bill_db(description, amount, due_date, user_id,
 
     new_bill = Bill(
         description=description,
-        amount=float(amount),
+        amount=amount,
         dueDate=due_date,
         status='pending',
         user_id=user_id,
-        is_master_recurring_bill=is_recurring, # Usa o novo campo
+        is_master_recurring_bill=is_recurring,
         recurring_frequency=recurring_frequency if is_recurring else None,
-        recurring_start_date=due_date if is_recurring else None, # Data de início é a primeira due_date
-        recurring_next_due_date=due_date if is_recurring else None, # Próxima a ser gerada é a própria dueDate
+        recurring_start_date=due_date if is_recurring else None,
+        recurring_next_due_date=due_date if is_recurring else None,
         recurring_total_occurrences=recurring_total_occurrences,
-        recurring_installments_generated=0, # Inicia com 0 geradas
-        is_active_recurring=is_recurring, # Ativa se for recorrente
-        type=bill_type, # Salva o tipo da Bill
-        category_id=category_id # Salva a categoria para a Bill (especialmente se for receita recorrente)
+        recurring_installments_generated=0,
+        is_active_recurring=is_recurring,
+        type=bill_type,
+        category_id=category_id,
+        account_id=account_id # Salvar a conta associada à Bill
     )
     db.session.add(new_bill)
-    db.session.commit() # Comita imediatamente para obter o ID da new_bill (essencial para recurring_parent_id)
+    db.session.commit()
     
-    # Chama a geração em massa APENAS se esta é uma Bill mestra e está ativa para gerar
     if new_bill.is_master_recurring_bill and new_bill.is_active_recurring:
-        _generate_future_recurring_bills(new_bill) # Chama a função para gerar as futuras ocorrências
+        _generate_future_recurring_bills(new_bill)
 
 def pay_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
-    if bill:
-        bill.status = 'paid'
-        db.session.add(bill)
-        
-        # CATEGORIA PARA O PAGAMENTO (SEMPE DESPESA)
-        fixed_bills_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
-        category_id_for_payment = fixed_bills_category.id if fixed_bills_category else None
+    if not bill:
+        return False
 
-        # Adiciona a transação comum correspondente ao pagamento (SEMPE DESPESA)
-        # GERA UMA DESCRIÇÃO DE TRANSAÇÃO MAIS ESPECÍFICA PARA EVITAR DUPLICATAS NA TABELA DE TRANSAÇÕES
-        # Isso garante que mesmo que se pague a mesma Bill mais de uma vez no mesmo dia,
-        # cada pagamento gere uma transação única.
-        # Usa o ID da Bill e a data atual para criar uma descrição única para CADA PAGAMENTO.
-        payment_transaction_description = f"Pagamento: {bill.description} (Ref. Bill ID: {bill.id} - {datetime.date.today().isoformat()})"
-        
-        # Procura por uma transação de pagamento com a MESMA DESCRIÇÃO EXATA
-        # Isso significa que, se você pagar o "Aluguel" (ID 1) no dia 27/06, e depois pagar o "Aluguel" (ID 2) no mesmo dia,
-        # ambas serão registradas. Se tentar pagar a mesma Bill (ID 1) duas vezes no mesmo dia, a segunda será ignorada.
+    if bill.status == 'paid':
+        print(f"DEBUG: Bill {bill_id} already paid.")
+        return False # Já está paga
+
+    # Assegura que a conta e a categoria existam
+    account = Account.query.get(bill.account_id)
+    if not account or account.user_id != user_id:
+        print(f"ERROR: Account {bill.account_id} not found or doesn't belong to user {user_id}.")
+        return False
+    
+    # Adicionando verificação de saldo antes de processar o pagamento
+    if account.balance < bill.amount:
+        flash(f'Saldo insuficiente na conta "{account.name}" para pagar esta conta.', 'danger')
+        print(f"ERROR: Insufficient balance in account {account.name} for bill {bill.description}.")
+        return False
+
+    category_for_payment_id = bill.category_id
+    if not category_for_payment_id:
+        # Tenta usar uma categoria padrão se a Bill não tiver uma definida
+        default_cat = Category.query.filter_by(user_id=user_id, name='Contas Fixas', type='expense').first()
+        if not default_cat:
+            default_cat = Category.query.filter_by(user_id=user_id, name='Outras Despesas', type='expense').first()
+        if default_cat:
+            category_for_payment_id = default_cat.id
+        else:
+            print("WARNING: No default expense category found for bill payment.")
+
+
+    # Cria a transação de despesa no histórico
+    if category_for_payment_id:
+        # Verifica se já existe uma transação de pagamento para esta bill (para evitar duplicatas)
         existing_payment_transaction = Transaction.query.filter_by(
-            description=payment_transaction_description, # Usar a descrição única para filtro
-            date=datetime.date.today().isoformat(),
-            type='expense',
-            user_id=user_id
+            user_id=user_id,
+            description=f"Pagamento: {bill.description} (Conta ID: {bill.id})", # Descrição única
+            # date=TODAY_DATE.isoformat(), # Removido para evitar problemas de data exata para re-pagamentos
+            type='expense'
         ).first()
 
         if not existing_payment_transaction:
             new_payment_transaction = Transaction(
-                description=payment_transaction_description, # Usar a descrição única
+                description=f"Pagamento: {bill.description} (Conta ID: {bill.id})",
                 amount=bill.amount,
-                date=datetime.date.today().isoformat(),
-                type='expense', # Pagamento é sempre uma despesa
+                date=TODAY_DATE.isoformat(), # Data atual do pagamento
+                type='expense',
                 user_id=user_id,
-                category_id=category_id_for_payment
+                category_id=category_for_payment_id,
+                account_id=bill.account_id
             )
             db.session.add(new_payment_transaction)
-            print(f"DEBUG: Transação de pagamento criada para '{payment_transaction_description}'.")
+            db.session.flush() # Para obter o ID da transação antes do commit
+            bill.payment_transaction_id = new_payment_transaction.id
+            print(f"DEBUG: Created new payment transaction ID: {new_payment_transaction.id}")
         else:
-            print(f"DEBUG: Transação de pagamento para '{payment_transaction_description}' já existe. Pulando a criação.")
-        
-        # A Bill paga pode ser uma Bill mestra ou uma Bill filha gerada
-        # Em ambos os casos, queremos garantir que a Bill mestra associada
-        # tenha sua próxima ocorrência gerada (ou que o processo se encerre).
-        
-        master_bill_to_process = None
-        if bill.is_master_recurring_bill: # Se a Bill paga é a mestra em si
-            master_bill_to_process = bill
-            print(f"DEBUG: Pagamento da Bill Mestra recorrente '{bill.description}'. Acionando _generate_future_recurring_bills.")
-        elif bill.recurring_parent_id: # Se a Bill paga é uma filha de uma mestra
-            master_bill_to_process = Bill.query.filter_by(
-                id=bill.recurring_parent_id, # Link para a Bill mestra
-                user_id=user_id,
-                is_master_recurring_bill=True
-            ).first()
-            if master_bill_to_process:
-                print(f"DEBUG: Pagamento de Bill filha '{bill.description}'. Acionando _generate_future_recurring_bills da mestra '{master_bill_to_process.description}'.")
-            else:
-                print(f"DEBUG: Bill filha paga, mas mestra recorrente não encontrada ou inativa: {bill.recurring_parent_id}")
+            print(f"DEBUG: Payment transaction for Bill ID {bill.id} on {TODAY_DATE} already exists. Using existing transaction.")
+            # Se já existe, apenas garante que a bill esteja linkada e atualiza a transação existente
+            bill.payment_transaction_id = existing_payment_transaction.id
+            existing_payment_transaction.amount = bill.amount # Atualiza valor caso a conta tenha sido editada
+            existing_payment_transaction.date = TODAY_DATE.isoformat()
+            existing_payment_transaction.category_id = category_for_payment_id
+            existing_payment_transaction.account_id = bill.account_id
+            new_payment_transaction = existing_payment_transaction # Usar a existente para lógica de budget
+            db.session.add(existing_payment_transaction) # Adiciona para garantir update
 
-        if master_bill_to_process and master_bill_to_process.is_active_recurring:
-            _generate_future_recurring_bills(master_bill_to_process)
-        elif master_bill_to_process and not master_bill_to_process.is_active_recurring:
-            print(f"DEBUG: Mestra '{master_bill_to_process.description}' está inativa. Nenhuma nova geração.")
-        
-        db.session.commit() # Comita todas as alterações (bill.status, e a nova transação se criada)
-        return True
-    return False
+        # Atualiza o saldo da conta
+        account.balance -= bill.amount
+        db.session.add(account)
+
+        # Atualiza o status da Bill
+        bill.status = 'paid'
+        db.session.add(bill)
+
+        # Atualiza o orçamento da categoria se a transação foi criada (e for despesa)
+        if new_payment_transaction and new_payment_transaction.type == 'expense' and new_payment_transaction.category_id:
+            payment_month_year = TODAY_DATE.strftime('%Y-%m')
+            budget = Budget.query.filter_by(
+                user_id=user_id,
+                category_id=new_payment_transaction.category_id,
+                month_year=payment_month_year
+            ).first()
+            if budget:
+                # Reverte o valor anterior da transação se ela já existia antes de atualizar
+                # Essa parte é crucial para evitar duplicação do gasto no orçamento ao re-processar um pagamento
+                # Isso foi ajustado para considerar que 'add_transaction_db' e 'edit_transaction_db'
+                # já lidam com a atualização do orçamento. Aqui, estamos apenas garantindo
+                # que o orçamento seja atualizado se a transação for nova ou tiver seu valor/categoria alterado.
+                # Para pagamentos de contas, o valor é sempre o da conta, então uma simples adição é suficiente.
+                # A complexidade de "reverter valor anterior" é mais para a edição direta de transações.
+                budget.current_spent += new_payment_transaction.amount # Adiciona o valor pago ao gasto do orçamento
+                db.session.add(budget)
+                print(f"DEBUG: Budget {budget.category.name} updated with payment of {new_payment_transaction.amount}. New spent: {budget.current_spent}")
+            else:
+                print(f"DEBUG: No budget found for category {new_payment_transaction.category.name} in {payment_month_year} to update.")
+    else:
+        print("WARNING: Cannot create payment transaction: no valid category_id provided.")
+
+    # Se a Bill paga é parte de uma série recorrente, processa a próxima ocorrência
+    master_bill_to_process = None
+    if bill.is_master_recurring_bill:
+        master_bill_to_process = bill
+    elif bill.recurring_parent_id:
+        master_bill_to_process = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
+
+    if master_bill_to_process and master_bill_to_process.is_active_recurring:
+        _generate_future_recurring_bills(master_bill_to_process)
+
+    db.session.commit()
+    return True
+
 
 def reschedule_bill_db(bill_id, new_date, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
         bill.dueDate = new_date
+        # Se uma conta é remarcada para uma data futura, e estava "overdue", muda para "pending"
+        if datetime.datetime.strptime(new_date, '%Y-%m-%d').date() >= TODAY_DATE and bill.status == 'overdue':
+            bill.status = 'pending'
         db.session.add(bill)
         db.session.commit()
         return True
     return False
 
-def delete_transaction_db(transaction_id, user_id):
-    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
-    if transaction:
-        # Logic to reverse budget current_spent for expenses
-        if transaction.type == 'expense' and transaction.category_id:
-            transaction_month_year = datetime.datetime.strptime(transaction.date, '%Y-%m-%d').strftime('%Y-%m')
-            budget = Budget.query.filter_by(
-                user_id=user_id,
-                category_id=transaction.category_id,
-                month_year=transaction_month_year
-            ).first()
-            if budget:
-                budget.current_spent -= transaction.amount
-                db.session.add(budget)
-                print(f"DEBUG: Budget for category {transaction.category_id} updated after deletion. New spent: {budget.current_spent}")
-        
-        db.session.delete(transaction)
-        db.session.commit()
-        return True
-    return False
-
-# MODIFICADA: delete_bill_db para lidar com recorrências mestras
 def delete_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
-    if bill:
-        print(f"DEBUG: Tentando excluir Bill ID: {bill.id}, Descrição: '{bill.description}', É Mestra Recorrente: {bill.is_master_recurring_bill}, Parent ID: {bill.recurring_parent_id}")
+    if not bill:
+        return False
 
-        if bill.is_master_recurring_bill:
-            # Se é uma Bill mestra, exclua todas as suas filhas e depois a própria mestra.
-            child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id).all()
-            for child_bill in child_bills:
-                db.session.delete(child_bill)
-                print(f"DEBUG: Excluindo Bill filha (do mestre): ID {child_bill.id}, Descrição: '{child_bill.description}'")
-            print(f"DEBUG: Excluídas {len(child_bills)} contas filhas para a mestra '{bill.description}'.")
-            
-            db.session.delete(bill) # Exclui a Bill mestra em si
-            db.session.commit()
-            print(f"DEBUG: Conta mestra '{bill.description}' (ID: {bill.id}) e suas filhas excluídas e commit realizado.")
-            return True
+    print(f"DEBUG: Deleting Bill ID: {bill.id}, Desc: '{bill.description}', Is Master: {bill.is_master_recurring_bill}, Parent ID: {bill.recurring_parent_id}")
 
-        elif bill.recurring_parent_id:
-            # Se é uma Bill filha, o usuário provavelmente quer cancelar a série inteira.
-            # Encontre a Bill mestra e desative-a, depois exclua todas as suas filhas (incluindo a que está sendo excluída).
-            master_bill = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
-            if master_bill:
-                print(f"DEBUG: Bill filha '{bill.description}' (ID: {bill.id}) está sendo excluída. Tentando cancelar a série mestra '{master_bill.description}'.")
-                
-                master_bill.is_active_recurring = False # Desativa a geração futura
-                master_bill.recurring_frequency = None # Limpa os campos de recorrência
-                master_bill.recurring_start_date = None
-                master_bill.recurring_next_due_date = None
-                master_bill.recurring_total_occurrences = 0
-                master_bill.recurring_installments_generated = 0
-                db.session.add(master_bill) # Salva as alterações na Bill mestra
+    # Lógica para reverter o impacto se a conta já foi paga e linkada a uma transação
+    if bill.status == 'paid' and bill.payment_transaction_id:
+        payment_transaction = Transaction.query.get(bill.payment_transaction_id)
+        if payment_transaction and payment_transaction.user_id == user_id:
+            # Reverte o saldo da conta
+            if payment_transaction.account_id:
+                account = Account.query.get(payment_transaction.account_id)
+                if account:
+                    account.balance += payment_transaction.amount
+                    db.session.add(account)
 
-                # Exclui todas as filhas associadas a esta Bill mestra (incluindo a que acabou de ser clicada)
-                all_children_of_master = Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=user_id).all()
-                for child in all_children_of_master:
-                    db.session.delete(child)
-                    print(f"DEBUG: Excluindo outra Bill filha (do mestre): ID {child.id}, Descrição: '{child.description}'")
-                
-                db.session.commit()
-                print(f"DEBUG: Série recorrente da mestra '{master_bill.description}' (ID: {master_bill.id}) cancelada e todas as suas filhas excluídas.")
-                return True
-            else:
-                print(f"DEBUG: Bill filha '{bill.description}' (ID: {bill.id}) excluída, mas a mestra recorrente (ID: {bill.recurring_parent_id}) não foi encontrada ou não é mestra.")
-                # Se a mestra não foi encontrada, apenas exclua a Bill filha em si.
-                db.session.delete(bill)
-                db.session.commit()
-                return True # Ainda considera um sucesso por excluir a filha
+            # Reverte o gasto do orçamento
+            if payment_transaction.type == 'expense' and payment_transaction.category_id:
+                transaction_month_year = datetime.datetime.strptime(payment_transaction.date, '%Y-%m-%d').strftime('%Y-%m')
+                budget = Budget.query.filter_by(
+                    user_id=user_id,
+                    category_id=payment_transaction.category_id,
+                    month_year=transaction_month_year
+                ).first()
+                if budget:
+                    budget.current_spent -= payment_transaction.amount
+                    db.session.add(budget)
+                    print(f"DEBUG: Budget {budget.category.name} reverted for deleted payment. New spent: {budget.current_spent}")
+            db.session.delete(payment_transaction) # Exclui a transação de pagamento
+            print(f"DEBUG: Deleted associated payment transaction ID: {payment_transaction.id}")
         else:
-            # É uma Bill regular, não recorrente. Apenas a exclua.
+            print(f"WARNING: Associated payment transaction ID {bill.payment_transaction_id} not found or doesn't belong to user, cannot revert.")
+
+    if bill.is_master_recurring_bill:
+        # Se é uma Bill mestra, exclua todas as suas filhas e depois a própria mestra.
+        child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id).all()
+        for child_bill in child_bills:
+            db.session.delete(child_bill)
+            print(f"DEBUG: Deleting child bill: ID {child_bill.id}, Desc: '{child_bill.description}'")
+        print(f"DEBUG: Deleted {len(child_bills)} child bills for master '{bill.description}'.")
+        
+        db.session.delete(bill)
+        db.session.commit()
+        print(f"DEBUG: Master bill '{bill.description}' (ID: {bill.id}) and its children deleted.")
+        return True
+
+    elif bill.recurring_parent_id:
+        # Se é uma Bill filha, o usuário provavelmente quer cancelar a série inteira.
+        # Encontre a Bill mestra e desative-a, depois exclua todas as suas filhas (incluindo a que está sendo excluída).
+        master_bill = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
+        if master_bill:
+            print(f"DEBUG: Child bill '{bill.description}' (ID: {bill.id}) being deleted. Attempting to cancel master series '{master_bill.description}'.")
+            
+            master_bill.is_active_recurring = False # Desativa a geração futura
+            master_bill.recurring_frequency = None # Limpa os campos de recorrência
+            master_bill.recurring_start_date = None
+            master_bill.recurring_next_due_date = None
+            master_bill.recurring_total_occurrences = 0
+            master_bill.recurring_installments_generated = 0
+            db.session.add(master_bill)
+
+            all_children_of_master = Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=user_id).all()
+            for child in all_children_of_master:
+                # Cuidado para não reverter duas vezes se a transação já foi revertida acima
+                if child.status == 'paid' and child.payment_transaction_id:
+                    # Se for paga, a transação já foi revertida/deletada acima, apenas garante que o link da bill seja nulo
+                    child.payment_transaction_id = None
+                    db.session.add(child)
+                db.session.delete(child)
+                print(f"DEBUG: Deleting another child bill (from master): ID {child.id}, Desc: '{child.description}'")
+            
+            db.session.commit()
+            print(f"DEBUG: Recurring series for master '{master_bill.description}' (ID: {master_bill.id}) cancelled and all its children deleted.")
+            return True
+        else:
+            print(f"DEBUG: Child bill '{bill.description}' (ID: {bill.id}) deleted, but master recurring bill (ID: {bill.recurring_parent_id}) not found or is not a master.")
+            # Se a mestra não foi encontrada, apenas exclua a Bill filha em si.
             db.session.delete(bill)
             db.session.commit()
-            print(f"DEBUG: Bill não recorrente '{bill.description}' (ID: {bill.id}) excluída e commit realizado.")
             return True
-    
-    print(f"DEBUG: Bill ID {bill_id} não encontrada ou não pertence ao usuário {user_id}.")
-    return False
-
-def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None):
-    transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
-    if transaction:
-        old_amount = transaction.amount
-        old_type = transaction.type
-        old_category_id = transaction.category_id
-        old_date = transaction.date
-
-        transaction.description = description
-        transaction.amount = float(amount)
-        transaction.date = date
-        transaction.type = type
-        transaction.category_id = category_id
-
-        # Logic to update budget current_spent for expenses (considering changes)
-        old_month_year = datetime.datetime.strptime(old_date, '%Y-%m-%d').strftime('%Y-%m')
-        new_month_year = datetime.datetime.strptime(date, '%Y-%m-%d').strftime('%Y-%m')
-
-        # If it was an expense and had a category, reverse its impact
-        if old_type == 'expense' and old_category_id:
-            old_budget = Budget.query.filter_by(
-                user_id=user_id,
-                category_id=old_category_id,
-                month_year=old_month_year
-            ).first()
-            if old_budget:
-                old_budget.current_spent -= old_amount
-                db.session.add(old_budget)
-                print(f"DEBUG: Reversed old budget for category {old_category_id}. New spent: {old_budget.current_spent}")
-
-        # If the new transaction is an expense and has a category, apply its impact
-        if type == 'expense' and category_id:
-            new_budget = Budget.query.filter_by(
-                user_id=user_id,
-                category_id=category_id,
-                month_year=new_month_year
-            ).first()
-            if new_budget:
-                new_budget.current_spent += float(amount)
-                db.session.add(new_budget)
-                print(f"DEBUG: Applied new budget for category {category_id}. New spent: {new_budget.current_spent}")
-            else:
-                print(f"DEBUG: No active budget found for category {category_id} in {new_month_year} for user {user_id}. New transaction impact not applied to budget.")
-        
+    else:
+        # É uma Bill regular, não recorrente. Apenas a exclua.
+        db.session.delete(bill)
         db.session.commit()
+        print(f"DEBUG: Non-recurring bill '{bill.description}' (ID: {bill.id}) deleted.")
         return True
-    return False
 
-# MODIFICADA: edit_bill_db para editar campos de recorrência
+
 def edit_bill_db(bill_id, description, amount, dueDate, user_id, 
-                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None): # Adicionado category_id
+                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None, account_id=None):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
-    if bill:
-        bill.description = description
-        bill.amount = float(amount)
-        bill.dueDate = dueDate
-        bill.type = bill_type # Atualiza o tipo da Bill
-        bill.category_id = category_id # Salva a categoria para a Bill (especialmente se for receita recorrente)
+    if not bill:
+        return False
 
-        # Se esta Bill é uma Bill mestra (is_master_recurring_bill == True)
-        if bill.is_master_recurring_bill: # Garante que só edita recorrência se a Bill é mestra
-            # Capturar o estado antigo para decidir se precisa regenerar
-            old_is_active_recurring = bill.is_active_recurring
-            old_frequency = bill.recurring_frequency
-            old_total_occurrences = bill.recurring_total_occurrences
+    bill.description = description
+    bill.amount = float(amount)
+    bill.dueDate = dueDate
+    bill.type = bill_type
+    bill.category_id = category_id
+    bill.account_id = account_id # Atualiza a conta associada
 
-            bill.is_master_recurring_bill = is_recurring # Atualiza se deixou de ser mestra
-            bill.is_active_recurring = is_active_recurring # Controla se a recorrência mestra está ativa
-            bill.recurring_frequency = recurring_frequency if is_recurring else None
-            bill.recurring_total_occurrences = recurring_total_occurrences if is_recurring and recurring_frequency == 'installments' else 0
-            
-            # Re-gerar Bills futuras se:
-            # 1. A mestra foi ATIVADA (ou reativada)
-            # 2. OU a frequência mudou (e ainda é recorrente)
-            # 3. OU o total de ocorrências mudou (e ainda é recorrente)
-            if is_recurring and is_active_recurring and \
-               (not old_is_active_recurring or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences):
-                print(f"DEBUG: Editando Bill mestra '{bill.description}'. Parâmetros de recorrência alterados ou reativada. Regenerando futuras ocorrências.")
-                _generate_future_recurring_bills(bill) # Esta função cuida da deleção e geração
+    # Se a Bill paga já foi paga, e o valor/tipo/categoria mudou, isso pode causar inconsistências
+    # Para simplicidade, não vamos reverter a transação existente aqui, apenas alertar.
+    if bill.status == 'paid':
+        print(f"WARNING: Bill {bill.id} is already paid. Changes to amount/type/category won't update past transaction/budget.")
 
-            elif not is_recurring and old_is_active_recurring: # Se desativou a recorrência (agora não é mais 'is_recurring')
-                bill.is_active_recurring = False
-                # Limpar campos de recorrência e deletar futuras ocorrências
-                bill.recurring_frequency = None
-                bill.recurring_next_due_date = None # Limpa próxima data gerada
-                bill.recurring_total_occurrences = 0
-                bill.recurring_installments_generated = 0
-                # Deleta futuras ocorrências pendentes
-                Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
-                print(f"DEBUG: Master Bill '{bill.description}' desativada, futuras Bills filhas deletadas.")
-            elif is_recurring and not is_active_recurring and old_is_active_recurring: # Se está marcada como recorrente, mas foi desativada manualmente (is_recurring continua True, mas is_active_recurring vira False)
-                print(f"DEBUG: Master Bill '{bill.description}' marcada como inativa manualmente.")
-                # Apenas desativar, mas não apagar as filhas se o usuário quiser reativar depois
+    # Se esta Bill é uma Bill mestra
+    if bill.is_master_recurring_bill or is_recurring: # Se já era mestra ou está sendo marcada como tal
+        old_is_master = bill.is_master_recurring_bill
+        old_is_active = bill.is_active_recurring
+        old_frequency = bill.recurring_frequency
+        old_total_occurrences = bill.recurring_total_occurrences
+
+        bill.is_master_recurring_bill = is_recurring
+        bill.is_active_recurring = is_active_recurring # Controla se a recorrência mestra está ativa
+        bill.recurring_frequency = recurring_frequency if is_recurring else None
+        bill.recurring_total_occurrences = recurring_total_occurrences if is_recurring and recurring_frequency == 'installments' else 0
         
-        else: # Se não é uma Bill mestra (ou não se tornou uma)
-            bill.is_master_recurring_bill = False
-            bill.is_active_recurring = False
+        # Lógica de re-geração de Bills filhas
+        regenerate = False
+        if is_recurring: # Se a bill AGORA é recorrente
+            if not old_is_master: # Se ela se tornou mestra agora
+                regenerate = True
+            elif is_active_recurring and (not old_is_active or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences):
+                # Se estava ativa e mudou frequência/total, ou foi reativada
+                regenerate = True
+        
+        if regenerate:
+            print(f"DEBUG: Editing master Bill '{bill.description}'. Recurring parameters changed or re-activated. Regenerating future occurrences.")
+            _generate_future_recurring_bills(bill)
+        elif old_is_master and not is_recurring: # Se deixou de ser mestra
+            bill.is_active_recurring = False # Desativa a geração futura
             bill.recurring_frequency = None
-            bill.recurring_start_date = None
             bill.recurring_next_due_date = None
             bill.recurring_total_occurrences = 0
             bill.recurring_installments_generated = 0
-            # Nenhuma ação sobre recurring_parent_id, pois ele linka para a mestra
+            # Deleta futuras ocorrências pendentes se a mestra foi desativada ou deixou de ser recorrente
+            Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
+            print(f"DEBUG: Master Bill '{bill.description}' deactivated, future child bills deleted.")
+        elif old_is_active and not is_active_recurring and is_recurring: # Se estava ativa e foi desativada manualmente (mantendo recorrência mas inativa)
+              print(f"DEBUG: Master Bill '{bill.description}' manually set to inactive.")
+              # Não apaga as filhas, apenas para de gerar novas.
 
-        db.session.commit()
-        return True
-    return False
+    else: # Se não é uma Bill mestra e não se tornou uma
+        # Garante que os campos de recorrência estão limpos para bills não-recorrentes
+        bill.is_master_recurring_bill = False
+        bill.is_active_recurring = False
+        bill.recurring_frequency = None
+        bill.recurring_start_date = None
+        bill.recurring_next_due_date = None
+        bill.recurring_total_occurrences = 0
+        bill.recurring_installments_generated = 0
+        # NÃO toca em recurring_parent_id se for uma Bill filha (não mestra)
 
-# MODIFIED: get_dashboard_data_db to show monthly values for income, expenses, and pending bills.
+    db.session.commit()
+    return True
+
+# MODIFIED: get_dashboard_data_db para incluir Account e refletir cálculos mais precisos
 def get_dashboard_data_db(user_id):
-    current_month_start = datetime.date.today().replace(day=1).isoformat()
-    next_month_start = (datetime.date.today().replace(day=1) + relativedelta(months=1)).isoformat()
+    current_month_start = datetime.date.today().replace(day=1)
+    next_month_start = (current_month_start + relativedelta(months=1))
 
-    # Calculate total balance (accumulated)
-    all_transactions = Transaction.query.filter_by(user_id=user_id).all()
-    total_income_overall = sum(t.amount for t in all_transactions if t.type == 'income')
-    total_expenses_overall = sum(t.amount for t in all_transactions if t.type == 'expense')
-    balance = total_income_overall - total_expenses_overall
+    # Calcula o saldo total somando o balance de todas as contas
+    total_balance = db.session.query(db.func.sum(Account.balance)).filter_by(user_id=user_id).scalar() or 0.0
 
-    # Calculate monthly income
-    monthly_income = sum(
-        t.amount for t in all_transactions
-        if t.type == 'income' and t.date >= current_month_start and t.date < next_month_start
-    )
+    # Calcula receita e despesa do mês (somente de transações)
+    monthly_income = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == 'income',
+        db.cast(Transaction.date, db.Date) >= current_month_start,
+        db.cast(Transaction.date, db.Date) < next_month_start
+    ).scalar() or 0.0
 
-    # Calculate monthly expenses
-    monthly_expenses = sum(
-        t.amount for t in all_transactions
-        if t.type == 'expense' and t.date >= current_month_start and t.date < next_month_start
-    )
-
-    # Calculate total pending bills for the current month (or future months if due date is later than today)
-    # We should consider all pending bills that have a due date in the current month or are overdue from previous months
-    # but for "current month's pending bills", let's consider bills due in the current month or overdue.
-    all_pending_bills = Bill.query.filter(
+    monthly_expenses = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.type == 'expense',
+        db.cast(Transaction.date, db.Date) >= current_month_start,
+        db.cast(Transaction.date, db.Date) < next_month_start
+    ).scalar() or 0.0
+    
+    # Contas a pagar pendentes (do mês atual ou atrasadas)
+    today_str = TODAY_DATE.isoformat()
+    monthly_pending_bills_amount = db.session.query(db.func.sum(Bill.amount)).filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
-        Bill.is_master_recurring_bill == False # Exclude master bills from pending bills list
-    ).all()
+        Bill.is_master_recurring_bill == False, # Exclui bills mestras da contagem pendente
+        db.or_(
+            db.cast(Bill.dueDate, db.Date) >= current_month_start,
+            db.cast(Bill.dueDate, db.Date) < TODAY_DATE # Inclui atrasadas de meses anteriores
+        )
+    ).scalar() or 0.0
 
-    # Filter pending bills to only include those due in the current month or overdue from previous months
-    monthly_pending_bills = [
-        b for b in all_pending_bills
-        if b.dueDate >= current_month_start and b.dueDate < next_month_start
-        or (b.dueDate < current_month_start and b.status == 'pending') # Include overdue bills
-    ]
-    total_pending_bills_amount_monthly = sum(b.amount for b in monthly_pending_bills)
-    
+    # Pega uma lista das contas pendentes para exibir (top 5 ou todas do mês/atrasadas)
+    all_pending_bills_list = Bill.query.filter(
+        Bill.user_id == user_id,
+        Bill.status == 'pending',
+        Bill.is_master_recurring_bill == False, # Exclui bills mestras
+        db.or_(
+            db.cast(Bill.dueDate, db.Date) >= current_month_start,
+            db.cast(Bill.dueDate, db.Date) < TODAY_DATE
+        )
+    ).order_by(db.cast(Bill.dueDate, db.Date).asc()).all()
+
+
     return {
-        'balance': balance,
-        'totalIncome': monthly_income, # Now displays monthly income
-        'totalExpenses': monthly_expenses, # Now displays monthly expenses
-        'totalPendingBills': total_pending_bills_amount_monthly, # Now displays monthly pending bills
-        'pendingBillsList': all_pending_bills # This list remains comprehensive for display purposes
+        'balance': total_balance,
+        'totalIncome': monthly_income,
+        'totalExpenses': monthly_expenses,
+        'totalPendingBills': monthly_pending_bills_amount,
+        'pendingBillsList': all_pending_bills_list
     }
 
-def generate_text_with_gemini(prompt_text):
-    try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt_text)
-        return response.text
-    except Exception as e:
-        print(f"Erro ao chamar Gemini API: {e}")
-        return "Não foi possível gerar uma sugestão/resumo no momento."
+# Descomente e ajuste se for usar a rota de AI Insight com Gemini
+# def generate_text_with_gemini(prompt_text):
+#     try:
+#         model = genai.GenerativeModel('gemini-2.0-flash')
+#         response = model.generate_content(prompt_text)
+#         return response.text
+#     except Exception as e:
+#         print(f"Erro ao chamar Gemini API: {e}")
+#         return "Não foi possível gerar uma sugestão/resumo no momento."
 
 # --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS ---
 def add_budget_db(user_id, category_id, budget_amount, month_year):
-    # Check for existing budget for the same category and month_year
+    """Adiciona ou atualiza um orçamento para uma categoria em um dado mês/ano."""
     existing_budget = Budget.query.filter_by(
         user_id=user_id,
         category_id=category_id,
         month_year=month_year
     ).first()
+
     if existing_budget:
-        # Optionally, update existing budget or raise an error
-        print("Budget already exists for this category and month. Updating existing budget.")
-        existing_budget.budget_amount = budget_amount
+        existing_budget.budget_amount = float(budget_amount)
+        # Recalcula current_spent caso a data ou valor de transações passadas tenha mudado
+        start_date, end_date = get_month_start_end_dates(month_year)
+        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.category_id == category_id,
+            Transaction.type == 'expense',
+            db.cast(Transaction.date, db.Date) >= start_date,
+            db.cast(Transaction.date, db.Date) <= end_date
+        ).scalar() or 0.0
+        existing_budget.current_spent = total_spent_in_category
         db.session.add(existing_budget)
     else:
+        # Ao criar, calcula o current_spent inicial
+        start_date, end_date = get_month_start_end_dates(month_year)
+        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.category_id == category_id,
+            Transaction.type == 'expense',
+            db.cast(Transaction.date, db.Date) >= start_date,
+            db.cast(Transaction.date, db.Date) <= end_date
+        ).scalar() or 0.0
+
         new_budget = Budget(
             user_id=user_id,
             category_id=category_id,
             budget_amount=float(budget_amount),
+            current_spent=total_spent_in_category,
             month_year=month_year
         )
         db.session.add(new_budget)
@@ -713,15 +893,27 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
     return True
 
 def edit_budget_db(budget_id, user_id, budget_amount=None):
+    """Edita o valor de um orçamento existente."""
     budget = Budget.query.filter_by(id=budget_id, user_id=user_id).first()
     if budget:
         if budget_amount is not None:
             budget.budget_amount = float(budget_amount)
+        # Recalcula o current_spent para garantir consistência
+        start_date, end_date = get_month_start_end_dates(budget.month_year)
+        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.category_id == budget.category_id,
+            Transaction.type == 'expense',
+            db.cast(Transaction.date, db.Date) >= start_date,
+            db.cast(Transaction.date, db.Date) <= end_date
+        ).scalar() or 0.0
+        budget.current_spent = total_spent_in_category
         db.session.commit()
         return True
     return False
 
 def delete_budget_db(budget_id, user_id):
+    """Exclui um orçamento."""
     budget = Budget.query.filter_by(id=budget_id, user_id=user_id).first()
     if budget:
         db.session.delete(budget)
@@ -730,11 +922,12 @@ def delete_budget_db(budget_id, user_id):
     return False
 
 def add_goal_db(user_id, name, target_amount, due_date=None):
+    """Adiciona uma nova meta financeira."""
     new_goal = Goal(
         user_id=user_id,
         name=name,
         target_amount=float(target_amount),
-        due_date=due_date if due_date else None,
+        due_date=due_date if due_date else None, # Salvar como string
         status='in_progress'
     )
     db.session.add(new_goal)
@@ -742,6 +935,7 @@ def add_goal_db(user_id, name, target_amount, due_date=None):
     return True
 
 def edit_goal_db(goal_id, user_id, name=None, target_amount=None, current_amount=None, due_date=None, status=None):
+    """Edita uma meta financeira existente."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if goal:
         if name:
@@ -751,7 +945,7 @@ def edit_goal_db(goal_id, user_id, name=None, target_amount=None, current_amount
         if current_amount is not None:
             goal.current_amount = float(current_amount)
         if due_date:
-            goal.due_date = due_date
+            goal.due_date = due_date # Salvar como string
         if status:
             goal.status = status
         db.session.commit()
@@ -759,6 +953,7 @@ def edit_goal_db(goal_id, user_id, name=None, target_amount=None, current_amount
     return False
 
 def delete_goal_db(goal_id, user_id):
+    """Exclui uma meta financeira."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if goal:
         db.session.delete(goal)
@@ -767,55 +962,103 @@ def delete_goal_db(goal_id, user_id):
     return False
 
 def contribute_to_goal_db(goal_id, user_id, amount):
+    """Registra uma contribuição para uma meta, criando uma transação de despesa."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
-    if goal:
-        goal.current_amount += float(amount)
-        if goal.current_amount >= goal.target_amount:
-            goal.status = 'achieved'
-        db.session.add(goal)
-        # Create a transaction for the contribution
-        salario_category = Category.query.filter_by(name='Salário', type='income').first() # Or a specific 'Savings' category
-        poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense').first()
-        
-        category_id = poupanca_metas_category.id if poupanca_metas_category else None
-        
-        # Add a record to transactions for visibility
-        new_transaction = Transaction(
-            description=f"Contribuição para Meta: {goal.name}",
-            amount=float(amount),
-            date=datetime.date.today().isoformat(),
-            type='expense', # It's an expense from your available cash, moving to savings/goal
-            user_id=user_id,
-            category_id=category_id # Could be a 'Savings' category
-        )
-        db.session.add(new_transaction)
-        db.session.commit()
-        return True
-    return False
+    if not goal:
+        return False
+    
+    amount_to_add = float(amount)
+    if amount_to_add <= 0:
+        flash('O valor da contribuição deve ser maior que zero.', 'danger')
+        return False
 
-# --- Rotas da Aplicação ---
+    # Pega a primeira conta do usuário para debitar
+    default_account = Account.query.filter_by(user_id=user_id).first()
+    if not default_account:
+        flash('Nenhuma conta bancária encontrada para debitar a contribuição. Adicione uma conta primeiro.', 'danger')
+        return False
+
+    if default_account.balance < amount_to_add:
+        flash(f'Saldo insuficiente na conta "{default_account.name}" para contribuir com esta meta.', 'danger')
+        return False
+
+    # Calcula o valor real a ser adicionado para não ultrapassar o target_amount se já estiver próximo
+    if goal.current_amount + amount_to_add >= goal.target_amount:
+        amount_to_add = goal.target_amount - goal.current_amount # Ajusta para o valor exato restante
+        goal.status = 'achieved' # Marca como atingida
+        flash(f'Parabéns! A meta "{goal.name}" foi atingida!', 'success')
+    else:
+        flash(f'Contribuição de R$ {amount_to_add:.2f} adicionada à meta "{goal.name}".', 'success')
+        
+    goal.current_amount += amount_to_add
+    db.session.add(goal)
+
+    # Cria uma transação de despesa para a contribuição
+    poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense', user_id=user_id).first()
+    
+    if not poupanca_metas_category:
+        # Se a categoria não existe, cria-a
+        poupanca_metas_category = Category(name='Poupança para Metas', type='expense', user_id=user_id)
+        db.session.add(poupanca_metas_category)
+        db.session.flush() # Para obter o ID da nova categoria
+
+    new_transaction = Transaction(
+        description=f"Contribuição para Meta: {goal.name}",
+        amount=amount_to_add,
+        date=TODAY_DATE.isoformat(),
+        type='expense', # É uma despesa da sua liquidez para a poupança
+        user_id=user_id,
+        category_id=poupanca_metas_category.id,
+        account_id=default_account.id # Debita da conta padrão
+    )
+    db.session.add(new_transaction)
+    
+    # Atualiza o saldo da conta
+    default_account.balance -= amount_to_add
+    db.session.add(default_account)
+
+    # A contribuição para a meta é uma despesa, então ela deve impactar o orçamento (se houver)
+    transaction_month_year = TODAY_DATE.strftime('%Y-%m')
+    budget = Budget.query.filter_by(
+        user_id=user_id,
+        category_id=poupanca_metas_category.id,
+        month_year=transaction_month_year
+    ).first()
+    if budget:
+        budget.current_spent += amount_to_add
+        db.session.add(budget)
+        print(f"DEBUG: Budget for category '{poupanca_metas_category.name}' updated with goal contribution. New spent: {budget.current_spent}")
+    else:
+        print(f"DEBUG: No budget found for category 'Poupança para Metas' for {transaction_month_year} to update.")
+    
+    db.session.commit()
+    return True
+
+
+# --- ROTAS DA APLICAÇÃO ---
 
 @app.route('/')
 @login_required
 def index():
+    """Rota principal do dashboard."""
     # Processa as transações recorrentes do usuário ANTES de carregar a página
-    # para que as contas/transações geradas apareçam no dashboard.
     process_recurring_bills_on_access(current_user.id)
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
+    # Filtros e ordenação para transações
     transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
 
     transaction_type_filter = request.args.get('transaction_type')
     if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
         transactions_query_obj = transactions_query_obj.filter_by(type=transaction_type_filter)
 
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-    if start_date:
-        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date, db.Date))
-    if end_date:
-        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date, db.Date))
+    start_date_filter = request.args.get('start_date')
+    end_date_filter = request.args.get('end_date')
+    if start_date_filter:
+        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date_filter, db.Date))
+    if end_date_filter:
+        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date_filter, db.Date))
 
     category_filter_id = request.args.get('category_filter', type=int)
     if category_filter_id:
@@ -841,8 +1084,7 @@ def index():
     expense_transactions = [t for t in all_transactions if t.type == 'expense']
 
 
-    # Bills a serem exibidas: apenas as Bills que NÃO são mestras de recorrência
-    # (ou seja, são Bills criadas manualmente ou Bills filhas geradas).
+    # Filtros e ordenação para contas (bills)
     bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
@@ -851,11 +1093,12 @@ def index():
     bill_status_filter = request.args.get('bill_status')
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
         if bill_status_filter == 'overdue':
-            today_str = datetime.date.today().isoformat()
-            bills_query_obj = bills_query_obj.filter(Bill.dueDate < today_str, Bill.status == 'pending')
+            # Contas atrasadas: status pending E dueDate menor que HOJE
+            bills_query_obj = bills_query_obj.filter(db.cast(Bill.dueDate, db.Date) < TODAY_DATE, Bill.status == 'pending')
         else:
             bills_query_obj = bills_query_obj.filter_by(status=bill_status_filter)
     elif not bill_status_filter:
+            # Padrão: mostrar apenas contas pendentes
             bills_query_obj = bills_query_obj.filter_by(status='pending')
 
     sort_by_bills = request.args.get('sort_by_bills', 'dueDate')
@@ -863,9 +1106,9 @@ def index():
 
     if sort_by_bills == 'dueDate':
         if order_bills == 'asc':
-            bills_query_obj = bills_query_obj.order_by(Bill.dueDate.asc())
+            bills_query_obj = bills_query_obj.order_by(db.cast(Bill.dueDate, db.Date).asc())
         else:
-            bills_query_obj = bills_query_obj.order_by(Bill.dueDate.desc())
+            bills_query_obj = bills_query_obj.order_by(db.cast(Bill.dueDate, db.Date).desc())
     elif sort_by_bills == 'amount':
         if order_bills == 'asc':
             bills_query_obj = bills_query_obj.order_by(Bill.amount.asc())
@@ -874,8 +1117,31 @@ def index():
             
     filtered_bills = bills_query_obj.all() # Execute a consulta aqui
 
-    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
+    # Passa TODAS as categorias do usuário logado para o JS
+    all_categories_user = Category.query.filter_by(user_id=current_user.id).all()
+    all_categories_formatted = [(c.id, c.type, c.name) for c in all_categories_user]
     
+    # Pega todas as contas do usuário
+    user_accounts = Account.query.filter_by(user_id=current_user.id).all()
+
+    # **NOVO: Dados para Orçamentos na Dashboard**
+    current_month_year = get_current_month_year_str()
+    budgets_with_alerts = []
+    all_budgets_for_month = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
+
+    for budget in all_budgets_for_month:
+        percentage_spent = (budget.current_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0
+        if percentage_spent >= 80: # Alerta se 80% ou mais do orçamento foi gasto
+            budgets_with_alerts.append({
+                'category_name': budget.category.name,
+                'budget_amount': budget.budget_amount,
+                'current_spent': budget.current_spent,
+                'percentage_spent': percentage_spent
+            })
+
+    # **NOVO: Metas ativas para exibição na Dashboard**
+    active_goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').order_by(db.cast(Goal.due_date, db.Date).asc()).all()
+
 
     return render_template(
         'index.html',
@@ -884,7 +1150,7 @@ def index():
         bills=filtered_bills,
         income_transactions=income_transactions,
         expense_transactions=expense_transactions,
-        current_date=datetime.date.today().isoformat(),
+        current_date=TODAY_DATE.isoformat(),
         current_user=current_user,
         current_transaction_type_filter=transaction_type_filter,
         current_bill_status_filter=bill_status_filter,
@@ -892,10 +1158,14 @@ def index():
         current_order_transactions=order_transactions,
         current_sort_by_bills=sort_by_bills,
         current_order_bills=order_bills,
-        current_start_date=start_date,
-        current_end_date=end_date,
+        current_start_date=start_date_filter,
+        current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
-        current_category_filter=category_filter_id
+        current_category_filter=category_filter_id,
+        user_accounts=user_accounts, # Passa as contas do usuário
+        
+        budgets_with_alerts=budgets_with_alerts, # Passa orçamentos com alerta
+        active_goals=active_goals # Passa metas ativas
     )
 
 @app.route('/add_transaction', methods=['POST'])
@@ -906,8 +1176,9 @@ def handle_add_transaction():
     date = request.form['date']
     transaction_type = request.form['type']
     category_id = request.form.get('category_id', type=int)
+    account_id = request.form.get('account_id', type=int) # Novo campo
 
-    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id)
+    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id, account_id)
     flash('Transação adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -920,12 +1191,13 @@ def handle_add_bill():
     
     is_recurring = request.form.get('is_recurring_bill') == 'on' # Checkbox retorna 'on' ou None
     recurring_frequency = request.form.get('recurring_frequency_bill')
-    recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int) # NOVO: Total de ocorrências
-    bill_type = request.form['bill_type'] # Pega o tipo (expense/income) do formulário
-    category_id = request.form.get('bill_category_id', type=int) # NOVO: Pega a categoria para a bill recorrente
+    recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int)
+    bill_type = 'expense' # Definido como 'expense' pois contas a pagar são despesas
+    category_id = request.form.get('bill_category_id', type=int)
+    account_id = request.form.get('bill_account_id', type=int) # Novo campo para conta associada à Bill
 
     add_bill_db(description, amount, due_date, current_user.id, 
-                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id) # Passa o total de ocorrências e category_id
+                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id, account_id)
     flash('Conta adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -934,8 +1206,8 @@ def handle_add_bill():
 def handle_pay_bill(bill_id):
     if pay_bill_db(bill_id, current_user.id):
         flash('Conta paga e transação registrada com sucesso!', 'success')
-    else:
-        flash('Não foi possível pagar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    #else: a mensagem de erro já é gerada dentro da função pay_bill_db
+        # flash('Não foi possível pagar a conta. Verifique se ela existe, pertence a você ou há saldo suficiente.', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/reschedule_bill/<int:bill_id>', methods=['POST'])
@@ -977,7 +1249,8 @@ def get_transaction_data(transaction_id):
             'amount': transaction.amount,
             'date': transaction.date,
             'type': transaction.type,
-            'category_id': transaction.category_id
+            'category_id': transaction.category_id,
+            'account_id': transaction.account_id # Adicionado account_id
         })
     return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
 
@@ -989,8 +1262,9 @@ def handle_edit_transaction(transaction_id):
     date = request.form['edit_date']
     transaction_type = request.form['edit_type']
     category_id = request.form.get('edit_category_id', type=int)
+    account_id = request.form.get('edit_account_id', type=int) # Adicionado account_id
 
-    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id):
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id, account_id):
         flash('Transação atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
@@ -1017,7 +1291,8 @@ def get_bill_data(bill_id):
             'recurring_installments_generated': bill.recurring_installments_generated,
             'is_active_recurring': bill.is_active_recurring,
             'type': bill.type,
-            'category_id': bill.category_id # NOVO: Retorna o category_id
+            'category_id': bill.category_id,
+            'account_id': bill.account_id # Adicionado account_id
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -1033,10 +1308,11 @@ def handle_edit_bill(bill_id):
     recurring_total_occurrences = request.form.get('edit_recurring_total_occurrences_bill', type=int)
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
-    category_id = request.form.get('edit_bill_category_id', type=int) # NOVO: Pega a categoria para a bill recorrente
+    category_id = request.form.get('edit_bill_category_id', type=int)
+    account_id = request.form.get('edit_bill_account_id', type=int) # Adicionado account_id
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
-                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id): # Passa category_id
+                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id, account_id):
         flash('Conta atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
@@ -1115,9 +1391,9 @@ def change_password():
             return redirect(url_for('profile'))
     return render_template('change_password.html')
 
-@app.route('/delete_account', methods=['GET', 'POST'])
+@app.route('/delete_account_user', methods=['GET', 'POST']) # Renomeado para evitar conflito com model Account
 @login_required
-def delete_account():
+def delete_account_user():
     if request.method == 'POST':
         confirm_password = request.form['confirm_password']
 
@@ -1135,88 +1411,90 @@ def delete_account():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-@app.route('/profile/monthly_summary', methods=['GET'])
-@login_required
-def get_monthly_summary():
-    year = request.args.get('year', type=int)
-    month = request.args.get('month', type=int)
+# Descomente e ajuste se for usar a rota de AI Insight com Gemini
+# @app.route('/profile/monthly_summary', methods=['GET'])
+# @login_required
+# def get_monthly_summary():
+#     year = request.args.get('year', type=int)
+#     month = request.args.get('month', type=int)
 
-    if not year or not month:
-        current_date = datetime.date.today()
-        year = current_date.year
-        month = current_date.month
+#     if not year or not month:
+#         current_date = datetime.date.today()
+#         year = current_date.year
+#         month = current_date.month
 
-    target_month_str = f"{year}-{month:02d}"
+#     target_month_str = f"{year}-{month:02d}"
 
-    monthly_transactions = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        Transaction.date.like(f"{target_month_str}-%")
-    ).all()
+#     monthly_transactions = Transaction.query.filter(
+#         Transaction.user_id == current_user.id,
+#         Transaction.date.like(f"{target_month_str}-%")
+#     ).all()
 
-    monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
-    monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
-    monthly_balance = monthly_income - monthly_expenses
+#     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
+#     monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
+#     monthly_balance = monthly_income - monthly_expenses
     
-    return jsonify({
-        'year': year,
-        'month': month,
-        'income': monthly_income,
-        'expenses': monthly_expenses,
-        'balance': monthly_balance,
-        'transactions_details': [
-            {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date,
-             'category': t.category.name if t.category else 'Sem Categoria'}
-            for t in monthly_transactions
-        ]
-    })
+#     return jsonify({
+#         'year': year,
+#         'month': month,
+#         'income': monthly_income,
+#         'expenses': monthly_expenses,
+#         'balance': monthly_balance,
+#         'transactions_details': [
+#             {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date,
+#              'category': t.category.name if t.category else 'Sem Categoria'}
+#             for t in monthly_transactions
+#         ]
+#     })
 
-@app.route('/profile/ai_insight', methods=['POST'])
-@login_required
-def get_ai_insight():
-    data = request.get_json()
-    monthly_summary = data.get('summary_data')
-    budgets_data = data.get('budgets_data', [])
-    goals_data = data.get('goals_data', [])
+# Descomente e ajuste se for usar a rota de AI Insight com Gemini
+# @app.route('/profile/ai_insight', methods=['POST'])
+# @login_required
+# def get_ai_insight():
+#     data = request.get_json()
+#     monthly_summary = data.get('summary_data')
+#     budgets_data = data.get('budgets_data', [])
+#     goals_data = data.get('goals_data', [])
     
-    if not monthly_summary:
-        return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
+#     if not monthly_summary:
+#         return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
 
-    prompt_parts = [
-        f"Com base nos seguintes dados financeiros de um mês específico:",
-        f"Receita Total: R${monthly_summary['income']:.2f},",
-        f"Despesa Total: R${monthly_summary['expenses']:.2f},",
-        f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
-    ]
+#     prompt_parts = [
+#         f"Com base nos seguintes dados financeiros de um mês específico:",
+#         f"Receita Total: R${monthly_summary['income']:.2f},",
+#         f"Despesa Total: R${monthly_summary['expenses']:.2f},",
+#         f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
+#     ]
 
-    if monthly_summary.get('transactions_details'):
-        # Limit transaction details to avoid prompt overflow, or summarize them
-        limited_transactions = monthly_summary['transactions_details'][:5] # Top 5 transactions
-        prompt_parts.append(f"Principais transações: {limited_transactions}.")
+#     if monthly_summary.get('transactions_details'):
+#         # Limit transaction details to avoid prompt overflow, or summarize them
+#         limited_transactions = monthly_summary['transactions_details'][:5] # Top 5 transactions
+#         prompt_parts.append(f"Principais transações: {limited_transactions}.")
     
-    if budgets_data:
-        budget_summary = "Detalhes dos orçamentos (categoria, orçado, gasto): "
-        for b in budgets_data:
-            budget_summary += f"{b['category_name']}: R${b['budget_amount']:.2f} (gasto: R${b['current_spent']:.2f}). "
-        prompt_parts.append(budget_summary)
+#     if budgets_data:
+#         budget_summary = "Detalhes dos orçamentos (categoria, orçado, gasto): "
+#         for b in budgets_data:
+#             budget_summary += f"{b['category_name']}: R${b['budget_amount']:.2f} (gasto: R${b['current_spent']:.2f}). "
+#         prompt_parts.append(budget_summary)
 
-    if goals_data:
-        goal_summary = "Detalhes das metas (nome, alvo, atual, status): "
-        for g in goals_data:
-            goal_summary += f"'{g['name']}': R${g['target_amount']:.2f} (atual: R${g['current_amount']:.2f}, status: {g['status']}). "
-        prompt_parts.append(goal_summary)
+#     if goals_data:
+#         goal_summary = "Detalhes das metas (nome, alvo, atual, status): "
+#         for g in goals_data:
+#             goal_summary += f"'{g['name']}': R${g['target_amount']:.2f} (atual: R${g['current_amount']:.2f}, status: {g['status']}). "
+#         prompt_parts.append(goal_summary)
 
-    prompt_parts.append(
-        f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
-        f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
-        f"Use uma linguagem amigável e direta em português. "
-        f"Seja conciso, com no máximo 150 palavras (pode exceder ligeiramente se necessário para clareza). "
-        f"Não inclua 'Olá!' ou saudações, vá direto ao ponto."
-    )
+#     prompt_parts.append(
+#         f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
+#         f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
+#         f"Use uma linguagem amigável e direta em português. "
+#         f"Seja conciso, com no máximo 150 palavras (pode exceder ligeiramente se necessário para clareza). "
+#         f"Não inclua 'Olá!' ou saudações, vá direto ao ponto."
+#     )
 
-    prompt_text = " ".join(prompt_parts)
-    print(f"DEBUG: Prompt enviado ao Gemini: {prompt_text}") # Debugging the prompt
-    ai_text = generate_text_with_gemini(prompt_text)
-    return jsonify({'insight': ai_text})
+#     prompt_text = " ".join(prompt_parts)
+#     print(f"DEBUG: Prompt enviado ao Gemini: {prompt_text}") # Debugging the prompt
+#     ai_text = generate_text_with_gemini(prompt_text)
+#     return jsonify({'insight': ai_text})
 
 @app.route('/profile/update_picture', methods=['POST'])
 @login_required
@@ -1286,49 +1564,37 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
-# --- NOVAS ROTAS PARA ORÇAMENTOS ---
-@app.route('/budgets', methods=['GET'])
+# --- ROTAS NOVAS PARA ORÇAMENTOS ---
+@app.route('/budgets')
 @login_required
 def budgets_page():
-    # Fetch budgets for the current user, optionally filtered by month/year
-    # Use current date to determine default month_year for display
-    default_month_year = datetime.date.today().strftime('%Y-%m')
-    month_year_filter = request.args.get('month_year', default_month_year)
+    """Exibe a lista de orçamentos do usuário para o mês atual ou selecionado."""
+    user_id = current_user.id
     
-    budgets = Budget.query.filter_by(user_id=current_user.id, month_year=month_year_filter).all()
+    selected_month_year = request.args.get('month_year', get_current_month_year_str())
     
-    # Get all expense categories for the budget creation form
-    expense_categories = Category.query.filter_by(type='expense').all()
-    
-    # Calculate current month's expenses per category for the actual spending part
-    # This ensures that even if a budget has 0 current_spent in the DB, it reflects actual spending
-    current_month_start_date_obj = datetime.datetime.strptime(month_year_filter, '%Y-%m').date().replace(day=1)
-    next_month_start_date_obj = (current_month_start_date_obj + relativedelta(months=1))
-    
-    transactions_in_month = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        db.cast(Transaction.date, db.Date) >= current_month_start_date_obj,
-        db.cast(Transaction.date, db.Date) < next_month_start_date_obj,
-        Transaction.type == 'expense'
-    ).all()
-    
-    current_month_expenses_by_category = {}
-    for t in transactions_in_month:
-        if t.category:
-            current_month_expenses_by_category[t.category.id] = current_month_expenses_by_category.get(t.category.id, 0) + t.amount
+    budgets = Budget.query.filter_by(user_id=user_id, month_year=selected_month_year).all()
+    expense_categories = Category.query.filter_by(user_id=user_id, type='expense').all()
 
-    # Update current_spent for budgets based on actual transactions
+    # Recalcula current_spent para exibição (garante que esteja atualizado com as últimas transações)
+    start_date_obj, end_date_obj = get_month_start_end_dates(selected_month_year)
+
     for budget in budgets:
-        budget.current_spent = current_month_expenses_by_category.get(budget.category_id, 0)
-        # No commit here, as it's just for display. The current_spent is updated
-        # permanently in add/edit/delete transaction functions.
+        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
+            Transaction.user_id == user_id,
+            Transaction.category_id == budget.category_id,
+            Transaction.type == 'expense',
+            db.cast(Transaction.date, db.Date) >= start_date_obj,
+            db.cast(Transaction.date, db.Date) <= end_date_obj
+        ).scalar() or 0.0
+        budget.current_spent = total_spent_in_category
+        # Não comita aqui, pois é apenas para atualização em memória para exibição.
+        # As atualizações persistentes são feitas em add/delete_transaction e pay_bill.
 
-    return render_template(
-        'budgets.html',
-        budgets=budgets,
-        expense_categories=expense_categories,
-        current_month_year=month_year_filter
-    )
+    return render_template('budgets.html', 
+                            budgets=budgets, 
+                            expense_categories=expense_categories, 
+                            current_month_year=selected_month_year)
 
 @app.route('/add_budget', methods=['POST'])
 @login_required
@@ -1340,8 +1606,8 @@ def handle_add_budget():
     if add_budget_db(current_user.id, category_id, budget_amount, month_year):
         flash('Orçamento adicionado/atualizado com sucesso!', 'success')
     else:
-        flash('Erro ao adicionar/atualizar orçamento.', 'danger')
-    return redirect(url_for('budgets_page', month_year=month_year)) # Redirect back to the same month
+        flash('Erro ao adicionar/atualizar orçamento. Um orçamento para esta categoria e mês já pode existir.', 'danger')
+    return redirect(url_for('budgets_page', month_year=month_year))
 
 @app.route('/edit_budget/<int:budget_id>', methods=['POST'])
 @login_required
@@ -1351,7 +1617,10 @@ def handle_edit_budget(budget_id):
         flash('Orçamento atualizado com sucesso!', 'success')
     else:
         flash('Erro ao atualizar orçamento.', 'danger')
-    return redirect(url_for('budgets_page'))
+    # Tenta obter o month_year do orçamento editado para redirecionar corretamente
+    budget = Budget.query.get(budget_id)
+    redirect_month_year = budget.month_year if budget else get_current_month_year_str()
+    return redirect(url_for('budgets_page', month_year=redirect_month_year))
 
 @app.route('/delete_budget/<int:budget_id>', methods=['POST'])
 @login_required
@@ -1360,9 +1629,12 @@ def handle_delete_budget(budget_id):
         flash('Orçamento excluído com sucesso!', 'info')
     else:
         flash('Erro ao excluir orçamento.', 'danger')
-    return redirect(url_for('budgets_page'))
+    # Tenta obter o month_year do orçamento deletado para redirecionar corretamente
+    # Isso pode ser tricky se o objeto já foi deletado, então pega o mês atual como fallback
+    redirect_month_year = get_current_month_year_str() 
+    return redirect(url_for('budgets_page', month_year=redirect_month_year))
 
-# --- NOVAS ROTAS PARA METAS ---
+# --- ROTAS NOVAS PARA METAS ---
 @app.route('/goals', methods=['GET'])
 @login_required
 def goals_page():
@@ -1411,97 +1683,132 @@ def handle_delete_goal(goal_id):
 def handle_contribute_to_goal(goal_id):
     amount = request.form['amount']
     if contribute_to_goal_db(goal_id, current_user.id, amount):
-        flash(f'Contribuição de R$ {amount} adicionada à meta!', 'success')
+        # Flash message já é gerado pela função contribute_to_goal_db
+        pass
     else:
-        flash('Erro ao contribuir para a meta.', 'danger')
-    return redirect(url_for('goals_page'))
+        flash('Erro ao contribuir para a meta. Verifique o valor ou se a meta existe.', 'danger')
+    return redirect(url_for('index')) # Redireciona para o index para ver a atualização
 
 
-if __name__ == '__main__':
-    with app.app_context():
-        # APAGARA TODO O SEU BANCO DE DADOS A CADA INICIALIZAÇÃO!
-        # Remova esta linha após a correção do esquema em produção.
-        # Para evitar perda de dados em produção, use Flask-Migrate (Alembic) para gerenciar migrações de esquema.
-        # db.drop_all()  
-        db.create_all()
+# --- INICIALIZAÇÃO DO BANCO DE DADOS E DADOS DE EXEMPLO ---
+# Este bloco será executado apenas uma vez quando o script for iniciado diretamente.
+with app.app_context():
+    db.create_all() # Cria as tabelas se elas não existirem.
 
-        # Imprime o caminho completo do arquivo do banco de dados para depuração
-        print(f"DEBUG: Caminho do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
-        
-        if not Category.query.first():
-            db.session.add(Category(name='Salário', type='income'))
-            db.session.add(Category(name='Freelance', type='income'))
-            db.session.add(Category(name='Outras Receitas', type='income'))
-            db.session.add(Category(name='Alimentação', type='expense'))
-            db.session.add(Category(name='Transporte', type='expense'))
-            db.session.add(Category(name='Lazer', type='expense'))
-            db.session.add(Category(name='Moradia', type='expense'))
-            db.session.add(Category(name='Saúde', type='expense'))
-            db.session.add(Category(name='Educação', type='expense'))
-            db.session.add(Category(name='Contas Fixas', type='expense'))
-            db.session.add(Category(name='Outras Despesas', type='expense'))
-            db.session.add(Category(name='Poupança para Metas', type='expense')) # Nova categoria para metas
+    # Cria um usuário 'admin' se ele não existir
+    if not User.query.filter_by(username='admin').first():
+        admin_user = User(username='admin')
+        admin_user.set_password('admin123') # Senha padrão para teste
+        db.session.add(admin_user)
+        db.session.commit()
+        print("Usuário 'admin' criado com senha 'admin123'.")
+    
+    first_user = User.query.filter_by(username='admin').first() # Garante que o usuário admin existe
+    if first_user: # Somente adiciona dados de exemplo se o usuário admin existir
+        # Adiciona categorias padrão se o banco de dados estiver vazio para o admin
+        if not Category.query.filter_by(user_id=first_user.id).first():
+            db.session.add(Category(name='Salário', type='income', user_id=first_user.id))
+            db.session.add(Category(name='Freelance', type='income', user_id=first_user.id))
+            db.session.add(Category(name='Outras Receitas', type='income', user_id=first_user.id))
+            db.session.add(Category(name='Alimentação', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Transporte', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Lazer', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Moradia', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Saúde', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Educação', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Contas Fixas', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Outras Despesas', type='expense', user_id=first_user.id))
+            db.session.add(Category(name='Poupança para Metas', type='expense', user_id=first_user.id)) # Nova categoria
             db.session.commit()
-            print("Categorias padrão adicionadas.")
+            print("Categorias padrão adicionadas para o admin.")
 
-        if not User.query.filter_by(username='admin').first():
-            admin_user = User(username='admin')
-            admin_user.set_password('admin123')
-            db.session.add(admin_user)
+        # Adiciona contas de exemplo se não houver
+        if not Account.query.filter_by(user_id=first_user.id).first():
+            db.session.add(Account(name='Conta Principal', balance=1000.00, user_id=first_user.id))
+            db.session.add(Account(name='Poupança', balance=500.00, user_id=first_user.id))
             db.session.commit()
-            print("Usuário 'admin' criado com senha 'admin123'.")
+            print("Contas de exemplo adicionadas para o admin.")
 
-        if User.query.first():
-            first_user = User.query.first()
-            contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
-            alimentacao_category = Category.query.filter_by(name='Alimentação', type='expense').first()
-            lazer_category = Category.query.filter_by(name='Lazer', type='expense').first()
-            poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense').first()
+        # Adiciona dados de exemplo somente se não houver transações, orçamentos ou metas existentes para o admin
+        if not Transaction.query.filter_by(user_id=first_user.id).first() and \
+           not Budget.query.filter_by(user_id=first_user.id).first() and \
+           not Goal.query.filter_by(user_id=first_user.id).first():
 
-            # Existing Bill examples (ensure they still work)
-            if not Bill.query.filter_by(user_id=first_user.id, description='Aluguel Apartamento (Mestra)').first():
+            salario_cat = Category.query.filter_by(name='Salário', user_id=first_user.id).first()
+            alimentacao_cat = Category.query.filter_by(name='Alimentação', user_id=first_user.id).first()
+            transporte_cat = Category.query.filter_by(name='Transporte', user_id=first_user.id).first()
+            lazer_cat = Category.query.filter_by(name='Lazer', user_id=first_user.id).first()
+            contas_fixas_cat = Category.query.filter_by(name='Contas Fixas', user_id=first_user.id).first()
+            poupanca_metas_cat = Category.query.filter_by(name='Poupança para Metas', user_id=first_user.id).first()
+
+            main_account = Account.query.filter_by(name='Conta Principal', user_id=first_user.id).first()
+            
+            # Adiciona transações de exemplo
+            if salario_cat and main_account:
+                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(2025, 6, 1).isoformat(), category_id=salario_cat.id, account_id=main_account.id, user_id=first_user.id))
+            if alimentacao_cat and main_account:
+                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(2025, 6, 5).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(2025, 6, 10).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
+            if transporte_cat and main_account:
+                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(2025, 6, 12).isoformat(), category_id=transporte_cat.id, account_id=main_account.id, user_id=first_user.id))
+            if lazer_cat and main_account:
+                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(2025, 6, 15).isoformat(), category_id=lazer_cat.id, account_id=main_account.id, user_id=first_user.id))
+            db.session.commit()
+            print("Transações de exemplo adicionadas para o admin.")
+
+            # Adiciona contas a pagar de exemplo (recorrentes e normais)
+            current_month_for_bills = datetime.date.today().strftime('%Y-%m') # Mês atual
+            
+            if contas_fixas_cat and main_account:
+                # Aluguel (Mestra recorrente)
                 db.session.add(Bill(
                     description='Aluguel Apartamento (Mestra)', amount=1500.00, dueDate='2024-01-05', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
                     recurring_start_date='2024-01-05', recurring_next_due_date='2024-01-05', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None
+                    category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))
-            if not Bill.query.filter_by(user_id=first_user.id, description='Internet Fibra (Mestra)').first():
+                # Internet (Mestra recorrente)
                 db.session.add(Bill(
                     description='Internet Fibra (Mestra)', amount=99.90, dueDate='2024-01-10', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
                     recurring_start_date='2024-01-10', recurring_next_due_date='2024-01-10', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None
+                    category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))
-            if not Bill.query.filter_by(user_id=first_user.id, description='Compra Parcelada Tênis (Mestra)').first():
+                # Compra Parcelada (Mestra com parcelas fixas)
                 db.session.add(Bill(
                     description='Compra Parcelada Tênis (Mestra)', amount=100.00, dueDate='2024-01-01', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='installments',
                     recurring_start_date='2024-01-01', recurring_next_due_date='2024-01-01', recurring_total_occurrences=5,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None
+                    category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))
-
-            # New: Example Budgets for current month (adjust month_year as needed)
-            current_month_for_examples = datetime.date.today().strftime('%Y-%m') # E.g., '2025-07'
-            
-            if alimentacao_category and not Budget.query.filter_by(user_id=first_user.id, category_id=alimentacao_category.id, month_year=current_month_for_examples).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=alimentacao_category.id, budget_amount=500.00, month_year=current_month_for_examples))
-            if lazer_category and not Budget.query.filter_by(user_id=first_user.id, category_id=lazer_category.id, month_year=current_month_for_examples).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=lazer_category.id, budget_amount=200.00, month_year=current_month_for_examples))
-            if contas_fixas_category and not Budget.query.filter_by(user_id=first_user.id, category_id=contas_fixas_category.id, month_year=current_month_for_examples).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=contas_fixas_category.id, budget_amount=2000.00, month_year=current_month_for_examples))
-
-            # New: Example Goals
-            if not Goal.query.filter_by(user_id=first_user.id, name='Viagem para a Praia').first():
-                db.session.add(Goal(user_id=first_user.id, name='Viagem para a Praia', target_amount=5000.00, current_amount=1200.00, due_date='2025-12-31'))
-            if not Goal.query.filter_by(user_id=first_user.id, name='Fundo de Emergência').first():
-                db.session.add(Goal(user_id=first_user.id, name='Fundo de Emergência', target_amount=3000.00, current_amount=800.00, due_date='2024-12-31'))
-            
             db.session.commit()
-            print("Contas e transações recorrentes mestras de exemplo, orçamentos e metas adicionados.")
+            print("Contas e transações recorrentes mestras de exemplo adicionadas para o admin.")
 
+            # Adiciona orçamentos de exemplo para o mês atual
+            current_month_year_for_examples = datetime.date.today().strftime('%Y-%m')
+            if alimentacao_cat:
+                # O current_spent inicial será calculado pela lógica add_budget_db
+                add_budget_db(user_id=first_user.id, category_id=alimentacao_cat.id, budget_amount=500.00, month_year=current_month_year_for_examples)
+            if lazer_cat:
+                add_budget_db(user_id=first_user.id, category_id=lazer_cat.id, budget_amount=200.00, month_year=current_month_year_for_examples)
+            if transporte_cat:
+                add_budget_db(user_id=first_user.id, category_id=transporte_cat.id, budget_amount=300.00, month_year=current_month_year_for_examples)
+            print("Orçamentos de exemplo adicionados para o admin.")
+
+            # Adiciona metas de exemplo
+            db.session.add(Goal(name='Viagem dos Sonhos', target_amount=5000.00, current_amount=1500.00, due_date=datetime.date(2026, 12, 31).isoformat(), user_id=first_user.id))
+            db.session.add(Goal(name='Fundo de Emergência', target_amount=2000.00, current_amount=800.00, due_date=datetime.date(2025, 12, 31).isoformat(), user_id=first_user.id))
+            db.session.commit()
+            print("Metas de exemplo adicionadas para o admin.")
+
+    print(f"DEBUG: Caminho final do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
+
+# Bloco de execução principal
+if __name__ == '__main__':
+    # O debug=True permite recarregar o servidor automaticamente em caso de mudanças
+    # e fornece um depurador interativo no navegador. DESATIVE em produção.
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
