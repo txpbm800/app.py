@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Orçamentos - Gestão Financeira Pessoal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        .progress-bar-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden; }
+        .progress-bar { height: 1.5rem; border-radius: 9999px; text-align: center; color: white; font-weight: bold; transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Meus Orçamentos</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-messages-container" class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="flash-message p-3 rounded-md text-sm mb-2 {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Novo Orçamento</h2>
+            <form action="{{ url_for('handle_add_budget') }}" method="POST" class="space-y-4">
+                <div>
+                    <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria (Despesa)</label>
+                    <select id="category_id" name="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Selecione uma categoria de despesa</option>
+                        {% for category in expense_categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="budget_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor Orçado</label>
+                    <input type="number" step="0.01" id="budget_amount" name="budget_amount" placeholder="0.00" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="month_year" class="block text-sm font-medium text-gray-700 mb-1">Mês/Ano do Orçamento</label>
+                    <input type="month" id="month_year" name="month_year" value="{{ current_month_year }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                    Adicionar Orçamento
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Meus Orçamentos ({{ current_month_year }})</h2>
+            {% if not budgets %}
+                <p class="text-gray-500 text-center py-4 text-md">Nenhum orçamento definido para este mês.</p>
+            {% else %}
+                <div class="space-y-4">
+                    {% for budget in budgets %}
+                        {% set percentage_spent = (budget.current_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0 %}
+                        {% set bar_color = 'bg-green-500' if percentage_spent <= 75 else ('bg-orange-500' if percentage_spent <= 100 else 'bg-red-500') %}
+                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ budget.category.name }}</h3>
+                                <p class="text-sm text-gray-600">Orçado: R$ {{ "%.2f"|format(budget.budget_amount) }}</p>
+                                <p class="text-sm text-gray-600">Gasto: R$ {{ "%.2f"|format(budget.current_spent) }}</p>
+                                <p class="text-sm font-bold {% if percentage_spent <= 75 %}text-green-600{% elif percentage_spent <= 100 %}text-orange-600{% else %}text-red-600{% endif %}">
+                                    Restante: R$ {{ "%.2f"|format(budget.budget_amount - budget.current_spent) }}
+                                </p>
+                            </div>
+                            <div class="w-full sm:w-1/2 md:w-1/3 space-y-2">
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar {{ bar_color }}" style="width: {{ percentage_spent|round(0, 'floor') }}%;">
+                                        {{ percentage_spent|round(0, 'floor') }}%
+                                    </div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="openEditBudgetModal({{ budget.id }}, '{{ budget.category.name }}', {{ budget.budget_amount }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Editar</button>
+                                    <form action="{{ url_for('handle_delete_budget', budget_id=budget.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="flex-1">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm w-full">Excluir</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Modal de Edição de Orçamento #}
+    <div id="edit-budget-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                Editar Orçamento para <span id="edit_budget_category_name"></span>
+                            </h3>
+                            <div class="mt-2">
+                                <form id="edit_budget_form" method="POST" class="space-y-4">
+                                    <input type="hidden" id="edit_budget_id" name="budget_id">
+                                    <div>
+                                        <label for="edit_budget_amount" class="block text-sm font-medium text-gray-700">Novo Valor Orçado</label>
+                                        <input type="number" step="0.01" id="edit_budget_amount" name="budget_amount" required
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" onclick="closeEditBudgetModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                            Salvar Alterações
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+        });
+
+        function openEditBudgetModal(id, categoryName, budgetAmount) {
+            document.getElementById('edit_budget_id').value = id;
+            document.getElementById('edit_budget_category_name').textContent = categoryName;
+            document.getElementById('edit_budget_amount').value = budgetAmount;
+            document.getElementById('edit_budget_form').action = `/edit_budget/${id}`;
+            document.getElementById('edit-budget-modal').classList.remove('hidden');
+        }
+
+        function closeEditBudgetModal() {
+            document.getElementById('edit-budget-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

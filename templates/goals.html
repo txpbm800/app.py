@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minhas Metas Financeiras - Gestão Financeira Pessoal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        .progress-bar-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden; }
+        .progress-bar { height: 1.5rem; border-radius: 9999px; text-align: center; color: white; font-weight: bold; transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Minhas Metas Financeiras</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-messages-container" class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="flash-message p-3 rounded-md text-sm mb-2 {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Nova Meta</h2>
+            <form action="{{ url_for('handle_add_goal') }}" method="POST" class="space-y-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome da Meta</label>
+                    <input type="text" id="name" name="name" placeholder="Ex: Viagem, Carro, Casa..." required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="target_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor Alvo</label>
+                    <input type="number" step="0.01" id="target_amount" name="target_amount" placeholder="0.00" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1">Data Limite (Opcional)</label>
+                    <input type="date" id="due_date" name="due_date"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                    Adicionar Meta
+                </button>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Metas Atuais</h2>
+            {% if not goals %}
+                <p class="text-gray-500 text-center py-4 text-md">Nenhuma meta definida ainda.</p>
+            {% else %}
+                <div class="space-y-4">
+                    {% for goal in goals %}
+                        {% set percentage_achieved = (goal.current_amount / goal.target_amount * 100) if goal.target_amount > 0 else 0 %}
+                        {% set bar_color = 'bg-blue-500' if percentage_achieved < 100 else 'bg-green-500' %}
+                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ goal.name }}</h3>
+                                <p class="text-sm text-gray-600">Alvo: R$ {{ "%.2f"|format(goal.target_amount) }}</p>
+                                <p class="text-sm text-gray-600">Atual: R$ {{ "%.2f"|format(goal.current_amount) }}</p>
+                                <p class="text-sm font-bold text-gray-700">
+                                    Status: {{ goal.status|capitalize }}
+                                    {% if goal.status == 'in_progress' and goal.due_date %} (Até: {{ goal.due_date }}) {% endif %}
+                                </p>
+                            </div>
+                            <div class="w-full sm:w-1/2 md:w-1/3 space-y-2">
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar {{ bar_color }}" style="width: {{ percentage_achieved|round(0, 'floor') }}%;">
+                                        {{ percentage_achieved|round(0, 'floor') }}%
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" onclick="openContributeModal({{ goal.id }}, '{{ goal.name }}')" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Contribuir</button>
+                                    <button type="button" onclick="openEditGoalModal({{ goal.id }}, '{{ goal.name }}', {{ goal.target_amount }}, {{ goal.current_amount }}, '{{ goal.due_date if goal.due_date else '' }}', '{{ goal.status }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Editar</button>
+                                    <form action="{{ url_for('handle_delete_goal', goal_id=goal.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta meta?');" class="flex-1">
+                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm w-full">Excluir</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Modal de Contribuição para Meta #}
+    <div id="contribute-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="contribute-modal-title">
+                                Contribuir para <span id="contribute_goal_name"></span>
+                            </h3>
+                            <div class="mt-2">
+                                <form id="contribute_form" method="POST" class="space-y-4">
+                                    <input type="hidden" id="contribute_goal_id" name="goal_id">
+                                    <div>
+                                        <label for="contribute_amount" class="block text-sm font-medium text-gray-700">Valor da Contribuição</label>
+                                        <input type="number" step="0.01" id="contribute_amount" name="amount" placeholder="0.00" required
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" onclick="closeContributeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                            Adicionar Contribuição
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Modal de Edição de Meta #}
+    <div id="edit-goal-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="edit-goal-modal-title">
+                                Editar Meta: <span id="edit_goal_name_display"></span>
+                            </h3>
+                            <div class="mt-2">
+                                <form id="edit_goal_form" method="POST" class="space-y-4">
+                                    <input type="hidden" id="edit_goal_id" name="goal_id">
+                                    <div>
+                                        <label for="edit_goal_name" class="block text-sm font-medium text-gray-700">Nome da Meta</label>
+                                        <input type="text" id="edit_goal_name" name="name" required
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_goal_target_amount" class="block text-sm font-medium text-gray-700">Valor Alvo</label>
+                                        <input type="number" step="0.01" id="edit_goal_target_amount" name="target_amount" required
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_goal_current_amount" class="block text-sm font-medium text-gray-700">Valor Atual</label>
+                                        <input type="number" step="0.01" id="edit_goal_current_amount" name="current_amount" required
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_goal_due_date" class="block text-sm font-medium text-gray-700">Data Limite</label>
+                                        <input type="date" id="edit_goal_due_date" name="due_date"
+                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                    </div>
+                                    <div>
+                                        <label for="edit_goal_status" class="block text-sm font-medium text-gray-700">Status</label>
+                                        <select id="edit_goal_status" name="status" required
+                                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                            <option value="in_progress">Em Progresso</option>
+                                            <option value="achieved">Concluída</option>
+                                            <option value="abandoned">Abandonada</option>
+                                        </select>
+                                    </div>
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" onclick="closeEditGoalModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                                            Cancelar
+                                        </button>
+                                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                                            Salvar Alterações
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+        });
+
+        function openContributeModal(id, name) {
+            document.getElementById('contribute_goal_id').value = id;
+            document.getElementById('contribute_goal_name').textContent = name;
+            document.getElementById('contribute_form').action = `/contribute_to_goal/${id}`;
+            document.getElementById('contribute-modal').classList.remove('hidden');
+        }
+
+        function closeContributeModal() {
+            document.getElementById('contribute-modal').classList.add('hidden');
+            document.getElementById('contribute_amount').value = ''; // Clear input
+        }
+
+        function openEditGoalModal(id, name, targetAmount, currentAmount, dueDate, status) {
+            document.getElementById('edit_goal_id').value = id;
+            document.getElementById('edit_goal_name_display').textContent = name;
+            document.getElementById('edit_goal_name').value = name;
+            document.getElementById('edit_goal_target_amount').value = targetAmount;
+            document.getElementById('edit_goal_current_amount').value = currentAmount;
+            document.getElementById('edit_goal_due_date').value = dueDate;
+            document.getElementById('edit_goal_status').value = status;
+            document.getElementById('edit_goal_form').action = `/edit_goal/${id}`;
+            document.getElementById('edit-goal-modal').classList.remove('hidden');
+        }
+
+        function closeEditGoalModal() {
+            document.getElementById('edit-goal-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
