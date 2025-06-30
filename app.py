@@ -36,8 +36,6 @@ class User(UserMixin, db.Model):
     
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
-    budgets = db.relationship('Budget', backref='user', lazy=True, cascade='all, delete-orphan') # Novo
-    goals = db.relationship('Goal', backref='user', lazy=True, cascade='all, delete-orphan') # Novo
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -100,27 +98,24 @@ class Bill(db.Model):
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
-# NOVO MODELO: Orçamento por Categoria
+# --- NOVOS MODELOS PARA ORÇAMENTO E METAS ---
 class Budget(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=False)
     budget_amount = db.Column(db.Float, nullable=False)
     month_year = db.Column(db.String(7), nullable=False) # 'YYYY-MM'
+    current_spent = db.Column(db.Float, default=0.0, nullable=False)
 
-    # current_spent will be calculated dynamically for simplicity on display,
-    # or updated via transaction hooks if performance is critical for large datasets.
-    # For now, it's simpler to calculate on the fly for dashboards/budget page.
-
-    user = db.relationship('User', backref='budgets_rel', lazy=True) # Renamed backref to avoid conflict with user.budgets
-    category = db.relationship('Category', backref='budgets_rel', lazy=True) # Renamed backref
+    # Corrigido: backref deve ser única para o modelo User
+    user = db.relationship('User', backref='user_budgets', lazy=True)
+    category = db.relationship('Category', backref='budgets', lazy=True)
 
     __table_args__ = (db.UniqueConstraint('user_id', 'category_id', 'month_year', name='_user_category_month_uc'),)
 
     def __repr__(self):
         return f"<Budget {self.category.name} for {self.month_year}: {self.budget_amount}>"
 
-# NOVO MODELO: Metas Financeiras
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -130,10 +125,12 @@ class Goal(db.Model):
     due_date = db.Column(db.String(10), nullable=True) # YYYY-MM-DD
     status = db.Column(db.String(20), default='in_progress', nullable=False) # 'in_progress', 'achieved', 'abandoned'
 
-    user = db.relationship('User', backref='goals_rel', lazy=True) # Renamed backref
+    # Corrigido: backref deve ser única para o modelo User
+    user = db.relationship('User', backref='user_goals', lazy=True)
 
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
+
 
 # --- Funções de Lógica de Negócios (ORDEM OTIMIZADA) ---
 
@@ -181,6 +178,7 @@ def _generate_future_recurring_bills(master_bill):
     generated_count_for_master = 0
     
     # Limpa Bills filhas PENDENTES existentes que foram geradas por esta mestra
+    # Esta linha pode ser ajustada para não apagar bills já pagas
     Bill.query.filter_by(recurring_parent_id=master_bill.id, user_id=master_bill.user_id, status='pending').delete()
     db.session.commit() # Comita a deleção imediatamente
 
@@ -306,10 +304,11 @@ def _generate_future_recurring_bills(master_bill):
     # Desativa a mestra se o total de ocorrências fixas foi atingido
     if master_bill.recurring_total_occurrences and master_bill.recurring_installments_generated >= master_bill.recurring_total_occurrences:
         master_bill.is_active_recurring = False
+        print(f"DEBUG: Master Bill '{master_bill.description}' desativada: todas as {master_bill.recurring_total_occurrences} ocorrências foram geradas.")
     else:
         # Se is_active_recurring é True, mantém True, se false (porque era passado), mantém false
         # Não muda a ativação a menos que atinja o total
-        pass # Mantém o estado atual de is_active_recurring se não atingiu o total
+        print(f"DEBUG: Master Bill '{master_bill.description}' ainda ativa (indefinida ou não atingiu total).")
 
     db.session.add(master_bill) # Adiciona a Bill mestra atualizada para a sessão
     db.session.commit() # Comita todas as alterações deste lote de processamento
@@ -403,23 +402,7 @@ def pay_bill_db(bill_id, user_id):
                 category_id=category_id_for_payment
             )
             db.session.add(new_payment_transaction)
-            db.session.flush() # Flush para que a transação exista antes de atualizar o orçamento
             print(f"DEBUG: Transação de pagamento criada para '{payment_transaction_description}'.")
-
-            # Update budget current_spent after payment (it's an expense)
-            if category_id_for_payment:
-                transaction_month_year = datetime.date.today().strftime('%Y-%m')
-                budget = Budget.query.filter_by(
-                    user_id=user_id,
-                    category_id=category_id_for_payment,
-                    month_year=transaction_month_year
-                ).first()
-                if budget:
-                    budget.current_spent += bill.amount
-                    db.session.add(budget)
-                    print(f"DEBUG: Budget for category {category_id_for_payment} updated after payment. New spent: {budget.current_spent}")
-                else:
-                    print(f"DEBUG: No active budget found for category {category_id_for_payment} in {transaction_month_year}. Budget not updated.")
         else:
             print(f"DEBUG: Transação de pagamento para '{payment_transaction_description}' já existe. Pulando a criação.")
         
@@ -633,7 +616,7 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             elif is_recurring and not is_active_recurring and old_is_active_recurring: # Se está marcada como recorrente, mas foi desativada manualmente (is_recurring continua True, mas is_active_recurring vira False)
                 print(f"DEBUG: Master Bill '{bill.description}' marcada como inativa manualmente.")
                 # Apenas desativar, mas não apagar as filhas se o usuário quiser reativar depois
-            
+        
         else: # Se não é uma Bill mestra (ou não se tornou uma)
             bill.is_master_recurring_bill = False
             bill.is_active_recurring = False
@@ -683,7 +666,7 @@ def get_dashboard_data_db(user_id):
     # Filter pending bills to only include those due in the current month or overdue from previous months
     monthly_pending_bills = [
         b for b in all_pending_bills
-        if (b.dueDate >= current_month_start and b.dueDate < next_month_start)
+        if b.dueDate >= current_month_start and b.dueDate < next_month_start
         or (b.dueDate < current_month_start and b.status == 'pending') # Include overdue bills
     ]
     total_pending_bills_amount_monthly = sum(b.amount for b in monthly_pending_bills)
@@ -698,14 +681,14 @@ def get_dashboard_data_db(user_id):
 
 def generate_text_with_gemini(prompt_text):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash') # Changed to a more recent model if available
+        model = genai.GenerativeModel('gemini-2.0-flash')
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
         print(f"Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento."
 
-# --- NOVAS FUNÇÕES DE LÓGICA DE NEGÓCIO PARA ORÇAMENTOS E METAS ---
+# --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS ---
 def add_budget_db(user_id, category_id, budget_amount, month_year):
     # Check for existing budget for the same category and month_year
     existing_budget = Budget.query.filter_by(
@@ -714,18 +697,10 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
         month_year=month_year
     ).first()
     if existing_budget:
-        # If exists, update it
-        existing_budget.budget_amount = float(budget_amount)
-        # Recalculate current_spent based on existing transactions in case of update
-        current_month_transactions = Transaction.query.filter(
-            Transaction.user_id == user_id,
-            Transaction.category_id == category_id,
-            Transaction.date.like(f"{month_year}-%"),
-            Transaction.type == 'expense'
-        ).all()
-        existing_budget.current_spent = sum(t.amount for t in current_month_transactions)
+        # Optionally, update existing budget or raise an error
+        print("Budget already exists for this category and month. Updating existing budget.")
+        existing_budget.budget_amount = budget_amount
         db.session.add(existing_budget)
-        flash('Orçamento atualizado com sucesso!', 'success')
     else:
         new_budget = Budget(
             user_id=user_id,
@@ -734,7 +709,6 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
             month_year=month_year
         )
         db.session.add(new_budget)
-        flash('Orçamento adicionado com sucesso!', 'success')
     db.session.commit()
     return True
 
@@ -743,14 +717,6 @@ def edit_budget_db(budget_id, user_id, budget_amount=None):
     if budget:
         if budget_amount is not None:
             budget.budget_amount = float(budget_amount)
-        # Re-calculate current_spent in case the amount was changed and it needs to reflect
-        current_month_transactions = Transaction.query.filter(
-            Transaction.user_id == user_id,
-            Transaction.category_id == budget.category_id,
-            Transaction.date.like(f"{budget.month_year}-%"),
-            Transaction.type == 'expense'
-        ).all()
-        budget.current_spent = sum(t.amount for t in current_month_transactions)
         db.session.commit()
         return True
     return False
@@ -803,23 +769,24 @@ def delete_goal_db(goal_id, user_id):
 def contribute_to_goal_db(goal_id, user_id, amount):
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if goal:
-        contribution_amount = float(amount)
-        goal.current_amount += contribution_amount
+        goal.current_amount += float(amount)
         if goal.current_amount >= goal.target_amount:
             goal.status = 'achieved'
         db.session.add(goal)
-        
-        # Create an 'expense' transaction for the contribution to reduce current balance
+        # Create a transaction for the contribution
+        salario_category = Category.query.filter_by(name='Salário', type='income').first() # Or a specific 'Savings' category
         poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense').first()
+        
         category_id = poupanca_metas_category.id if poupanca_metas_category else None
         
+        # Add a record to transactions for visibility
         new_transaction = Transaction(
             description=f"Contribuição para Meta: {goal.name}",
-            amount=contribution_amount,
+            amount=float(amount),
             date=datetime.date.today().isoformat(),
             type='expense', # It's an expense from your available cash, moving to savings/goal
             user_id=user_id,
-            category_id=category_id
+            category_id=category_id # Could be a 'Savings' category
         )
         db.session.add(new_transaction)
         db.session.commit()
@@ -1215,9 +1182,9 @@ def get_ai_insight():
         return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
 
     prompt_parts = [
-        f"Com base nos seguintes dados financeiros de um mês específico: "
-        f"Receita Total: R${monthly_summary['income']:.2f}, "
-        f"Despesa Total: R${monthly_summary['expenses']:.2f}, "
+        f"Com base nos seguintes dados financeiros de um mês específico:",
+        f"Receita Total: R${monthly_summary['income']:.2f},",
+        f"Despesa Total: R${monthly_summary['expenses']:.2f},",
         f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
     ]
 
@@ -1319,24 +1286,29 @@ def get_chart_data():
         'expenses_by_category': expenses_by_category_chart_data
     })
 
-# --- NOVAS ROTAS PARA ORÇAMENTOS E METAS ---
-@app.route('/budgets')
+# --- NOVAS ROTAS PARA ORÇAMENTOS ---
+@app.route('/budgets', methods=['GET'])
 @login_required
 def budgets_page():
-    month_year_filter = request.args.get('month_year', datetime.date.today().strftime('%Y-%m'))
+    # Fetch budgets for the current user, optionally filtered by month/year
+    # Use current date to determine default month_year for display
+    default_month_year = datetime.date.today().strftime('%Y-%m')
+    month_year_filter = request.args.get('month_year', default_month_year)
     
-    # Fetch budgets for the current user and selected month/year
-    # Using 'budgets_rel' from the backref name in the User model to avoid conflict
     budgets = Budget.query.filter_by(user_id=current_user.id, month_year=month_year_filter).all()
     
     # Get all expense categories for the budget creation form
     expense_categories = Category.query.filter_by(type='expense').all()
     
     # Calculate current month's expenses per category for the actual spending part
-    # This ensures that current_spent is always up-to-date for the display
+    # This ensures that even if a budget has 0 current_spent in the DB, it reflects actual spending
+    current_month_start_date_obj = datetime.datetime.strptime(month_year_filter, '%Y-%m').date().replace(day=1)
+    next_month_start_date_obj = (current_month_start_date_obj + relativedelta(months=1))
+    
     transactions_in_month = Transaction.query.filter(
         Transaction.user_id == current_user.id,
-        Transaction.date.like(f"{month_year_filter}-%"),
+        db.cast(Transaction.date, db.Date) >= current_month_start_date_obj,
+        db.cast(Transaction.date, db.Date) < next_month_start_date_obj,
         Transaction.type == 'expense'
     ).all()
     
@@ -1345,11 +1317,11 @@ def budgets_page():
         if t.category:
             current_month_expenses_by_category[t.category.id] = current_month_expenses_by_category.get(t.category.id, 0) + t.amount
 
-    # Update current_spent for budgets based on actual transactions before passing to template
+    # Update current_spent for budgets based on actual transactions
     for budget in budgets:
         budget.current_spent = current_month_expenses_by_category.get(budget.category_id, 0)
-        # Note: This does NOT commit to DB here. The actual DB update happens in transaction add/edit/delete.
-        # This is for display consistency only.
+        # No commit here, as it's just for display. The current_spent is updated
+        # permanently in add/edit/delete transaction functions.
 
     return render_template(
         'budgets.html',
@@ -1365,10 +1337,11 @@ def handle_add_budget():
     budget_amount = request.form['budget_amount']
     month_year = request.form['month_year']
 
-    # add_budget_db now handles updating if budget exists or adding if new
-    add_budget_db(current_user.id, category_id, budget_amount, month_year)
-    # Flash message handled within add_budget_db
-    return redirect(url_for('budgets_page'))
+    if add_budget_db(current_user.id, category_id, budget_amount, month_year):
+        flash('Orçamento adicionado/atualizado com sucesso!', 'success')
+    else:
+        flash('Erro ao adicionar/atualizar orçamento.', 'danger')
+    return redirect(url_for('budgets_page', month_year=month_year)) # Redirect back to the same month
 
 @app.route('/edit_budget/<int:budget_id>', methods=['POST'])
 @login_required
@@ -1389,37 +1362,8 @@ def handle_delete_budget(budget_id):
         flash('Erro ao excluir orçamento.', 'danger')
     return redirect(url_for('budgets_page'))
 
-# API endpoint to get budgets data for AI insight (optional, or reuse budgets_page logic)
-@app.route('/api/budgets', methods=['GET'])
-@login_required
-def get_api_budgets():
-    month_year_filter = request.args.get('month_year', datetime.date.today().strftime('%Y-%m'))
-    budgets = Budget.query.filter_by(user_id=current_user.id, month_year=month_year_filter).all()
-    
-    # Calculate current_spent for API response
-    transactions_in_month = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        Transaction.date.like(f"{month_year_filter}-%"),
-        Transaction.type == 'expense'
-    ).all()
-    current_month_expenses_by_category = {}
-    for t in transactions_in_month:
-        if t.category:
-            current_month_expenses_by_category[t.category.id] = current_month_expenses_by_category.get(t.category.id, 0) + t.amount
-
-    budgets_data = []
-    for budget in budgets:
-        budgets_data.append({
-            'id': budget.id,
-            'category_id': budget.category_id,
-            'category_name': budget.category.name,
-            'budget_amount': budget.budget_amount,
-            'month_year': budget.month_year,
-            'current_spent': current_month_expenses_by_category.get(budget.category_id, 0)
-        })
-    return jsonify({'budgets': budgets_data})
-
-@app.route('/goals')
+# --- NOVAS ROTAS PARA METAS ---
+@app.route('/goals', methods=['GET'])
 @login_required
 def goals_page():
     goals = Goal.query.filter_by(user_id=current_user.id).all()
@@ -1472,28 +1416,12 @@ def handle_contribute_to_goal(goal_id):
         flash('Erro ao contribuir para a meta.', 'danger')
     return redirect(url_for('goals_page'))
 
-# API endpoint to get goals data for AI insight (optional, or reuse goals_page logic)
-@app.route('/api/goals', methods=['GET'])
-@login_required
-def get_api_goals():
-    goals = Goal.query.filter_by(user_id=current_user.id).all()
-    goals_data = []
-    for goal in goals:
-        goals_data.append({
-            'id': goal.id,
-            'name': goal.name,
-            'target_amount': goal.target_amount,
-            'current_amount': goal.current_amount,
-            'due_date': goal.due_date,
-            'status': goal.status
-        })
-    return jsonify({'goals': goals_data})
-
 
 if __name__ == '__main__':
     with app.app_context():
         # APAGARA TODO O SEU BANCO DE DADOS A CADA INICIALIZAÇÃO!
         # Remova esta linha após a correção do esquema em produção.
+        # Para evitar perda de dados em produção, use Flask-Migrate (Alembic) para gerenciar migrações de esquema.
         # db.drop_all()  
         db.create_all()
 
@@ -1530,7 +1458,6 @@ if __name__ == '__main__':
             lazer_category = Category.query.filter_by(name='Lazer', type='expense').first()
             poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense').first()
 
-
             # Existing Bill examples (ensure they still work)
             if not Bill.query.filter_by(user_id=first_user.id, description='Aluguel Apartamento (Mestra)').first():
                 db.session.add(Bill(
@@ -1557,14 +1484,15 @@ if __name__ == '__main__':
                     category_id=contas_fixas_category.id if contas_fixas_category else None
                 ))
 
-            # New: Example Budgets
-            current_month_year = datetime.date.today().strftime('%Y-%m')
-            if alimentacao_category and not Budget.query.filter_by(user_id=first_user.id, category_id=alimentacao_category.id, month_year=current_month_year).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=alimentacao_category.id, budget_amount=500.00, month_year=current_month_year))
-            if lazer_category and not Budget.query.filter_by(user_id=first_user.id, category_id=lazer_category.id, month_year=current_month_year).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=lazer_category.id, budget_amount=200.00, month_year=current_month_year))
-            if contas_fixas_category and not Budget.query.filter_by(user_id=first_user.id, category_id=contas_fixas_category.id, month_year=current_month_year).first():
-                db.session.add(Budget(user_id=first_user.id, category_id=contas_fixas_category.id, budget_amount=2000.00, month_year=current_month_year))
+            # New: Example Budgets for current month (adjust month_year as needed)
+            current_month_for_examples = datetime.date.today().strftime('%Y-%m') # E.g., '2025-07'
+            
+            if alimentacao_category and not Budget.query.filter_by(user_id=first_user.id, category_id=alimentacao_category.id, month_year=current_month_for_examples).first():
+                db.session.add(Budget(user_id=first_user.id, category_id=alimentacao_category.id, budget_amount=500.00, month_year=current_month_for_examples))
+            if lazer_category and not Budget.query.filter_by(user_id=first_user.id, category_id=lazer_category.id, month_year=current_month_for_examples).first():
+                db.session.add(Budget(user_id=first_user.id, category_id=lazer_category.id, budget_amount=200.00, month_year=current_month_for_examples))
+            if contas_fixas_category and not Budget.query.filter_by(user_id=first_user.id, category_id=contas_fixas_category.id, month_year=current_month_for_examples).first():
+                db.session.add(Budget(user_id=first_user.id, category_id=contas_fixas_category.id, budget_amount=2000.00, month_year=current_month_for_examples))
 
             # New: Example Goals
             if not Goal.query.filter_by(user_id=first_user.id, name='Viagem para a Praia').first():
@@ -1574,7 +1502,6 @@ if __name__ == '__main__':
             
             db.session.commit()
             print("Contas e transações recorrentes mestras de exemplo, orçamentos e metas adicionados.")
-
 
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
