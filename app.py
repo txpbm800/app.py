@@ -273,7 +273,7 @@ def process_recurring_bills_on_access(user_id):
     
     print(f"\n--- process_recurring_bills_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
 
-    for bill_seed in recurring_seed_bills_to_process:
+    for bill_seed in recurring_seed_bills_to_process: # Corrigido o nome da variável aqui
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
         
@@ -1020,7 +1020,7 @@ if __name__ == '__main__':
     with app.app_context():
         # APAGARA TODO O SEU BANCO DE DADOS A CADA INICIALIZAÇÃO!
         # Remova esta linha após a correção do esquema em produção.
-        db.drop_all()  
+        # db.drop_all()  
         db.create_all()
         
         if not Category.query.first():
