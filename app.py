@@ -410,6 +410,7 @@ def delete_bill_db(bill_id, user_id):
             child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id).all()
             for child_bill in child_bills:
                 db.session.delete(child_bill)
+                print(f"DEBUG: Excluindo Bill filha: ID {child_bill.id}, Descrição: '{child_bill.description}'")
             print(f"DEBUG: Excluídas {len(child_bills)} contas filhas para a mestra '{bill.description}'.")
             
             # A própria conta mestra é então excluída abaixo.
