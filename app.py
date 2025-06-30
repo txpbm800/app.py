@@ -156,14 +156,14 @@ def _generate_future_recurring_bills(master_bill):
 
         # VERIFICAÇÃO DE DUPLICATAS MAIS PRECISA PARA EVITAR REGERAÇÃO APÓS DELETE
         existing_child_item = None
-        if master_bill.type == 'expense':
+        if master_bill.type == 'expense': # Apenas Bills de despesa geram Bills filhas
             existing_child_item = Bill.query.filter_by(
                 recurring_parent_id=master_bill.id,
                 dueDate=occurrence_date_for_child.isoformat(),
                 recurring_child_number=i, # IMPORTANTE: verifica se a CHILD_NUMBER já foi gerada para aquela data
                 user_id=master_bill.user_id
             ).first()
-        elif master_bill.type == 'income':
+        elif master_bill.type == 'income': # Apenas Bills de receita geram Transações filhas
             existing_child_item = Transaction.query.filter_by(
                 description=master_bill.description.replace(' (Mestra)', ''), # Usa a descrição da mestra
                 date=occurrence_date_for_child.isoformat(),
@@ -206,18 +206,19 @@ def _generate_future_recurring_bills(master_bill):
                 generated_count_for_master += 1
                 print(f"    Gerada Bill filha: {child_description} em {occurrence_date_for_child.isoformat()} com status {new_child_bill_status}") # Debug
             
-            elif master_bill.type == 'income': # Se a mestra é de receita, gera uma Transaction
-                new_generated_transaction = Transaction(
-                    description=child_description,
-                    amount=master_bill.amount,
-                    date=occurrence_date_for_child.isoformat(),
-                    type='income',
-                    user_id=master_bill.user_id,
-                    category_id=master_bill.category_id # Herda a categoria da mestra (agora Bill tem category_id)
-                )
-                db.session.add(new_generated_transaction)
-                generated_count_for_master += 1
-                print(f"    Gerada Transaction filha (Receita): {child_description} em {occurrence_date_for_child.isoformat()}") # Debug
+            # REMOVIDO: Lógica para gerar Transaction de income a partir de Bill mestra de income
+            # elif master_bill.type == 'income':
+            #     new_generated_transaction = Transaction(
+            #         description=child_description,
+            #         amount=master_bill.amount,
+            #         date=occurrence_date_for_child.isoformat(),
+            #         type='income',
+            #         user_id=master_bill.user_id,
+            #         category_id=master_bill.category_id
+            #     )
+            #     db.session.add(new_generated_transaction)
+            #     generated_count_for_master += 1
+            #     print(f"    Gerada Transaction filha (Receita): {child_description} em {occurrence_date_for_child.isoformat()}")
 
         else:
             print(f"    Bill/Transaction filha já existe para {master_bill.description}, ocorrência {i} em {occurrence_date_for_child.isoformat()}, pulando.") # Debug
@@ -243,7 +244,7 @@ def _generate_future_recurring_bills(master_bill):
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1) # Usa TODAY_DATE
         
         # Garante que a data não retroceda para indefinidos (se a calculated_date for anterior à start_date)
-        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date():
+        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date(): # Corrigido o nome da variável aqui
             final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
 
     master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
@@ -1093,84 +1094,67 @@ if __name__ == '__main__':
         if User.query.first():
             first_user = User.query.first()
             
-            if not Bill.query.filter(Bill.user_id==first_user.id, Bill.is_master_recurring_bill==True).first(): # Verifica se já existe uma Bill Mestra
-                salario_category = Category.query.filter_by(name='Salário', type='income').first()
-                contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
+            # REMOVIDO: Exemplo de Salário Mensal (Mestra) para focar apenas em despesas recorrentes
+            # if not Bill.query.filter(Bill.user_id==first_user.id, Bill.is_master_recurring_bill==True).first(): # Verifica se já existe uma Bill Mestra
+            #     salario_category = Category.query.filter_by(name='Salário', type='income').first()
+            contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
                 
-                # Exemplo 1: Salário Mensal (receita, é uma 'Bill' mestra que gerará transações de 'income')
-                db.session.add(Bill( 
-                    description='Salário Mensal (Mestra)', 
-                    amount=3000.00,
-                    dueDate='2024-01-01', # Data de início original (passado para gerar tudo)
-                    status='pending', 
-                    user_id=first_user.id,
-                    is_master_recurring_bill=True, 
-                    recurring_frequency='monthly',
-                    recurring_start_date='2024-01-01',
-                    recurring_next_due_date='2024-01-01', # Força a geração a partir do passado
-                    recurring_total_occurrences=0, # 0 para indefinido
-                    recurring_installments_generated=0,
-                    is_active_recurring=True,
-                    type='income',
-                    category_id=salario_category.id if salario_category else None # Adiciona categoria para a Bill mestra de receita
-                ))
+            # Exemplo 2: Aluguel Apartamento (despesa, recorrente mensal - GERA BILLS FILHAS)
+            db.session.add(Bill(
+                description='Aluguel Apartamento (Mestra)',
+                amount=1500.00,
+                dueDate='2024-01-05', # Data de início original
+                status='pending',
+                user_id=first_user.id,
+                is_master_recurring_bill=True,
+                recurring_frequency='monthly',
+                recurring_start_date='2024-01-05',
+                recurring_next_due_date='2024-01-05', # Força a geração para o mês atual/passado
+                recurring_total_occurrences=0,
+                recurring_installments_generated=0,
+                is_active_recurring=True,
+                type='expense',
+                category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
+            ))
+            
+            # Exemplo 3: Internet Fibra (despesa, recorrente mensal - GERA BILLS FILHAS)
+            db.session.add(Bill(
+                description='Internet Fibra (Mestra)',
+                amount=99.90,
+                dueDate='2024-01-10', # Data de início original
+                status='pending',
+                user_id=first_user.id,
+                is_master_recurring_bill=True,
+                recurring_frequency='monthly',
+                recurring_start_date='2024-01-10',
+                recurring_next_due_date='2024-01-10', # Força a geração para o mês atual/passado
+                recurring_total_occurrences=0,
+                recurring_installments_generated=0,
+                is_active_recurring=True,
+                type='expense',
+                category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
+            ))
 
-                # Exemplo 2: Aluguel Apartamento (despesa, recorrente mensal - GERA BILLS FILHAS)
-                db.session.add(Bill(
-                    description='Aluguel Apartamento (Mestra)',
-                    amount=1500.00,
-                    dueDate='2024-01-05', # Data de início original
-                    status='pending',
-                    user_id=first_user.id,
-                    is_master_recurring_bill=True,
-                    recurring_frequency='monthly',
-                    recurring_start_date='2024-01-05',
-                    recurring_next_due_date='2024-01-05', # Força a geração para o mês atual/passado
-                    recurring_total_occurrences=0,
-                    recurring_installments_generated=0,
-                    is_active_recurring=True,
-                    type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
-                ))
-                
-                # Exemplo 3: Internet Fibra (despesa, recorrente mensal - GERA BILLS FILHAS)
-                db.session.add(Bill(
-                    description='Internet Fibra (Mestra)',
-                    amount=99.90,
-                    dueDate='2024-01-10', # Data de início original
-                    status='pending',
-                    user_id=first_user.id,
-                    is_master_recurring_bill=True,
-                    recurring_frequency='monthly',
-                    recurring_start_date='2024-01-10',
-                    recurring_next_due_date='2024-01-10', # Força a geração para o mês atual/passado
-                    recurring_total_occurrences=0,
-                    recurring_installments_generated=0,
-                    is_active_recurring=True,
-                    type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
-                ))
-
-                # Exemplo 4: Compra Parcelada Tênis (despesa, parcelada - GERA BILLS SEQUENCIAIS)
-                db.session.add(Bill(
-                    description='Compra Parcelada Tênis (Mestra)', # Esta é a Bill "mestra" que gerará parcelas
-                    amount=100.00, # Valor de UMA parcela
-                    dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
-                    status='pending',
-                    user_id=first_user.id,
-                    is_master_recurring_bill=True,
-                    recurring_frequency='installments',
-                    recurring_start_date='2024-01-01',
-                    recurring_next_due_date='2024-01-01', # Força a geração da primeira parcela para o passado
-                    recurring_total_occurrences=5, # Total de 5 parcelas
-                    recurring_installments_generated=0, # Começa do zero para teste
-                    is_active_recurring=True,
-                    type='expense',
-                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
-                ))
-                
-                db.session.commit()
-                print("Contas e transações recorrentes mestras de exemplo adicionadas.")
+            # Exemplo 4: Compra Parcelada Tênis (despesa, parcelada - GERA BILLS SEQUENCIAIS)
+            db.session.add(Bill(
+                description='Compra Parcelada Tênis (Mestra)', # Esta é a Bill "mestra" que gerará parcelas
+                amount=100.00, # Valor de UMA parcela
+                dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
+                status='pending',
+                user_id=first_user.id,
+                is_master_recurring_bill=True,
+                recurring_frequency='installments',
+                recurring_start_date='2024-01-01',
+                recurring_next_due_date='2024-01-01', # Força a geração da primeira parcela para o passado
+                recurring_total_occurrences=5, # Total de 5 parcelas
+                recurring_installments_generated=0, # Começa do zero para teste
+                is_active_recurring=True,
+                type='expense',
+                category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
+            ))
+            
+            db.session.commit()
+            print("Contas e transações recorrentes mestras de exemplo adicionadas.")
 
 
     port = int(os.environ.get('PORT', 5000))
