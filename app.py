@@ -81,9 +81,6 @@ class Bill(db.Model):
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    # NOVO CAMPO ADICIONADO AQUI: category_id (para bills de receita recorrentes)
-    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
-    
     # NOVOS CAMPOS PARA RECORRÊNCIA E PARCELAMENTO (AGORA NA PRÓPRIA BILL)
     is_master_recurring_bill = db.Column(db.Boolean, default=False, nullable=False) # É uma conta recorrente (semente)?
     recurring_parent_id = db.Column(db.Integer, db.ForeignKey('bill.id'), nullable=True) # ID da Bill mestra (para Bills geradas)
@@ -284,7 +281,7 @@ def process_recurring_bills_on_access(user_id):
     # Não é necessário um flash message consolidado aqui.
 
 def add_bill_db(description, amount, due_date, user_id, 
-                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense', category_id=None): # Adicionado bill_type e category_id
+                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense'): # Adicionado bill_type
     
     # Validação para total de ocorrências
     if is_recurring and recurring_frequency == 'installments' and (recurring_total_occurrences is None or recurring_total_occurrences < 1):
@@ -298,7 +295,6 @@ def add_bill_db(description, amount, due_date, user_id,
         dueDate=due_date,
         status='pending',
         user_id=user_id,
-        category_id=category_id, # Adiciona o category_id aqui
         is_master_recurring_bill=is_recurring, # Usa o novo campo
         recurring_frequency=recurring_frequency if is_recurring else None,
         recurring_start_date=due_date if is_recurring else None, # Data de início é a primeira due_date
@@ -401,21 +397,26 @@ def delete_transaction_db(transaction_id, user_id):
         return True
     return False
 
-# CORRIGIDO: delete_bill_db para garantir a exclusão da conta mestra recorrente
+# MODIFICADA: delete_bill_db para lidar com recorrências mestras
 def delete_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
-        # Se a Bill é uma Bill recorrente "mestra"
+        # Se a Bill é uma Bill recorrente "mestra", desativa a recorrência e deleta Bills filhas pendentes
         if bill.is_master_recurring_bill:
-            # Deleta TODAS as Bills filhas pendentes geradas por esta recorrência mestra
+            bill.is_active_recurring = False
+            bill.recurring_next_due_date = bill.dueDate 
+            db.session.add(bill) 
+            
+            # Deletar todas as Bills PENDENTES geradas por esta recorrência mestra
             generated_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').all()
             for gen_bill in generated_bills:
                 db.session.delete(gen_bill)
-            print(f"Contas filhas pendentes da recorrência mestra '{bill.description}' ({len(generated_bills)}) excluídas.")
+            print(f"Recorrência mestra '{bill.description}' desativada e {len(generated_bills)} contas geradas pendentes excluídas.")
 
-        # Deleta a própria Bill (seja ela mestra, filha ou não recorrente).
-        # A linha `db.session.add(bill)` que estava causando o problema foi REMOVIDA.
-        db.session.delete(bill) 
+
+        # Se a Bill é uma ocorrência gerada por outra recorrência, apenas a deleta
+        # Se a Bill não é recorrente nem gerada por recorrência, apenas a deleta
+        db.session.delete(bill)
         db.session.commit()
         return True
     return False
@@ -434,14 +435,13 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
 
 # MODIFICADA: edit_bill_db para editar campos de recorrência
 def edit_bill_db(bill_id, description, amount, dueDate, user_id, 
-                 is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None): # Default updated and category_id
+                 is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense'): # Default updated
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
         bill.description = description
         bill.amount = float(amount)
         bill.dueDate = dueDate
         bill.type = bill_type # Atualiza o tipo da Bill
-        bill.category_id = category_id # Atualiza o category_id
 
         # Se esta Bill é uma Bill mestra (is_master_recurring_bill == True)
         if bill.is_master_recurring_bill: # Garante que só edita recorrência se a Bill é mestra
@@ -449,7 +449,6 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             old_is_active_recurring = bill.is_active_recurring
             old_frequency = bill.recurring_frequency
             old_total_occurrences = bill.recurring_total_occurrences
-            old_category_id = bill.category_id # Captura o old category_id
 
             bill.is_master_recurring_bill = is_recurring # Atualiza se deixou de ser mestra
             bill.is_active_recurring = is_active_recurring # Controla se a recorrência mestra está ativa
@@ -460,10 +459,9 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             # 1. A mestra foi ATIVADA (ou reativada)
             # 2. OU a frequência mudou (e ainda é recorrente)
             # 3. OU o total de ocorrências mudou (e ainda é recorrente)
-            # 4. OU a categoria mudou (importante para receitas recorrentes)
             if is_recurring and is_active_recurring and \
-               (not old_is_active_recurring or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences or old_category_id != category_id):
-                print(f"DEBUG: Editando Bill mestra '{bill.description}'. Parâmetros de recorrência/categoria alterados ou reativada. Regenerando futuras ocorrências.")
+               (not old_is_active_recurring or old_frequency != recurring_frequency or old_total_occurrences != recurring_total_occurrences):
+                print(f"DEBUG: Editando Bill mestra '{bill.description}'. Parâmetros de recorrência alterados ou reativada. Regenerando futuras ocorrências.")
                 _generate_future_recurring_bills(bill) # Esta função cuida da deleção e geração
 
             elif not is_recurring and old_is_active_recurring: # Se desativou a recorrência (agora não é mais 'is_recurring')
@@ -473,7 +471,6 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
                 bill.recurring_next_due_date = None # Limpa próxima data gerada
                 bill.recurring_total_occurrences = 0
                 bill.recurring_installments_generated = 0
-                bill.category_id = None # Limpa a categoria se não for mais recorrente
                 # Deleta futuras ocorrências pendentes
                 Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
                 print(f"DEBUG: Master Bill '{bill.description}' desativada, futuras Bills filhas deletadas.")
@@ -489,7 +486,6 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             bill.recurring_next_due_date = None
             bill.recurring_total_occurrences = 0
             bill.recurring_installments_generated = 0
-            bill.category_id = None # Garante que a categoria é nula se não for recorrente/mestra
             # Nenhuma ação sobre recurring_parent_id, pois ele linka para a mestra
 
         db.session.commit()
@@ -499,45 +495,39 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
 # MODIFIED: get_dashboard_data_db to show monthly values for income, expenses, and pending bills.
 def get_dashboard_data_db(user_id):
     current_month_start = datetime.date.today().replace(day=1).isoformat()
-    # Pega o primeiro dia do próximo mês para filtrar até o final do mês atual
     next_month_start = (datetime.date.today().replace(day=1) + relativedelta(months=1)).isoformat()
 
-    # Calcula o saldo total (acumulado)
+    # Calculate total balance (accumulated)
     all_transactions = Transaction.query.filter_by(user_id=user_id).all()
     total_income_overall = sum(t.amount for t in all_transactions if t.type == 'income')
     total_expenses_overall = sum(t.amount for t in all_transactions if t.type == 'expense')
     balance = total_income_overall - total_expenses_overall
 
-    # Calcula a receita do mês atual
-    monthly_transactions_query = Transaction.query.filter(
-        Transaction.user_id == user_id,
-        Transaction.date >= current_month_start,
-        Transaction.date < next_month_start
-    ).all()
-
+    # Calculate monthly income
     monthly_income = sum(
-        t.amount for t in monthly_transactions_query
-        if t.type == 'income'
+        t.amount for t in all_transactions
+        if t.type == 'income' and t.date >= current_month_start and t.date < next_month_start
     )
 
-    # Calcula as despesas do mês atual
+    # Calculate monthly expenses
     monthly_expenses = sum(
-        t.amount for t in monthly_transactions_query
-        if t.type == 'expense'
+        t.amount for t in all_transactions
+        if t.type == 'expense' and t.date >= current_month_start and t.date < next_month_start
     )
 
-    # Calcula as contas a pagar para o mês atual (incluindo as atrasadas)
-    # Considera Bills que NÃO são mestras de recorrência e que estão pendentes
+    # Calculate total pending bills for the current month (or future months if due date is later than today)
+    # We should consider all pending bills that have a due date in the current month or are overdue from previous months
+    # but for "current month's pending bills", let's consider bills due in the current month or overdue.
     all_pending_bills = Bill.query.filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
-        # Bill.is_master_recurring_bill == False # EXCLUÍDO: Agora mostra todas as bills
+        Bill.is_master_recurring_bill == False # Exclude master bills from pending bills list
     ).all()
 
     # Filter pending bills to only include those due in the current month or overdue from previous months
     monthly_pending_bills = [
         b for b in all_pending_bills
-        if (b.dueDate >= current_month_start and b.dueDate < next_month_start) # Vencem no mês atual
+        if b.dueDate >= current_month_start and b.dueDate < next_month_start
         or (b.dueDate < current_month_start and b.status == 'pending') # Include overdue bills
     ]
     total_pending_bills_amount_monthly = sum(b.amount for b in monthly_pending_bills)
@@ -607,11 +597,11 @@ def index():
     expense_transactions = [t for t in all_transactions if t.type == 'expense']
 
 
-    # Bills a serem exibidas: Agora TODAS as bills são exibidas, incluindo as mestras.
-    # A exclusão de uma bill mestra agora a remove completamente, bem como suas filhas pendentes.
+    # Bills a serem exibidas: apenas as Bills que NÃO são mestras de recorrência
+    # (ou seja, são Bills criadas manualmente ou Bills filhas geradas).
     bills_query_obj = Bill.query.filter( 
-        Bill.user_id == current_user.id
-        # Filtro 'is_master_recurring_bill == False' REMOVIDO daqui.
+        Bill.user_id == current_user.id,
+        Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
     )
 
     bill_status_filter = request.args.get('bill_status')
@@ -664,11 +654,373 @@ def index():
         current_category_filter=category_filter_id
     )
 
+@app.route('/add_transaction', methods=['POST'])
+@login_required
+def handle_add_transaction():
+    description = request.form['description']
+    amount = request.form['amount']
+    date = request.form['date']
+    transaction_type = request.form['type']
+    category_id = request.form.get('category_id', type=int)
+
+    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id)
+    flash('Transação adicionada com sucesso!', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/add_bill', methods=['POST'])
+@login_required
+def handle_add_bill():
+    description = request.form['bill_description']
+    amount = request.form['bill_amount']
+    due_date = request.form['bill_due_date']
+    
+    is_recurring = request.form.get('is_recurring_bill') == 'on' # Checkbox retorna 'on' ou None
+    recurring_frequency = request.form.get('recurring_frequency_bill')
+    recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int) # NOVO: Total de ocorrências
+    bill_type = request.form['bill_type'] # Pega o tipo (expense/income) do formulário
+
+    add_bill_db(description, amount, due_date, current_user.id, 
+                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type) # Passa o total de ocorrências
+    flash('Conta adicionada com sucesso!', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/pay_bill/<int:bill_id>', methods=['POST'])
+@login_required
+def handle_pay_bill(bill_id):
+    if pay_bill_db(bill_id, current_user.id):
+        flash('Conta paga e transação registrada com sucesso!', 'success')
+    else:
+        flash('Não foi possível pagar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/reschedule_bill/<int:bill_id>', methods=['POST'])
+@login_required
+def handle_reschedule_bill(bill_id):
+    new_date = request.form['new_date']
+    if reschedule_bill_db(bill_id, new_date, current_user.id):
+        flash('Conta remarcada com sucesso!', 'success')
+    else:
+        flash('Não foi possível remarcar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
+@login_required
+def handle_delete_transaction(transaction_id):
+    if delete_transaction_db(transaction_id, current_user.id):
+        flash('Transação excluída com sucesso!', 'info')
+    else:
+        flash('Não foi possível excluir a transação. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/delete_bill/<int:bill_id>', methods=['POST'])
+@login_required
+def handle_delete_bill(bill_id):
+    if delete_bill_db(bill_id, current_user.id):
+        flash('Conta excluída com sucesso!', 'info')
+    else:
+        flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/get_transaction_data/<int:transaction_id>', methods=['GET'])
+@login_required
+def get_transaction_data(transaction_id):
+    transaction = Transaction.query.filter_by(id=transaction_id, user_id=current_user.id).first()
+    if transaction:
+        return jsonify({
+            'id': transaction.id,
+            'description': transaction.description,
+            'amount': transaction.amount,
+            'date': transaction.date,
+            'type': transaction.type,
+            'category_id': transaction.category_id
+        })
+    return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
+
+@app.route('/edit_transaction/<int:transaction_id>', methods=['POST'])
+@login_required
+def handle_edit_transaction(transaction_id):
+    description = request.form['edit_description']
+    amount = request.form['edit_amount']
+    date = request.form['edit_date']
+    transaction_type = request.form['edit_type']
+    category_id = request.form.get('edit_category_id', type=int)
+
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id):
+        flash('Transação atualizada com sucesso!', 'success')
+    else:
+        flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+@app.route('/get_bill_data/<int:bill_id>', methods=['GET'])
+@login_required
+def get_bill_data(bill_id):
+    bill = Bill.query.filter_by(id=bill_id, user_id=current_user.id).first()
+    if bill:
+        return jsonify({
+            'id': bill.id,
+            'description': bill.description,
+            'amount': bill.amount,
+            'dueDate': bill.dueDate,
+            'status': bill.status,
+            'is_master_recurring_bill': bill.is_master_recurring_bill,
+            'recurring_parent_id': bill.recurring_parent_id,
+            'recurring_child_number': bill.recurring_child_number,
+            'recurring_frequency': bill.recurring_frequency,
+            'recurring_start_date': bill.recurring_start_date,
+            'recurring_next_due_date': bill.recurring_next_due_date,
+            'recurring_total_occurrences': bill.recurring_total_occurrences,
+            'recurring_installments_generated': bill.recurring_installments_generated,
+            'is_active_recurring': bill.is_active_recurring,
+            'type': bill.type
+        })
+    return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+
+@app.route('/edit_bill/<int:bill_id>', methods=['POST'])
+@login_required
+def handle_edit_bill(bill_id):
+    description = request.form['edit_bill_description']
+    amount = request.form['edit_bill_amount']
+    due_date = request.form['edit_bill_dueDate']
+    
+    is_recurring = request.form.get('edit_is_recurring_bill') == 'on'
+    recurring_frequency = request.form.get('edit_recurring_frequency_bill')
+    recurring_total_occurrences = request.form.get('edit_recurring_total_occurrences_bill', type=int)
+    is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
+    bill_type = request.form['edit_bill_type']
+
+    if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
+                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type):
+        flash('Conta atualizada com sucesso!', 'success')
+    else:
+        flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('index'))
+
+
+# --- ROTAS DE AUTENTICAÇÃO E GERENCIAMENTO DE USUÁRIO ---
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        existing_user = User.query.filter_by(username=username).first()
+        if existing_user:
+            flash('Nome de usuário já existe. Por favor, escolha outro.', 'danger')
+        else:
+            new_user = User(username=username)
+            new_user.set_password(password)
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Conta criada com sucesso! Faça login.', 'success')
+            return redirect(url_for('login'))
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            login_user(user)
+            flash('Login realizado com sucesso!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Nome de usuário ou senha incorretos.', 'danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    flash('Você foi desconectado.', 'info')
+    return redirect(url_for('login'))
+
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html', current_user=current_user)
+
+@app.route('/change_password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        old_password = request.form['old_password']
+        new_password = request.form['new_password']
+        confirm_new_password = request.form['confirm_new_password']
+
+        if not current_user.check_password(old_password):
+            flash('Senha antiga incorreta.', 'danger')
+        elif new_password != confirm_new_password:
+            flash('A nova senha e a confirmação não coincidem.', 'danger')
+        else:
+            current_user.set_password(new_password)
+            db.session.commit()
+            flash('Senha alterada com sucesso!', 'success')
+            return redirect(url_for('profile'))
+    return render_template('change_password.html')
+
+@app.route('/delete_account', methods=['GET', 'POST'])
+@login_required
+def delete_account():
+    if request.method == 'POST':
+        confirm_password = request.form['confirm_password']
+
+        if current_user.check_password(confirm_password):
+            user_to_delete = User.query.get(current_user.id)
+            if user_to_delete:
+                logout_user()
+                db.session.delete(user_to_delete)
+                db.session.commit()
+                flash('Sua conta foi excluída permanentemente.', 'success')
+                return redirect(url_for('register'))
+            else:
+                flash('Erro ao encontrar sua conta.', 'danger')
+        else:
+            flash('Senha incorreta.', 'danger')
+    return render_template('delete_account.html')
+
+@app.route('/profile/monthly_summary', methods=['GET'])
+@login_required
+def get_monthly_summary():
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+
+    if not year or not month:
+        current_date = datetime.date.today()
+        year = current_date.year
+        month = current_date.month
+
+    target_month_str = f"{year}-{month:02d}"
+
+    monthly_transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.date.like(f"{target_month_str}-%")
+    ).all()
+
+    monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
+    monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
+    monthly_balance = monthly_income - monthly_expenses
+    
+    return jsonify({
+        'year': year,
+        'month': month,
+        'income': monthly_income,
+        'expenses': monthly_expenses,
+        'balance': monthly_balance,
+        'transactions_details': [
+            {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date,
+             'category': t.category.name if t.category else 'Sem Categoria'}
+            for t in monthly_transactions
+        ]
+    })
+
+@app.route('/profile/ai_insight', methods=['POST'])
+@login_required
+def get_ai_insight():
+    data = request.get_json()
+    monthly_summary = data.get('summary_data')
+    
+    if not monthly_summary:
+        return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
+
+    prompt = (
+        f"Com base nos seguintes dados financeiros de um mês específico: "
+        f"Receita Total: R${monthly_summary['income']:.2f}, "
+        f"Despesa Total: R${monthly_summary['expenses']:.2f}, "
+        f"Saldo Mensal: R${monthly_summary['balance']:.2f}. "
+        f"Detalhes das transações (descrição, valor, tipo, data, categoria): {monthly_summary['transactions_details']}. "
+        f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
+        f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
+        f"Use uma linguagem amigável e direta em português. "
+        f"Seja conciso, com no máximo 100 palavras. "
+        f"Não inclua 'Olá!' ou saudações, vá direto ao ponto."
+    )
+
+    ai_text = generate_text_with_gemini(prompt)
+    return jsonify({'insight': ai_text})
+
+@app.route('/profile/update_picture', methods=['POST'])
+@login_required
+def update_profile_picture():
+    picture_url = request.form['profile_picture_url']
+    current_user.profile_picture_url = picture_url
+    db.session.commit()
+    flash('Foto de perfil atualizada com sucesso!', 'success')
+    return redirect(url_for('profile'))
+
+@app.route('/get_chart_data', methods=['GET'])
+@login_required
+def get_chart_data():
+    user_id = current_user.id
+    
+    today = datetime.date.today()
+    
+    month_labels = []
+    monthly_income_data = {}
+    monthly_expenses_data = {}
+
+    for i in range(6, -1, -1): # Últimos 7 meses (mês atual + 6 anteriores)
+        target_month = today.month - i
+        target_year = today.year
+        while target_month <= 0:
+            target_month += 12
+            target_year -= 1
+        
+        month_name = datetime.date(target_year, target_month, 1).strftime('%b/%Y')
+        month_labels.append(month_name)
+        
+        target_month_str = f"{target_year}-{target_month:02d}"
+        transactions_in_month = Transaction.query.filter(
+            Transaction.user_id == user_id,
+            Transaction.date.like(f"{target_month_str}-%")
+        ).all()
+        
+        monthly_income_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'income')
+        monthly_expenses_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'expense')
+
+    monthly_overview_chart_data = {
+        'labels': month_labels,
+        'income': [monthly_income_data[m] for m in month_labels],
+        'expenses': [monthly_expenses_data[m] for m in month_labels]
+    }
+
+    expenses_by_category = {}
+    
+    current_year_str = str(today.year)
+    current_year_transactions = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date.like(f"{current_year_str}-%"),
+        Transaction.type == 'expense'
+    ).all()
+
+    for transaction in current_year_transactions:
+        category_name = transaction.category.name if transaction.category else 'Sem Categoria'
+        expenses_by_category[category_name] = expenses_by_category.get(category_name, 0) + transaction.amount
+
+    expenses_by_category_chart_data = {
+        'labels': list(expenses_by_category.keys()),
+        'values': list(expenses_by_category.values())
+    }
+
+    return jsonify({
+        'monthly_summary': monthly_overview_chart_data,
+        'expenses_by_category': expenses_by_category_chart_data
+    })
+
+
 if __name__ == '__main__':
     with app.app_context():
-        # ATENÇÃO: A linha abaixo APAGARÁ TODO O SEU BANCO DE DADOS A CADA INICIALIZAÇÃO!
-        # Remova esta linha (db.drop_all()) após configurar seu esquema em produção
-        # para preservar seus dados.
+        # APAGARA TODO O SEU BANCO DE DADOS A CADA INICIALIZAÇÃO!
+        # Remova esta linha após a correção do esquema em produção.
         db.drop_all()  
         db.create_all()
         
@@ -696,11 +1048,10 @@ if __name__ == '__main__':
 
         if User.query.first():
             first_user = User.query.first()
-            salario_category = Category.query.filter_by(name='Salário', type='income').first()
-            contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first() # Ensure this is defined for expense examples
             
-            # Aqui no if de exemplo de bills, o `category_id` deve ser passado também
             if not Bill.query.filter(Bill.user_id==first_user.id, Bill.is_master_recurring_bill==True).first(): # Verifica se já existe uma Bill Mestra
+                salario_category = Category.query.filter_by(name='Salário', type='income').first()
+                contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first()
                 
                 # Exemplo 1: Salário Mensal (receita, é uma 'Bill' mestra que gerará transações de 'income')
                 db.session.add(Bill( 
@@ -709,7 +1060,6 @@ if __name__ == '__main__':
                     dueDate='2024-01-01', # Data de início original (passado para gerar tudo)
                     status='pending', 
                     user_id=first_user.id,
-                    category_id=salario_category.id if salario_category else None, # ATENÇÃO: Adicionado category_id aqui!
                     is_master_recurring_bill=True, 
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-01',
@@ -727,7 +1077,6 @@ if __name__ == '__main__':
                     dueDate='2024-01-05', # Data de início original
                     status='pending',
                     user_id=first_user.id,
-                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id para despesa recorrente
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-05',
@@ -745,7 +1094,6 @@ if __name__ == '__main__':
                     dueDate='2024-01-10', # Data de início original
                     status='pending',
                     user_id=first_user.id,
-                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-10',
@@ -763,7 +1111,6 @@ if __name__ == '__main__':
                     dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
                     status='pending',
                     user_id=first_user.id,
-                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id
                     is_master_recurring_bill=True,
                     recurring_frequency='installments',
                     recurring_start_date='2024-01-01',
