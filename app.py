@@ -163,7 +163,7 @@ def _generate_future_recurring_bills(master_bill):
                 user_id=master_bill.user_id
             ).first()
         elif master_bill.type == 'income':
-             existing_child_item = Transaction.query.filter_by(
+            existing_child_item = Transaction.query.filter_by(
                 description=master_bill.description.replace(' (Mestra)', ''), # Usa a descrição da mestra
                 date=occurrence_date_for_child.isoformat(),
                 type='income',
@@ -190,8 +190,8 @@ def _generate_future_recurring_bills(master_bill):
                     dueDate=occurrence_date_for_child.isoformat(),
                     status=new_child_bill_status, # Status definido aqui
                     user_id=master_bill.user_id,
-                    recurring_parent_id=master_bill.id,      # Link para a Bill mestra
-                    recurring_child_number=i,                # Número da ocorrência gerada
+                    recurring_parent_id=master_bill.id,       # Link para a Bill mestra
+                    recurring_child_number=i,               # Número da ocorrência gerada
                     is_master_recurring_bill=False, # A Bill filha NÃO é mestra
                     recurring_frequency=None, # Não aplicável para filhas
                     recurring_start_date=None, # Não aplicável para filhas
@@ -243,7 +243,7 @@ def _generate_future_recurring_bills(master_bill):
         
         # Garante que a data não retroceda para indefinidos (se a calculated_date for anterior à start_date)
         if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date():
-             final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
+            final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
 
     master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
     print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' atualizado para o fim da geração em massa: {master_bill.recurring_next_due_date}")
@@ -274,7 +274,7 @@ def process_recurring_bills_on_access(user_id):
     print(f"\n--- process_recurring_bills_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
 
     for bill_seed in recurring_seed_bills_to_process:
-        print(f"  Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
+        print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
         
     # Mensagens flash já são emitidas por _generate_future_recurring_bills.
@@ -401,21 +401,20 @@ def delete_transaction_db(transaction_id, user_id):
 def delete_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
-        # Se a Bill é uma Bill recorrente "mestra", desativa a recorrência e deleta Bills filhas pendentes
+        # Se a Bill é uma Bill recorrente "mestra", primeiro exclua todas as suas contas filhas associadas.
+        # Isso garante uma remoção limpa de todas as ocorrências relacionadas.
         if bill.is_master_recurring_bill:
-            bill.is_active_recurring = False
-            bill.recurring_next_due_date = bill.dueDate 
-            db.session.add(bill) 
+            # Exclui todas as contas filhas (pendentes e pagas) vinculadas a esta conta mestra.
+            # Isso é crucial para uma remoção completa da série recorrente.
+            child_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id).all()
+            for child_bill in child_bills:
+                db.session.delete(child_bill)
+            print(f"DEBUG: Excluídas {len(child_bills)} contas filhas para a mestra '{bill.description}'.")
             
-            # Deletar todas as Bills PENDENTES geradas por esta recorrência mestra
-            generated_bills = Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').all()
-            for gen_bill in generated_bills:
-                db.session.delete(gen_bill)
-            print(f"Recorrência mestra '{bill.description}' desativada e {len(generated_bills)} contas geradas pendentes excluídas.")
-
-
-        # Se a Bill é uma ocorrência gerada por outra recorrência, apenas a deleta
-        # Se a Bill não é recorrente nem gerada por recorrência, apenas a deleta
+            # A própria conta mestra é então excluída abaixo.
+            print(f"DEBUG: Conta mestra recorrente '{bill.description}' (ID: {bill.id}) e suas filhas marcadas para exclusão.")
+        
+        # Exclui a própria conta (seja ela mestra, filha ou uma conta não recorrente).
         db.session.delete(bill)
         db.session.commit()
         return True
@@ -435,7 +434,7 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
 
 # MODIFICADA: edit_bill_db para editar campos de recorrência
 def edit_bill_db(bill_id, description, amount, dueDate, user_id, 
-                 is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense'): # Default updated
+                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense'): # Default updated
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
         bill.description = description
