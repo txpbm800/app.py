@@ -93,6 +93,7 @@ class Bill(db.Model):
     recurring_installments_generated = db.Column(db.Integer, nullable=True, default=0) # Quantas parcelas já foram geradas/pagas
     is_active_recurring = db.Column(db.Boolean, default=False, nullable=False) # A recorrência ainda está ativa para gerar mais?
     type = db.Column(db.String(10), nullable=False, default='expense') # Tipo da Bill (expense ou income)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True) # NOVO CAMPO: Para Bills mestras de receita
 
     def __repr__(self):
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
@@ -212,7 +213,7 @@ def _generate_future_recurring_bills(master_bill):
                     date=occurrence_date_for_child.isoformat(),
                     type='income',
                     user_id=master_bill.user_id,
-                    category_id=master_bill.category_id # Herda a categoria da mestra
+                    category_id=master_bill.category_id # Herda a categoria da mestra (agora Bill tem category_id)
                 )
                 db.session.add(new_generated_transaction)
                 generated_count_for_master += 1
@@ -273,7 +274,7 @@ def process_recurring_bills_on_access(user_id):
     
     print(f"\n--- process_recurring_bills_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
 
-    for bill_seed in recurring_seed_bills_to_process: # Corrigido o nome da variável aqui
+    for bill_seed in recurring_seed_bills_to_process:
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
         
@@ -281,7 +282,7 @@ def process_recurring_bills_on_access(user_id):
     # Não é necessário um flash message consolidado aqui.
 
 def add_bill_db(description, amount, due_date, user_id, 
-                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense'): # Adicionado bill_type
+                is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense', category_id=None): # Adicionado bill_type e category_id
     
     # Validação para total de ocorrências
     if is_recurring and recurring_frequency == 'installments' and (recurring_total_occurrences is None or recurring_total_occurrences < 1):
@@ -302,7 +303,8 @@ def add_bill_db(description, amount, due_date, user_id,
         recurring_total_occurrences=recurring_total_occurrences,
         recurring_installments_generated=0, # Inicia com 0 geradas
         is_active_recurring=is_recurring, # Ativa se for recorrente
-        type=bill_type # Salva o tipo da Bill
+        type=bill_type, # Salva o tipo da Bill
+        category_id=category_id # Salva a categoria para a Bill (especialmente se for receita recorrente)
     )
     db.session.add(new_bill)
     db.session.commit() # Comita imediatamente para obter o ID da new_bill (essencial para recurring_parent_id)
@@ -438,13 +440,14 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
 
 # MODIFICADA: edit_bill_db para editar campos de recorrência
 def edit_bill_db(bill_id, description, amount, dueDate, user_id, 
-                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense'): # Default updated
+                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None): # Adicionado category_id
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
         bill.description = description
         bill.amount = float(amount)
         bill.dueDate = dueDate
         bill.type = bill_type # Atualiza o tipo da Bill
+        bill.category_id = category_id # Salva a categoria para a Bill (especialmente se for receita recorrente)
 
         # Se esta Bill é uma Bill mestra (is_master_recurring_bill == True)
         if bill.is_master_recurring_bill: # Garante que só edita recorrência se a Bill é mestra
@@ -681,9 +684,10 @@ def handle_add_bill():
     recurring_frequency = request.form.get('recurring_frequency_bill')
     recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int) # NOVO: Total de ocorrências
     bill_type = request.form['bill_type'] # Pega o tipo (expense/income) do formulário
+    category_id = request.form.get('bill_category_id', type=int) # NOVO: Pega a categoria para a bill recorrente
 
     add_bill_db(description, amount, due_date, current_user.id, 
-                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type) # Passa o total de ocorrências
+                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id) # Passa o total de ocorrências e category_id
     flash('Conta adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -774,7 +778,8 @@ def get_bill_data(bill_id):
             'recurring_total_occurrences': bill.recurring_total_occurrences,
             'recurring_installments_generated': bill.recurring_installments_generated,
             'is_active_recurring': bill.is_active_recurring,
-            'type': bill.type
+            'type': bill.type,
+            'category_id': bill.category_id # NOVO: Retorna o category_id
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -790,9 +795,10 @@ def handle_edit_bill(bill_id):
     recurring_total_occurrences = request.form.get('edit_recurring_total_occurrences_bill', type=int)
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
+    category_id = request.form.get('edit_bill_category_id', type=int) # NOVO: Pega a categoria para a bill recorrente
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
-                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type):
+                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id): # Passa category_id
         flash('Conta atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
@@ -1073,7 +1079,8 @@ if __name__ == '__main__':
                     recurring_total_occurrences=0, # 0 para indefinido
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='income' 
+                    type='income',
+                    category_id=salario_category.id if salario_category else None # Adiciona categoria para a Bill mestra de receita
                 ))
 
                 # Exemplo 2: Aluguel Apartamento (despesa, recorrente mensal - GERA BILLS FILHAS)
@@ -1090,7 +1097,8 @@ if __name__ == '__main__':
                     recurring_total_occurrences=0,
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense',
+                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
                 ))
                 
                 # Exemplo 3: Internet Fibra (despesa, recorrente mensal - GERA BILLS FILHAS)
@@ -1107,7 +1115,8 @@ if __name__ == '__main__':
                     recurring_total_occurrences=0,
                     recurring_installments_generated=0,
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense',
+                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
                 ))
 
                 # Exemplo 4: Compra Parcelada Tênis (despesa, parcelada - GERA BILLS SEQUENCIAIS)
@@ -1124,7 +1133,8 @@ if __name__ == '__main__':
                     recurring_total_occurrences=5, # Total de 5 parcelas
                     recurring_installments_generated=0, # Começa do zero para teste
                     is_active_recurring=True,
-                    type='expense'
+                    type='expense',
+                    category_id=contas_fixas_category.id if contas_fixas_category else None # Adiciona categoria para a Bill mestra de despesa
                 ))
                 
                 db.session.commit()
