@@ -911,4 +911,176 @@
             }
 
             // NOVO: Função para esconder/mostrar campos de recorrência no MODAL DE EDIÇÃO DE CONTA
-            // Modificado para aceitar o 'data' diretamente para pré-popu
+            // Modificado para aceitar o 'data' diretamente para pré-popular categorias
+            async function toggleBillRecurringFieldsEdit(data = {}) { // Adicionado 'data' como parâmetro opcional
+                const isRecurringCheckbox = document.getElementById('edit_is_recurring_bill');
+                const recurringFieldsDiv = document.getElementById('edit_bill_recurring_fields');
+                const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
+                const installmentsTotalField = document.getElementById('edit_bill_total_occurrences_field'); 
+                const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
+                const recurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); 
+                const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
+                const editBillTypeSelect = document.getElementById('edit_bill_type'); 
+                const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
+
+
+                if (isRecurringCheckbox.checked) {
+                    recurringFieldsDiv.classList.remove('hidden');
+                    recurringFrequencySelect.setAttribute('required', 'true');
+                    isActiveRecurringCheckbox.parentElement.classList.remove('hidden');
+                    
+                    // Inicializa a label e placeholder na carga inicial/ativação
+                    updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
+
+                    // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
+                    filterCategoriesByType(editBillTypeSelect.value, editBillCategoryRecurringSelect.id, data.category_id);
+
+                } else {
+                    recurringFieldsDiv.classList.add('hidden');
+                    recurringFrequencySelect.removeAttribute('required');
+                    installmentsTotalField.classList.add('hidden');
+                    installmentsTotalInput.removeAttribute('required');
+                    isActiveRecurringCheckbox.parentElement.classList.add('hidden');
+                    // Limpar a seleção de categoria se a recorrência for desativada
+                    editBillCategoryRecurringSelect.value = "";
+                }
+            }
+
+            // NOVA FUNÇÃO: Atualiza a label e placeholder do campo "Total de Ocorrências"
+            function updateRecurringOccurrenceLabel(frequencySelectId, labelId, inputId) {
+                const frequencySelect = document.getElementById(frequencySelectId);
+                const label = document.getElementById(labelId);
+                const input = document.getElementById(inputId);
+
+                if (!frequencySelect || !label || !input) return;
+
+                if (frequencySelect.value === 'installments') {
+                    label.textContent = 'Total de Parcelas';
+                    input.placeholder = 'Ex: 12';
+                    input.min = '1'; // Parcelas devem ser no mínimo 1
+                    input.setAttribute('required', 'true');
+                    input.parentElement.classList.remove('hidden'); // Garante que o campo esteja visível
+                } else {
+                    label.textContent = 'Total de Ocorrências (0 para Indefinido)';
+                    input.placeholder = '0 para Indefinido';
+                    input.min = '0'; // 0 para indefinido
+                    input.removeAttribute('required');
+                    // Ocultar o campo se não for de interesse para frequências fixas
+                    // if (input.parentElement.classList.contains('hidden')) { // Só remove se já estava hidden
+                        input.parentElement.classList.remove('hidden'); // Melhor sempre mostrar, mas com placeholder informativo
+                    // }
+                }
+            }
+
+
+            async function openEditModal(type, id) {
+                editModal.classList.add('active');
+
+                editTransactionForm.classList.add('hidden');
+                editBillForm.classList.add('hidden');
+
+                try {
+                    let url;
+                    if (type === 'transaction') {
+                        url = `/get_transaction_data/${id}`;
+                        editModalTitle.textContent = 'Editar Transação';
+                    } else if (type === 'bill') {
+                        url = `/get_bill_data/${id}`;
+                        editModalTitle.textContent = 'Editar Conta';
+                    }
+
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+
+                    if (type === 'transaction') {
+                        document.getElementById('edit_transaction_id').value = data.id;
+                        document.getElementById('edit_description').value = data.description;
+                        document.getElementById('edit_amount').value = data.amount;
+                        document.getElementById('edit_date').value = data.date;
+                        document.getElementById('edit_type').value = data.type; // Set transaction type
+                        
+                        // Populate categories for transactions
+                        filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
+
+                        editTransactionForm.action = `/edit_transaction/${data.id}`;
+                        editTransactionForm.classList.remove('hidden');
+                    } else if (type === 'bill') {
+                        document.getElementById('edit_bill_id').value = data.id;
+                        document.getElementById('edit_bill_description').value = data.description;
+                        document.getElementById('edit_bill_amount').value = data.amount;
+                        document.getElementById('edit_bill_dueDate').value = data.dueDate;
+                        
+                        // Preenche campos de recorrência no modal de edição de Bill
+                        const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
+                        const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
+                        const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
+                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
+                        const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
+                        const editBillTypeSelect = document.getElementById('edit_bill_type'); 
+                        const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
+
+                        editBillTypeSelect.value = data.type; 
+                        editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; 
+                        editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
+                        editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; 
+                        editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
+
+                        // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
+                        filterCategoriesByType(data.type, editBillCategoryRecurringSelect.id, data.category_id);
+
+                        // Garante que a visibilidade dos campos de recorrência e parcelas seja atualizada
+                        toggleBillRecurringFieldsEdit(data); // Passa 'data' para preencher categorias corretamente
+                        // Garante que a label e placeholder são atualizados
+                        updateRecurringOccurrenceLabel(editRecurringFrequencyBillSelect.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
+
+                        // Adiciona event listeners dinamicamente para o modal de edição
+                        editIsRecurringBillCheckbox.onchange = () => toggleBillRecurringFieldsEdit(data); 
+                        editRecurringFrequencyBillSelect.onchange = (event) => { 
+                            updateRecurringOccurrenceLabel(event.target.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
+                            toggleBillRecurringFieldsEdit(data); 
+                        };
+                        editBillTypeSelect.onchange = (event) => { 
+                            filterCategoriesByType(event.target.value, editBillCategoryRecurringSelect.id, data.category_id); // Re-filtra as categorias aqui
+                            toggleBillRecurringFieldsEdit(data);
+                        };
+                        
+                        editBillForm.action = `/edit_bill/${data.id}`;
+                        editBillForm.classList.remove('hidden');
+                    }
+
+                } catch (error) {
+                    console.error('Erro ao buscar dados para edição:', error);
+                    alert('Não foi possível carregar os dados para edição.');
+                    closeEditModal();
+                }
+            }
+
+            function closeEditModal() {
+                editModal.classList.remove('active');
+                // Remove o listener onchange do modal de edição da conta para evitar múltiplos listeners
+                // É crucial limpar os listeners adicionados dinamicamente para evitar comportamentos inesperados
+                const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
+                if (editRecurringFrequencyBillSelect) {
+                    editRecurringFrequencyBillSelect.onchange = null; 
+                }
+                const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
+                if (editIsRecurringBillCheckbox) {
+                    editIsRecurringBillCheckbox.onchange = null;
+                }
+                const editBillTypeSelect = document.getElementById('edit_bill_type');
+                if (editBillTypeSelect) {
+                    editBillTypeSelect.onchange = null;
+                }
+            }
+
+            window.onclick = function(event) {
+                if (event.target == editModal) {
+                    closeEditModal();
+                }
+            }
+        </script>
+    </body>
+</html>
