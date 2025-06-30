@@ -244,7 +244,7 @@ def _generate_future_recurring_bills(master_bill):
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1) # Usa TODAY_DATE
         
         # Garante que a data não retroceda para indefinidos (se a calculated_date for anterior à start_date)
-        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date():
+        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date(): # <<<<<< CORREÇÃO AQUI
              final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
 
     master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
@@ -509,7 +509,7 @@ def get_dashboard_data_db(user_id):
     monthly_income_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
         Transaction.type == 'income',
-        db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str
+        db.func.strftime('%Y-%m', db.cast(Transaction.date, db.Date)) == current_month_year_str # Casting para DATE
     ).all()
     total_income_current_month = sum(t.amount for t in monthly_income_transactions)
 
@@ -517,7 +517,7 @@ def get_dashboard_data_db(user_id):
     monthly_expense_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
         Transaction.type == 'expense',
-        db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str
+        db.func.strftime('%Y-%m', db.cast(Transaction.date, db.Date)) == current_month_year_str # Casting para DATE
     ).all()
     total_expenses_current_month = sum(t.amount for t in monthly_expense_transactions)
 
@@ -527,7 +527,7 @@ def get_dashboard_data_db(user_id):
         Bill.user_id == user_id,
         Bill.is_master_recurring_bill == False,
         Bill.status == 'pending',
-        db.func.strftime('%Y-%m', Bill.dueDate) == current_month_year_str
+        db.func.strftime('%Y-%m', db.cast(Bill.dueDate, db.Date)) == current_month_year_str # Casting para DATE
     ).all()
     total_pending_bills_current_month_amount = sum(b.amount for b in pending_bills_current_month)
     
@@ -563,7 +563,7 @@ def index():
 
     # --- NOVO: FILTRO POR MÊS ATUAL PARA ÚLTIMAS TRANSAÇÕES EXIBIDAS NA LISTA ---
     current_month_year_str = datetime.date.today().strftime('%Y-%m')
-    transactions_query_obj = transactions_query_obj.filter(db.func.strftime('%Y-%m', Transaction.date) == current_month_year_str)
+    transactions_query_obj = transactions_query_obj.filter(db.func.strftime('%Y-%m', db.cast(Transaction.date, db.Date)) == current_month_year_str)
 
 
     transaction_type_filter = request.args.get('transaction_type')
@@ -609,7 +609,7 @@ def index():
     )
 
     # --- NOVO: FILTRO POR MÊS ATUAL PARA CONTAS A PAGAR EXIBIDAS NA LISTA ---
-    bills_query_obj = bills_query_obj.filter(db.func.strftime('%Y-%m', Bill.dueDate) == current_month_year_str)
+    bills_query_obj = bills_query_obj.filter(db.func.strftime('%Y-%m', db.cast(Bill.dueDate, db.Date)) == current_month_year_str)
 
 
     bill_status_filter = request.args.get('bill_status')
@@ -1073,7 +1073,6 @@ if __name__ == '__main__':
                     recurring_start_date='2024-01-01',
                     recurring_next_due_date='2024-01-01', # Força a geração a partir do passado
                     recurring_total_occurrences=0, # 0 para indefinido
-                    recurring_installments_generated=0,
                     is_active_recurring=True,
                     type='income' 
                 ))
