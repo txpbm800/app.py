@@ -81,7 +81,7 @@ class Bill(db.Model):
     status = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
-    # NOVO CAMPO ADICIONADO PARA LIDAR COM CATEGORIA EM BILLS DE RECEITA RECORRENTES (ADICIONADO)
+    # NOVO CAMPO ADICIONADO AQUI: category_id (para bills de receita recorrentes)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
     
     # NOVOS CAMPOS PARA RECORRÊNCIA E PARCELAMENTO (AGORA NA PRÓPRIA BILL)
@@ -537,7 +537,7 @@ def get_dashboard_data_db(user_id):
     # Filter pending bills to only include those due in the current month or overdue from previous months
     monthly_pending_bills = [
         b for b in all_pending_bills
-        if b.dueDate >= current_month_start and b.dueDate < next_month_start
+        if (b.dueDate >= current_month_start and b.dueDate < next_month_start) # Vencem no mês atual
         or (b.dueDate < current_month_start and b.status == 'pending') # Include overdue bills
     ]
     total_pending_bills_amount_monthly = sum(b.amount for b in monthly_pending_bills)
@@ -697,6 +697,7 @@ if __name__ == '__main__':
         if User.query.first():
             first_user = User.query.first()
             salario_category = Category.query.filter_by(name='Salário', type='income').first()
+            contas_fixas_category = Category.query.filter_by(name='Contas Fixas', type='expense').first() # Ensure this is defined for expense examples
             
             # Aqui no if de exemplo de bills, o `category_id` deve ser passado também
             if not Bill.query.filter(Bill.user_id==first_user.id, Bill.is_master_recurring_bill==True).first(): # Verifica se já existe uma Bill Mestra
@@ -726,6 +727,7 @@ if __name__ == '__main__':
                     dueDate='2024-01-05', # Data de início original
                     status='pending',
                     user_id=first_user.id,
+                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id para despesa recorrente
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-05',
@@ -743,6 +745,7 @@ if __name__ == '__main__':
                     dueDate='2024-01-10', # Data de início original
                     status='pending',
                     user_id=first_user.id,
+                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id
                     is_master_recurring_bill=True,
                     recurring_frequency='monthly',
                     recurring_start_date='2024-01-10',
@@ -760,6 +763,7 @@ if __name__ == '__main__':
                     dueDate='2024-01-01', # Data da primeira parcela a ser gerada (coloquei 1º do mês para teste)
                     status='pending',
                     user_id=first_user.id,
+                    category_id=contas_fixas_category.id if contas_fixas_category else None, # Adicionado category_id
                     is_master_recurring_bill=True,
                     recurring_frequency='installments',
                     recurring_start_date='2024-01-01',
