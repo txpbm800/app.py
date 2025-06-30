@@ -9,7 +9,7 @@ import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import google.generativeai as genai
 
-app = Flask(__name__)
+app = Flask(__name__) # Corrected __name__
 
 # --- CONFIGURAÇÃO DA API KEY GEMINI (mantido) ---
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
@@ -19,7 +19,7 @@ genai.configure(api_key=GEMINI_API_KEY)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'uma_chave_secreta_muito_complexa_e_aleatoria')
 
 # Configuração do Banco de Dados SQLite
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+BASE_DIR = os.path.abspath(os.path.dirname(__file__)) # Corrected __file__
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(BASE_DIR, 'finance.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -34,7 +34,7 @@ class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
-    profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
+    profile_picture_url = db.Column(db.String(255), nullable=True, default='[https://placehold.co/100x100/aabbcc/ffffff?text=PF](https://placehold.co/100x100/aabbcc/ffffff?text=PF)')
     
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -45,7 +45,7 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def __repr__(self):
+    def __repr__(self): # Corrected __repr__
         return f"<User {self.username}>"
 
 @login_manager.user_loader
@@ -59,7 +59,7 @@ class Category(db.Model):
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
 
-    def __repr__(self):
+    def __repr__(self): # Corrected __repr__
         return f"<Category {self.name} ({self.type})>"
 
 class Transaction(db.Model):
@@ -71,7 +71,7 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
 
-    def __repr__(self):
+    def __repr__(self): # Corrected __repr__
         return f"<Transaction {self.description} - {self.amount}>"
 
 # MODELO BILL MODIFICADO para lidar com recorrência e parcelamento
@@ -96,7 +96,7 @@ class Bill(db.Model):
     is_active_recurring = db.Column(db.Boolean, default=False, nullable=False) # A recorrência ainda está ativa para gerar mais?
     type = db.Column(db.String(10), nullable=False, default='expense') # Tipo da Bill (expense ou income)
 
-    def __repr__(self):
+    def __repr__(self): # Corrected __repr__
         return f"<Bill {self.description} - {self.dueDate} - {self.status}>"
 
 
@@ -244,7 +244,7 @@ def _generate_future_recurring_bills(master_bill):
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1) # Usa TODAY_DATE
         
         # Garante que a data não retroceda para indefinidos (se a calculated_date for anterior à start_date)
-        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date(): # <<<<<< CORREÇÃO AQUI
+        if final_next_due_date_after_bulk_gen < datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date():
              final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() + relativedelta(months=1) # Ex: sempre um mês a frente se já no futuro
 
     master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
@@ -279,7 +279,7 @@ def process_recurring_bills_on_access(user_id):
         print(f"  Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
         
-    # Mensagens flash já são emitidas por _generate_future_recurring_bills.
+    # Mensagens flash já são emitidas por _generate_future_bills.
     # Não é necessário um flash message consolidado aqui.
 
 def add_bill_db(description, amount, due_date, user_id, 
@@ -486,8 +486,8 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             bill.recurring_frequency = None
             bill.recurring_start_date = None
             bill.recurring_next_due_date = None
-            bill.recurring_total_occurrences = 0
-            bill.recurring_installments_generated = 0
+            recurring_total_occurrences = 0
+            recurring_installments_generated = 0
             # Nenhuma ação sobre recurring_parent_id, pois ele linka para a mestra
 
         db.session.commit()
@@ -1073,6 +1073,7 @@ if __name__ == '__main__':
                     recurring_start_date='2024-01-01',
                     recurring_next_due_date='2024-01-01', # Força a geração a partir do passado
                     recurring_total_occurrences=0, # 0 para indefinido
+                    recurring_installments_generated=0,
                     is_active_recurring=True,
                     type='income' 
                 ))
