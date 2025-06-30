@@ -346,12 +346,12 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             
-                            {# NOVO: Tipo da Bill (Receita/Despesa) #}
+                            {# NOVO: Tipo da Bill (Receita/Despesa) - REMOVIDA OPÇÃO DE RECEITA #}
                             <div>
                                 <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
                                 <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
                                     <option value="expense">Despesa</option>
-                                    <option value="income">Receita</option> {# Para Bills de Receita recorrentes #}
+                                    {# <option value="income">Receita</option> REMOVIDA CONFORME SOLICITADO #}
                                 </select>
                             </div>
                             {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
@@ -639,7 +639,7 @@
                         </div>
                     </div>
                 </div>
-            
+
                 <div class="rounded-lg shadow-md bg-white p-6 card-shadow mt-6"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                     <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
@@ -1033,8 +1033,7 @@
                     // Inicializa a label e placeholder na carga inicial/ativação
                     updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
 
-                    // Re-filtra as categorias no modal de edição com base no tipo da Bill
-                    // Agora usa data.category_id para pré-selecionar a categoria correta
+                    // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
                     filterCategoriesByType(editBillTypeSelect.value, editBillCategoryRecurringSelect.id, data.category_id);
 
                 } else {
