@@ -401,6 +401,7 @@ def delete_transaction_db(transaction_id, user_id):
 def delete_bill_db(bill_id, user_id):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if bill:
+        print(f"DEBUG: Tentando excluir Bill ID: {bill.id}, Descrição: '{bill.description}', É Mestra Recorrente: {bill.is_master_recurring_bill}")
         # Se a Bill é uma Bill recorrente "mestra", primeiro exclua todas as suas contas filhas associadas.
         # Isso garante uma remoção limpa de todas as ocorrências relacionadas.
         if bill.is_master_recurring_bill:
@@ -417,7 +418,9 @@ def delete_bill_db(bill_id, user_id):
         # Exclui a própria conta (seja ela mestra, filha ou uma conta não recorrente).
         db.session.delete(bill)
         db.session.commit()
+        print(f"DEBUG: Bill ID {bill_id} excluída e commit realizado.")
         return True
+    print(f"DEBUG: Bill ID {bill_id} não encontrada ou não pertence ao usuário {user_id}.")
     return False
 
 def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None):
@@ -1022,6 +1025,9 @@ if __name__ == '__main__':
         # Remova esta linha após a correção do esquema em produção.
         # db.drop_all()  
         db.create_all()
+
+        # Imprime o caminho completo do arquivo do banco de dados para depuração
+        print(f"DEBUG: Caminho do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
         
         if not Category.query.first():
             db.session.add(Category(name='Salário', type='income'))
