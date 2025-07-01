@@ -1,13 +1,10 @@
-<!-- templates/profile.html -->
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perfil - Gestão Financeira Pessoal</title>
-    <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- NOVO: Inclui Chart.js para visualização de dados -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -192,7 +189,8 @@
             <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
             </a>
-            <a href="{{ url_for('delete_account') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+            {# CORREÇÃO AQUI: A rota correta é 'delete_account_user' #}
+            <a href="{{ url_for('delete_account_user') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Apagar Conta
             </a>
             <a href="{{ url_for('index') }}" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 px-4 rounded-md transition-colors">
@@ -201,7 +199,6 @@
         </div>
     </div>
 
-    <!-- Modal de Ampliação de Gráfico -->
     <div id="chart-modal" class="modal">
         <div class="modal-content-chart">
             <span class="close-button-chart" onclick="closeChartModal()">&times;</span>
@@ -361,7 +358,7 @@
             
             // Verifica se há dados válidos para o gráfico
             const hasData = (chartData.labels && chartData.labels.length > 0 && 
-                              (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
+                             (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
 
             if (ctx) { // Verifica se o canvas existe
                 // Destruir instância existente se houver (para evitar duplicidade)
