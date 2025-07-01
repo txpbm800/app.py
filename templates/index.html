@@ -176,10 +176,16 @@
                         <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Meu Perfil
                         </a>
+                        <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# Novo link para Orçamentos #}
+                            Meus Orçamentos
+                        </a>
+                        <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# Novo link para Metas #}
+                            Minhas Metas
+                        </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Redefinir Senha
                         </a>
-                        <a href="{{ url_for('delete_account') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50">
+                        <a href="{{ url_for('delete_account_user') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50"> {# Updated function name #}
                             Apagar Conta
                         </a>
                         <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200">
@@ -269,6 +275,62 @@
             </div>
         </div>
 
+        {# NEW: Budget Alerts Section #}
+        {% if budgets_with_alerts %}
+        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-8" role="alert">
+            <p class="font-bold">Atenção aos Orçamentos!</p>
+            <ul class="mt-2 list-disc list-inside">
+                {% for budget_alert in budgets_with_alerts %}
+                    <li>
+                        Categoria <strong>{{ budget_alert.category_name }}</strong>:
+                        Gasto <strong>R$ {{ "%.2f"|format(budget_alert.current_spent) }}</strong> de
+                        <strong>R$ {{ "%.2f"|format(budget_alert.budget_amount) }}</strong>
+                        ({{ "%.1f"|format(budget_alert.percentage_spent) }}% utilizado).
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {# NEW: Active Goals Section on Dashboard #}
+        {% if active_goals %}
+        <div class="rounded-lg shadow-md bg-white p-6 card-shadow mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target text-purple-600"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                <span>Minhas Metas Ativas</span>
+            </h2>
+            <div class="space-y-4">
+                {% for goal in active_goals %}
+                <div class="border p-4 rounded-md bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800">{{ goal.name }}</h3>
+                        <p class="text-sm text-gray-600">
+                            R$ {{ "%.2f"|format(goal.current_amount) }} de R$ {{ "%.2f"|format(goal.target_amount) }}
+                            {% if goal.due_date %}<span class="text-xs text-gray-500 ml-2">(Prazo: {{ goal.due_date }})</span>{% endif %}
+                        </p>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                            <div class="bg-purple-600 h-2.5 rounded-full" style="width: {{ (goal.current_amount / goal.target_amount * 100) | round(2) }}%;"></div>
+                        </div>
+                    </div>
+                    {# Form to contribute to goal #}
+                    <form action="{{ url_for('handle_contribute_to_goal', goal_id=goal.id) }}" method="POST" class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0">
+                        <input type="number" step="0.01" name="amount" placeholder="Valor" required
+                               class="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                        <select name="account_id" class="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            {% for account in all_accounts %}
+                                <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm w-full sm:w-auto">
+                            Contribuir
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         {# Grid principal que divide a área em 2 colunas grandes (formulários à esquerda, listas à direita) #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             
@@ -314,6 +376,16 @@
                                     {# Preenchido dinamicamente via JS #}
                                 </select>
                             </div>
+                            {# NEW: Account Selection for Add Transaction #}
+                            <div>
+                                <label for="account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                                <select id="account_id" name="account_id" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    {% for account in all_accounts %}
+                                        <option value="{{ account.id }}">{{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                             <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                                 Adicionar Transação
                             </button>
@@ -346,12 +418,12 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             
-                            {# NOVO: Tipo da Bill (Receita/Despesa) - REMOVIDA OPÇÃO DE RECEITA #}
+                            {# NOVO: Tipo da Bill (Receita/Despesa) #}
                             <div>
                                 <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
                                 <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
                                     <option value="expense">Despesa</option>
-                                    {# <option value="income">Receita</option> REMOVIDA CONFORME SOLICITADO #}
+                                    <option value="income">Receita</option> 
                                 </select>
                             </div>
                             {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
@@ -361,6 +433,16 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Selecione a Categoria</option>
                                     {# Preenchido dinamicamente via JS #}
+                                </select>
+                            </div>
+                            {# NEW: Account Selection for Add Bill #}
+                            <div>
+                                <label for="bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                                <select id="bill_account_id" name="bill_account_id" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    {% for account in all_accounts %}
+                                        <option value="{{ account.id }}">{{ account.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
 
@@ -399,7 +481,7 @@
             </div> {# Fim da COLUNA ESQUERDA #}
 
             {# COLUNA DIREITA: Container com grid 2x2 para as 4 listas #}
-            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 items-start">
+            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 
                 <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
@@ -498,6 +580,10 @@
                                                         <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
                                                     {% elif bill.type == 'expense' %}
                                                         <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
+                                                    {% endif %}
+                                                    {# NEW: Display Account Name #}
+                                                    {% if bill.account %}
+                                                        <span class="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded-full">Conta: {{ bill.account.name }}</span>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -616,6 +702,10 @@
                                                 {# Exibe a categoria #}
                                                 <p class="text-xs text-gray-400">
                                                     Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                                </p>
+                                                {# NEW: Display Account Name #}
+                                                <p class="text-xs text-gray-400">
+                                                    Conta: {{ transaction.account.name if transaction.account else 'N/A' }}
                                                 </p>
                                             </div>
                                         </div>
@@ -741,6 +831,16 @@
                             {# Preenchido dinamicamente via JS #}
                         </select>
                     </div>
+                    {# NEW: Account Selection for Edit Transaction #}
+                    <div>
+                        <label for="edit_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                        <select id="edit_account_id" name="edit_account_id" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            {% for account in all_accounts %}
+                                <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                         Salvar Edição
                     </button>
@@ -780,6 +880,16 @@
                             class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">Selecione a Categoria</option>
                             {# Preenchido dinamicamente via JS #}
+                        </select>
+                    </div>
+                    {# NEW: Account Selection for Edit Bill #}
+                    <div>
+                        <label for="edit_bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                        <select id="edit_bill_account_id" name="edit_bill_account_id" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            {% for account in all_accounts %}
+                                <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -825,6 +935,8 @@
             let allCategories = []; 
             // Recebe as categorias do Flask (Jinja2)
             const categoriesData = {{ all_categories | tojson }};
+            // Recebe as contas do Flask (Jinja2)
+            const accountsData = {{ all_accounts | tojson }};
 
             // Popula allCategories com os dados do Flask e inicializa outras coisas
             document.addEventListener('DOMContentLoaded', () => {
@@ -849,6 +961,8 @@
 
 
                 populateCategoryFilter('category_filter');
+                populateAccounts('account_id'); // Populate account dropdown for add transaction
+                populateAccounts('bill_account_id'); // Populate account dropdown for add bill
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const initialFilterType = urlParams.get('transaction_type');
@@ -982,6 +1096,24 @@
                 });
             }
 
+            // NEW: Function to populate account dropdowns
+            function populateAccounts(selectElementId, selectedAccountId = null) {
+                const selectElement = document.getElementById(selectElementId);
+                if (!selectElement) return;
+
+                selectElement.innerHTML = ''; // Clear existing options
+
+                accountsData.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account[0]; // Assuming account[0] is id, account[1] is name
+                    option.textContent = account[1];
+                    if (selectedAccountId !== null && account[0] === selectedAccountId) {
+                        option.selected = true;
+                    }
+                    selectElement.appendChild(option);
+                });
+            }
+
             // NOVO: Função para esconder/mostrar campos de recorrência no formulário de NOVA CONTA A PAGAR
             function toggleBillRecurringFields() {
                 const isRecurringCheckbox = document.getElementById('is_recurring_bill');
@@ -1105,6 +1237,8 @@
                         
                         // Populate categories for transactions
                         filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
+                        // Populate accounts for transactions
+                        populateAccounts('edit_account_id', data.account_id);
 
                         editTransactionForm.action = `/edit_transaction/${data.id}`;
                         editTransactionForm.classList.remove('hidden');
@@ -1118,16 +1252,19 @@
                         const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                         const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
                         const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
-                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
+                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); 
                         const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
                         const editBillTypeSelect = document.getElementById('edit_bill_type'); 
                         const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
+                        const editBillAccountId = document.getElementById('edit_bill_account_id');
+
 
                         editBillTypeSelect.value = data.type; 
                         editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; 
                         editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
                         editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; 
                         editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
+                        populateAccounts('edit_bill_account_id', data.account_id);
 
                         // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
                         filterCategoriesByType(data.type, editBillCategoryRecurringSelect.id, data.category_id);
