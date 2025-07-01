@@ -779,7 +779,7 @@
             let allCategories = []; 
             // Recebe as categorias do Flask (Jinja2)
             const categoriesData = {{ all_categories | tojson }};
-            // LINHA REMOVIDA: const accountsData = {{ all_accounts | tojson }}; // Esta linha causava o erro!
+            // A linha "const accountsData = ..." foi removida completamente.
 
             // Popula allCategories com os dados do Flask e inicializa outras coisas
             document.addEventListener('DOMContentLoaded', () => {
@@ -804,8 +804,6 @@
 
 
                 populateCategoryFilter('category_filter');
-                // REMOVIDO: populateAccounts('account_id');
-                // REMOVIDO: populateAccounts('bill_account_id');
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const initialFilterType = urlParams.get('transaction_type');
