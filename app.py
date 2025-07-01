@@ -997,7 +997,7 @@ def index():
     # Filtros e ordenação para contas (bills)
     bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
-        Bill.is_master_recurring_bill == False # Exclui as Bills mestras da exibição
+        Bill.is_master_recurring_bill == False # Exclui bills mestras da exibição
     )
 
     bill_status_filter = request.args.get('bill_status')

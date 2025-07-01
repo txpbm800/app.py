@@ -316,7 +316,6 @@
                     <form action="{{ url_for('handle_contribute_to_goal', goal_id=goal.id) }}" method="POST" class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0">
                         <input type="number" step="0.01" name="amount" placeholder="Valor" required
                                class="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                        {# REMOVIDO: Select for account_id for goal contribution #}
                         <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm w-full sm:w-auto">
                             Contribuir
                         </button>
@@ -372,7 +371,6 @@
                                     {# Preenchido dinamicamente via JS #}
                                 </select>
                             </div>
-                            {# REMOVIDO: Account Selection for Add Transaction #}
                             <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                                 Adicionar Transação
                             </button>
@@ -381,7 +379,7 @@
                 </div>
 
                 <div class="rounded-lg shadow-md bg-white card-shadow">
-                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])">
+                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
                         <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -422,7 +420,6 @@
                                     {# Preenchido dinamicamente via JS #}
                                 </select>
                             </div>
-                            {# REMOVIDO: Account Selection for Add Bill #}
 
                             {# NOVO: Checkbox para marcar como recorrente #}
                             <div class="flex items-center">
@@ -698,7 +695,6 @@
                             {# Preenchido dinamicamente via JS #}
                         </select>
                     </div>
-                    {# REMOVIDO: Account Selection for Edit Transaction #}
                     <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                         Salvar Edição
                     </button>
@@ -740,7 +736,6 @@
                             {# Preenchido dinamicamente via JS #}
                         </select>
                     </div>
-                    {# REMOVIDO: Account Selection for Edit Bill #}
 
                     {# NOVO: Checkbox e campos de recorrência para edição de Bill #}
                     <div class="flex items-center">
@@ -784,7 +779,7 @@
             let allCategories = []; 
             // Recebe as categorias do Flask (Jinja2)
             const categoriesData = {{ all_categories | tojson }};
-            // REMOVIDO: const accountsData = {{ all_accounts | tojson }};
+            // LINHA REMOVIDA: const accountsData = {{ all_accounts | tojson }}; // Esta linha causava o erro!
 
             // Popula allCategories com os dados do Flask e inicializa outras coisas
             document.addEventListener('DOMContentLoaded', () => {
@@ -944,24 +939,6 @@
                 });
             }
 
-            // REMOVIDO: Function to populate account dropdowns
-            // function populateAccounts(selectElementId, selectedAccountId = null) {
-            //     const selectElement = document.getElementById(selectElementId);
-            //     if (!selectElement) return;
-
-            //     selectElement.innerHTML = ''; // Clear existing options
-
-            //     accountsData.forEach(account => {
-            //         const option = document.createElement('option');
-            //         option.value = account[0]; // Assuming account[0] is id, account[1] is name
-            //         option.textContent = account[1];
-            //         if (selectedAccountId !== null && account[0] === selectedAccountId) {
-            //             option.selected = true;
-            //         }
-            //         selectElement.appendChild(option);
-            //     });
-            // }
-
             // NOVO: Função para esconder/mostrar campos de recorrência no formulário de NOVA CONTA A PAGAR
             function toggleBillRecurringFields() {
                 const isRecurringCheckbox = document.getElementById('is_recurring_bill');
@@ -1085,7 +1062,6 @@
                         
                         // Populate categories for transactions
                         filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
-                        // REMOVIDO: populateAccounts('edit_account_id', data.account_id);
 
                         editTransactionForm.action = `/edit_transaction/${data.id}`;
                         editTransactionForm.classList.remove('hidden');
@@ -1110,7 +1086,6 @@
                         editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
                         editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; 
                         editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
-                        // REMOVIDO: populateAccounts('edit_bill_account_id', data.account_id);
 
                         // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
                         filterCategoriesByType(data.type, editBillCategoryRecurringSelect.id, data.category_id);
