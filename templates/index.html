@@ -43,11 +43,13 @@
         .collapsible-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+            transition: max-height 0.5s ease-in-out, padding 0.3s ease-in-out; /* Ajustado para 0.5s para suavidade */
+            padding-bottom: 0; /* Garante que não haja padding quando recolhido */
         }
         .collapsible-content.expanded {
             max-height: 1200px; /* Aumentado para acomodar MUITO conteúdo */
             padding-top: 1rem; /* Adiciona um padding quando expandido */
+            padding-bottom: 1.5rem; /* Adiciona padding na parte de baixo quando expandido */
         }
         .arrow-icon {
             transition: transform 0.3s ease-out;
@@ -55,6 +57,11 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
+        /* Nova classe para ocultar elementos inicialmente via CSS puro, antes do JS */
+        .hidden-initially {
+            display: none;
+        }
+
         /* Estilos para o menu de usuário */
         .user-menu-dropdown {
             position: absolute;
@@ -287,7 +294,7 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="transaction-form-content" class="collapsible-content">
+                    <div id="transaction-form-content" class="collapsible-content hidden-initially"> {# Adicionado hidden-initially #}
                         <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
@@ -334,7 +341,7 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="bill-form-content" class="collapsible-content">
+                    <div id="bill-form-content" class="collapsible-content hidden-initially"> {# Adicionado hidden-initially #}
                         <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
@@ -840,17 +847,13 @@
                 const typeSelect = document.getElementById('type');
                 if (typeSelect) {
                     filterCategoriesByType(typeSelect.value, 'category_id');
-                    typeSelect.addEventListener('change', (event) => {
-                        filterCategoriesByType(event.target.value, 'category_id');
-                    });
+                    // Não é mais necessário adicionar listener aqui, pois o formulário já tem onchange no HTML
                 }
 
                 // Para o formulário de adição de Bill - inicializa categorias de acordo com o tipo padrão (expense)
                 const billTypeSelect = document.getElementById('bill_type');
                 if (billTypeSelect) {
-                    billTypeSelect.addEventListener('change', (event) => {
-                        filterCategoriesByType(event.target.value, 'bill_category_id_recurring');
-                    });
+                    // Não é mais necessário adicionar listener aqui, pois o formulário já tem onchange no HTML
                     filterCategoriesByType(billTypeSelect.value, 'bill_category_id_recurring'); // Chama na carga inicial
                 }
 
@@ -884,38 +887,50 @@
                 // Inicializa a visibilidade dos campos de recorrência na NOVA CONTA A PAGAR
                 const isRecurringBillCheckbox = document.getElementById('is_recurring_bill');
                 if (isRecurringBillCheckbox) {
-                    isRecurringBillCheckbox.addEventListener('change', toggleBillRecurringFields);
-                    toggleBillRecurringFields(); // Chama na carga inicial
+                    // O listener já está no HTML via onchange
+                    toggleBillRecurringFields(); // Chama na carga inicial para ocultar/mostrar corretamente
                 }
                 const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
                 if (addBillFrequencySelect) {
-                    // Garante que a label e placeholder são atualizados na carga inicial
+                    // Garante que a label e placeholder são atualizados na carga inicial/ativação
                     updateRecurringOccurrenceLabel(addBillFrequencySelect.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill'); 
-                    addBillFrequencySelect.addEventListener('change', (event) => {
-                        updateRecurringOccurrenceLabel(event.target.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill');
-                    });
+                    // O listener já está no HTML via onchange
                 }
+                
+                // Inicializa o estado dos formulários de acordeão (todos recolhidos por padrão)
+                document.getElementById('transaction-form-content').classList.remove('expanded');
+                document.getElementById('transaction-arrow').classList.remove('rotated');
+                document.getElementById('bill-form-content').classList.remove('expanded');
+                document.getElementById('bill-arrow').classList.remove('rotated');
             });
 
             function toggleAccordion(contentIdToToggle, arrowIdToToggle, otherContentIds, otherArrowIds) {
                 const content = document.getElementById(contentIdToToggle);
                 const arrow = document.getElementById(arrowIdToToggle);
 
+                // Oculta outros conteúdos e reverte suas setas
                 otherContentIds.forEach((id, index) => {
                     const otherContent = document.getElementById(id);
                     const otherArrow = document.getElementById(otherArrowIds[index]);
                     if (otherContent.classList.contains('expanded')) {
                         otherContent.classList.remove('expanded');
                         otherArrow.classList.remove('rotated');
+                        // Garante que o display seja none quando recolhido
+                        otherContent.classList.add('hidden-initially');
                     }
                 });
 
+                // Alterna o conteúdo e a seta do acordeão clicado
                 if (content.classList.contains('expanded')) {
-                    content.classList.add('expanded');
-                    arrow.classList.add('rotated');
-                } else {
                     content.classList.remove('expanded');
                     arrow.classList.remove('rotated');
+                    // Adiciona hidden-initially de volta ao recolher
+                    content.classList.add('hidden-initially');
+                } else {
+                    // Remove hidden-initially antes de expandir para permitir a transição
+                    content.classList.remove('hidden-initially');
+                    content.classList.add('expanded');
+                    arrow.classList.add('rotated');
                 }
             }
             
