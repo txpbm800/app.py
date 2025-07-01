@@ -185,7 +185,7 @@
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Redefinir Senha
                         </a>
-                        <a href="{{ url_for('delete_account_user') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50"> {# Updated function name #}
+                        <a href="{{ url_for('delete_account_user') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50">
                             Apagar Conta
                         </a>
                         <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200">
@@ -275,57 +275,6 @@
             </div>
         </div>
 
-        {# NEW: Budget Alerts Section #}
-        {% if budgets_with_alerts %}
-        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-8" role="alert">
-            <p class="font-bold">Atenção aos Orçamentos!</p>
-            <ul class="mt-2 list-disc list-inside">
-                {% for budget_alert in budgets_with_alerts %}
-                    <li>
-                        Categoria <strong>{{ budget_alert.category_name }}</strong>:
-                        Gasto <strong>R$ {{ "%.2f"|format(budget_alert.current_spent) }}</strong> de
-                        <strong>R$ {{ "%.2f"|format(budget_alert.budget_amount) }}</strong>
-                        ({{ "%.1f"|format(budget_alert.percentage_spent) }}% utilizado).
-                    </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
-
-        {# NEW: Active Goals Section on Dashboard #}
-        {% if active_goals %}
-        <div class="rounded-lg shadow-md bg-white p-6 card-shadow mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-target text-purple-600"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                <span>Minhas Metas Ativas</span>
-            </h2>
-            <div class="space-y-4">
-                {% for goal in active_goals %}
-                <div class="border p-4 rounded-md bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div>
-                        <h3 class="font-semibold text-lg text-gray-800">{{ goal.name }}</h3>
-                        <p class="text-sm text-gray-600">
-                            R$ {{ "%.2f"|format(goal.current_amount) }} de R$ {{ "%.2f"|format(goal.target_amount) }}
-                            {% if goal.due_date %}<span class="text-xs text-gray-500 ml-2">(Prazo: {{ goal.due_date }})</span>{% endif %}
-                        </p>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                            <div class="bg-purple-600 h-2.5 rounded-full" style="width: {{ (goal.current_amount / goal.target_amount * 100) | round(2) }}%;"></div>
-                        </div>
-                    </div>
-                    {# Form to contribute to goal #}
-                    <form action="{{ url_for('handle_contribute_to_goal', goal_id=goal.id) }}" method="POST" class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto mt-3 sm:mt-0">
-                        <input type="number" step="0.01" name="amount" placeholder="Valor" required
-                               class="w-full sm:w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                        <button type="submit" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm w-full sm:w-auto">
-                            Contribuir
-                        </button>
-                    </form>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
         {# Grid principal que divide a área em 2 colunas grandes (formulários à esquerda, listas à direita) #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             
@@ -379,7 +328,7 @@
                 </div>
 
                 <div class="rounded-lg shadow-md bg-white card-shadow">
-                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
+                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
                         <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -403,12 +352,12 @@
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             
-                            {# NOVO: Tipo da Bill (Receita/Despesa) #}
+                            {# NOVO: Tipo da Bill (Receita/Despesa) - REMOVIDA OPÇÃO DE RECEITA #}
                             <div>
                                 <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
                                 <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
                                     <option value="expense">Despesa</option>
-                                    <option value="income">Receita</option> 
+                                    {# <option value="income">Receita</option> REMOVIDA CONFORME SOLICITADO #}
                                 </select>
                             </div>
                             {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
@@ -456,7 +405,7 @@
             </div> {# Fim da COLUNA ESQUERDA #}
 
             {# COLUNA DIREITA: Container com grid 2x2 para as 4 listas #}
-            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 items-start">
                 
                 <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
@@ -581,6 +530,109 @@
                                                     </form>
                                                 {% endif %}
                                                 <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2"> {# Ocupa 2 colunas #}
+                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                        Excluir
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
+                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
+                    <div class="mb-4 space-y-2">
+                        <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
+                            <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
+                            <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
+                            <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
+
+                            <div>
+                                <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
+                                <select id="transaction_type_filter" name="transaction_type" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todos</option>
+                                    <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
+                                    <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
+                                </select>
+                            </div>
+                            {# Filtro por Categoria #}
+                            <div>
+                                <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
+                                <select id="category_filter" name="category_filter" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="">Todas</option>
+                                    {% for category in all_categories %}
+                                        <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
+                                            {{ category[2] }} ({{ category[1]|capitalize }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
+                                <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
+                                <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                            </div>
+                            <div>
+                                <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
+                                <select id="sort_by_transactions" name="sort_by_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
+                                    <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
+                                <select id="order_transactions" name="order_transactions" 
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
+                                    <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
+                                    <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
+                        </form>
+                    </div>
+
+
+                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
+                        <div class="space-y-3">
+                            {% if not transactions %}
+                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
+                            {% else %}
+                                {% for transaction in transactions %}
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                                {# Exibe a categoria #}
+                                                <p class="text-xs text-gray-400">
+                                                    Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col space-y-2 ml-auto">
+                                            <div class="flex space-x-2">
+                                                <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
+                                                    Editar
+                                                </button>
+                                            </div>
+                                            <div class="flex space-x-2">
+                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
                                                     <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
                                                         Excluir
                                                     </button>
@@ -779,7 +831,6 @@
             let allCategories = []; 
             // Recebe as categorias do Flask (Jinja2)
             const categoriesData = {{ all_categories | tojson }};
-            // A linha "const accountsData = ..." foi removida completamente.
 
             // Popula allCategories com os dados do Flask e inicializa outras coisas
             document.addEventListener('DOMContentLoaded', () => {
@@ -844,7 +895,6 @@
                     });
                 }
             });
-
 
             function toggleAccordion(contentIdToToggle, arrowIdToToggle, otherContentIds, otherArrowIds) {
                 const content = document.getElementById(contentIdToToggle);
@@ -1073,11 +1123,10 @@
                         const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
                         const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
                         const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
-                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); 
+                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
                         const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
                         const editBillTypeSelect = document.getElementById('edit_bill_type'); 
                         const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
-
 
                         editBillTypeSelect.value = data.type; 
                         editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; 
