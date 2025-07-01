@@ -57,11 +57,12 @@ def load_user(user_id):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False) # Removido unique=True aqui para permitir a mesma categoria para diferentes usuários, se necessário
+    name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
+    # CORREÇÃO: Adicionada a coluna user_id
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) 
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
-    # Adicionado relacionamento para orçamentos
     budgets = db.relationship('Budget', backref='category', lazy=True) 
 
     # Garante que a combinação de nome e tipo seja única por usuário
@@ -375,7 +376,7 @@ def _generate_future_recurring_bills(master_bill):
             # Define o status inicial da Bill filha
             new_child_bill_status = 'pending'
             if occurrence_date_for_child < TODAY_DATE:
-                new_child_bill_status = 'overdue' # Marcar como atrasada se a data de vencimento já passou
+                new_child_bill_status = 'overdue' # Mark as overdue if due date has passed
 
             new_child_bill = Bill(
                 description=child_description,
@@ -385,16 +386,16 @@ def _generate_future_recurring_bills(master_bill):
                 user_id=master_bill.user_id,
                 recurring_parent_id=master_bill.id,
                 recurring_child_number=i,
-                is_master_recurring_bill=False, # A Bill filha NÃO é mestra
-                recurring_frequency=None, # Não aplicável para filhas
-                recurring_start_date=None, # Não aplicável para filhas
-                recurring_next_due_date=None, # Não aplicável para filhas
-                recurring_total_occurrences=0, # Não aplicável para filhas
-                recurring_installments_generated=0, # Não aplicável para filhas
-                is_active_recurring=False, # Bills filhas não geram mais
-                type=master_bill.type, # Mantém o tipo (expense/income) da mestra
-                category_id=master_bill.category_id, # Mantém a categoria da mestra
-                account_id=master_bill.account_id # Mantém a conta da mestra
+                is_master_recurring_bill=False, # The child Bill is NOT a master
+                recurring_frequency=None, # Not applicable for children
+                recurring_start_date=None, # Not applicable for children
+                recurring_next_due_date=None, # Not applicable for children
+                recurring_total_occurrences=0, # Not applicable for children
+                recurring_installments_generated=0, # Not applicable for children
+                is_active_recurring=False, # Child Bills do not generate more
+                type=master_bill.type, # Maintain the type (expense/income) of the master
+                category_id=master_bill.category_id, # Maintain the category of the master
+                account_id=master_bill.account_id # Maintain the account of the master
             )
             db.session.add(new_child_bill)
             generated_count_for_master += 1
@@ -408,14 +409,14 @@ def _generate_future_recurring_bills(master_bill):
     # Recalcula a data de "next_due_date" da mestra para o final do ciclo de geração em massa
     # Esta é a data a partir da qual a próxima "leva" de bills deve ser gerada, se for indefinida
     final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
-    if master_bill.recurring_total_occurrences > 0: # Se tem um total fixo, avança por esse total
+    if master_bill.recurring_total_occurrences > 0: # If there's a fixed total, advance by that total
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
             final_next_due_date_after_bulk_gen += relativedelta(months=master_bill.recurring_total_occurrences)
         elif master_bill.recurring_frequency == 'weekly':
             final_next_due_date_after_bulk_gen += relativedelta(weeks=master_bill.recurring_total_occurrences)
         elif master_bill.recurring_frequency == 'yearly':
             final_next_due_date_after_bulk_gen += relativedelta(years=master_bill.recurring_total_occurrences)
-    else: # Para recorrências indefinidas (total_occurrences == 0), avança para a data de hoje + 1 período
+    else: # For indefinite recurrences (total_occurrences == 0), advance to today's date + 1 period
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
         elif master_bill.recurring_frequency == 'weekly':
@@ -423,10 +424,10 @@ def _generate_future_recurring_bills(master_bill):
         elif master_bill.recurring_frequency == 'yearly':
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1)
         
-        # Garante que a data não retroceda e esteja sempre no futuro se a recorrência for contínua
+        # Ensures the date does not go back and is always in the future if recurrence is continuous
         if final_next_due_date_after_bulk_gen <= datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() or \
            final_next_due_date_after_bulk_gen <= TODAY_DATE:
-            # Se a nova data calculada for no passado ou no presente, avança para o próximo período a partir de HOJE.
+            # If the new calculated date is in the past or present, advance to the next period from TODAY.
             if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
                 final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
             elif master_bill.recurring_frequency == 'weekly':
@@ -1088,7 +1089,8 @@ def index():
             
     filtered_bills = bills_query_obj.all() # Execute a consulta aqui
 
-    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.all()]
+    # Usando o Category.query.filter_by(user_id=current_user.id) para filtrar categorias por usuário
+    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     
     # **NOVO: Dados para Orçamentos na Dashboard**
     current_month_year = get_current_month_year_str()
@@ -1671,6 +1673,7 @@ with app.app_context():
     first_user = User.query.filter_by(username='admin').first() # Garante que o usuário admin existe
     if first_user: # Somente adiciona dados de exemplo se o usuário admin existir
         # Adiciona categorias padrão se o banco de dados estiver vazio para o admin
+        # NOTA: Agora as categorias são criadas associadas ao 'first_user' (admin)
         if not Category.query.filter_by(user_id=first_user.id).first():
             db.session.add(Category(name='Salário', type='income', user_id=first_user.id))
             db.session.add(Category(name='Freelance', type='income', user_id=first_user.id))
