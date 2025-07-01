@@ -111,7 +111,6 @@ class Bill(db.Model):
     is_active_recurring = db.Column(db.Boolean, default=False, nullable=False) # A recorrência ainda está ativa para gerar mais?
     type = db.Column(db.String(10), nullable=False, default='expense') # Tipo da Bill (expense ou income)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True) # NOVO CAMPO: Para Bills mestras de receita (e para bills filhas)
-    # REMOVIDO: account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True) # Conta associada à Bill
     
     # Novo campo para rastrear a transação gerada pelo pagamento da conta
     payment_transaction_id = db.Column(db.Integer, db.ForeignKey('transaction.id'), nullable=True)
@@ -777,7 +776,7 @@ def get_dashboard_data_db(user_id):
 #         print(f"Erro ao chamar Gemini API: {e}")
 #         return "Não foi possível gerar uma sugestão/resumo no momento."
 
-# --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS (DB operations) ---
+# --- NOVAS FUNÇÕES PARA ORÇAMENTO E METAS (DB operations) ---
 def add_budget_db(user_id, category_id, budget_amount, month_year):
     """Adiciona ou atualiza um orçamento para uma categoria em um dado mês/ano."""
     existing_budget = Budget.query.filter_by(
@@ -1699,6 +1698,6 @@ with app.app_context():
 # Main execution block
 if __name__ == '__main__':
     # debug=True allows automatic server reloading on changes
-    # and provides an interactive debugger in the browser. DISABLE in production.
+    # and provides an clean debugger in the browser. DISABLE in production.
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
