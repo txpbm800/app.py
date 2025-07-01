@@ -73,26 +73,13 @@ class Category(db.Model):
         return f"<Category {self.name} ({self.type})>"
 
 # REMOVIDO: Modelo Account (Conta bancária/Carteira)
-# class Account(db.Model):
-#     id = db.Column(db.Integer, primary_key=True)
-#     name = db.Column(db.String(100), nullable=False)
-#     balance = db.Column(db.Float, default=0.0)
-#     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
-#     transactions = db.relationship('Transaction', backref='account', lazy=True)
-#     bills = db.relationship('Bill', backref='account_bill', lazy=True) # backref 'account_bill' para evitar conflito com 'account' de Transaction
-
-#     __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_user_account_uc'),)
-
-#     def __repr__(self):
-#         return f"<Account {self.name} (Balance: {self.balance:.2f})>"
 
 
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     description = db.Column(db.String(200), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    date = db.Column(db.String(10), nullable=False) # Armazenar como String YYYY-MM-DD
+    date = db.Column(db.String(10), nullable=False) # Armazenar como StringYYYY-MM-DD
     type = db.Column(db.String(10), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
@@ -155,7 +142,7 @@ class Goal(db.Model):
     name = db.Column(db.String(100), nullable=False)
     target_amount = db.Column(db.Float, nullable=False)
     current_amount = db.Column(db.Float, default=0.0, nullable=False)
-    due_date = db.Column(db.String(10), nullable=True) # YYYY-MM-DD
+    due_date = db.Column(db.String(10), nullable=True) #YYYY-MM-DD
     status = db.Column(db.String(20), default='in_progress', nullable=False) # 'in_progress', 'achieved', 'abandoned'
 
     def __repr__(self):
@@ -191,19 +178,9 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         type=type,
         user_id=user_id,
         category_id=category_id,
-        # REMOVIDO: account_id=account_id
     )
     db.session.add(new_transaction)
     db.session.flush() # flush para obter new_transaction.id antes do commit
-
-    # REMOVIDO: Atualiza o saldo da conta (não há mais contas vinculadas aqui)
-    # if account_id:
-    #     account = Account.query.get(account_id)
-    #     if account:
-    #         if type == 'income':
-    #             account.balance += amount
-    #         else: # expense
-    #             account.balance -= amount
 
     # Lógica para atualizar o orçamento (apenas para despesas)
     if type == 'expense' and category_id:
@@ -230,20 +207,10 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
     old_amount = transaction.amount
     old_type = transaction.type
     old_category_id = transaction.category_id
-    # REMOVIDO: old_account_id = transaction.account_id
     old_date_obj = datetime.datetime.strptime(transaction.date, '%Y-%m-%d').date()
 
     new_amount = float(amount)
     new_date_obj = datetime.datetime.strptime(date, '%Y-%m-%d').date()
-
-    # REMOVIDO: Reverter impacto da transação antiga no saldo da conta
-    # if old_account_id:
-    #     old_account = Account.query.get(old_account_id)
-    #     if old_account:
-    #         if old_type == 'income':
-    #             old_account.balance -= old_amount
-    #         else: # expense
-    #             old_account.balance += old_amount
 
     if old_type == 'expense' and old_category_id:
         old_month_year = old_date_obj.strftime('%Y-%m')
@@ -262,16 +229,6 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
     transaction.date = date # Armazenar como string
     transaction.type = type
     transaction.category_id = category_id
-    # REMOVIDO: transaction.account_id = account_id
-
-    # REMOVIDO: Atualizar saldo da conta com a nova transação
-    # if account_id:
-    #     new_account = Account.query.get(account_id)
-    #     if new_account:
-    #         if type == 'income':
-    #             new_account.balance += new_amount
-    #         else: # expense
-    #             new_account.balance -= new_amount
 
     if type == 'expense' and category_id:
         new_month_year = new_date_obj.strftime('%Y-%m')
@@ -293,15 +250,6 @@ def delete_transaction_db(transaction_id, user_id):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
     if not transaction:
         return False
-
-    # REMOVIDO: Reverte o saldo da conta
-    # if transaction.account_id:
-    #     account = Account.query.get(transaction.account_id)
-    #     if account:
-    #         if transaction.type == 'income':
-    #             account.balance -= transaction.amount
-    #         else: # expense
-    #             account.balance += transaction.amount
 
     # Reverte o valor gasto no orçamento (se for despesa)
     if transaction.type == 'expense' and transaction.category_id:
@@ -396,7 +344,6 @@ def _generate_future_recurring_bills(master_bill):
                 is_active_recurring=False, # Child Bills do not generate more
                 type=master_bill.type, # Maintains the type (expense/income) of the master
                 category_id=master_bill.category_id, # Maintains the category of the master
-                # REMOVIDO: account_id=master_bill.account_id # Maintains the account of the master
             )
             db.session.add(new_child_bill)
             generated_count_for_master += 1
@@ -491,7 +438,6 @@ def add_bill_db(description, amount, due_date, user_id,
         is_active_recurring=is_recurring,
         type=bill_type,
         category_id=category_id,
-        # REMOVIDO: account_id=account_id # Salvar a conta associada à Bill
     )
     db.session.add(new_bill)
     db.session.commit()
@@ -544,7 +490,6 @@ def pay_bill_db(bill_id, user_id):
                 type=bill.type, # Uses the Bill's type
                 user_id=user_id,
                 category_id=category_for_payment_id,
-                # REMOVIDO: account_id=bill.account_id
             )
             db.session.add(new_payment_transaction)
             db.session.flush() # To get the transaction ID before commit
@@ -555,16 +500,6 @@ def pay_bill_db(bill_id, user_id):
             # If it already exists, just make sure the bill is linked
             bill.payment_transaction_id = existing_payment_transaction.id
             new_payment_transaction = existing_payment_transaction # Use existing for budget logic
-
-        # REMOVIDO: Update account balance
-        # if bill.account_id:
-        #     account = Account.query.get(bill.account_id)
-        #     if account:
-        #         if bill.type == 'income':
-        #             account.balance += bill.amount
-        #         else: # expense
-        #             account.balance -= bill.amount
-        #         db.session.add(account)
 
         # Update the Bill status
         bill.status = 'paid'
@@ -624,16 +559,6 @@ def delete_bill_db(bill_id, user_id):
     if bill.status == 'paid' and bill.payment_transaction_id:
         payment_transaction = Transaction.query.get(bill.payment_transaction_id)
         if payment_transaction and payment_transaction.user_id == user_id:
-            # REMOVIDO: Reverte o saldo da conta
-            # if payment_transaction.account_id:
-            #     account = Account.query.get(payment_transaction.account_id)
-            #     if account:
-            #         if payment_transaction.type == 'income':
-            #             account.balance -= payment_transaction.amount
-            #         else: # expense
-            #             account.balance += payment_transaction.amount
-            #         db.session.add(account)
-
             # Revert budget spending
             if payment_transaction.type == 'expense' and payment_transaction.category_id:
                 transaction_month_year = datetime.datetime.strptime(payment_transaction.date, '%Y-%m-%d').strftime('%Y-%m')
@@ -717,7 +642,6 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
     bill.dueDate = dueDate
     bill.type = bill_type
     bill.category_id = category_id
-    # REMOVIDO: bill.account_id = account_id # Updates the associated account
 
     # If the paid Bill has already been paid, and the amount/type/category changed, this can cause inconsistencies
     # For simplicity, we will not revert the existing transaction here, just alert.
@@ -976,17 +900,6 @@ def contribute_to_goal_db(goal_id, user_id, amount): # Removed account_id parame
     if amount_to_add <= 0:
         return False
 
-    # REMOVIDO: Saldo da conta não é mais verificado, pois não há contas
-    # source_account = Account.query.filter_by(id=account_id, user_id=user_id).first()
-    # if not source_account:
-    #     flash('Conta de origem não encontrada ou não pertence a você.', 'danger')
-    #     return False
-    
-    # if source_account.balance < amount_to_add:
-    #     flash('Saldo insuficiente na conta selecionada para contribuir com a meta.', 'danger')
-    #     return False
-
-
     # Calcula o valor real a ser adicionado para não ultrapassar o target_amount se já estiver próximo
     if goal.current_amount + amount_to_add >= goal.target_amount:
         amount_to_add = goal.target_amount - goal.current_amount # Adjust to the exact remaining amount
@@ -1009,12 +922,8 @@ def contribute_to_goal_db(goal_id, user_id, amount): # Removed account_id parame
             type='expense', # It's an expense from your liquidity to savings
             user_id=user_id,
             category_id=poupanca_metas_category.id,
-            # REMOVIDO: account_id=source_account.id # Debits from the default account
         )
         db.session.add(new_transaction)
-        # REMOVIDO: Update account balance
-        # source_account.balance -= amount_to_add
-        # db.session.add(source_account)
 
         # The goal contribution is an expense, so it should impact the budget (if any)
         transaction_month_year = TODAY_DATE.strftime('%Y-%m')
@@ -1118,9 +1027,8 @@ def index():
             
     filtered_bills = bills_query_obj.all() # Execute a consulta aqui
 
-    # CORRIGIDO: Pega TODAS as categorias do USUÁRIO logado, não todas do BD.
+    # Pega TODAS as categorias do USUÁRIO logado.
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
-    # REMOVIDO: all_accounts = Account.query.filter_by(user_id=current_user.id).all() # Get all accounts for the user
     
     # **NOVO: Dados para Orçamentos na Dashboard**
     current_month_year = get_current_month_year_str()
@@ -1160,7 +1068,6 @@ def index():
         current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
         current_category_filter=category_filter_id,
-        # REMOVIDO: all_accounts=all_accounts, # Pass accounts to template
         
         budgets_with_alerts=budgets_with_alerts, # Passes budgets with alert
         active_goals=active_goals # Passes active goals
@@ -1174,9 +1081,8 @@ def handle_add_transaction():
     date = request.form['date']
     transaction_type = request.form['type']
     category_id = request.form.get('category_id', type=int)
-    # REMOVIDO: account_id = request.form.get('account_id', type=int) # Novo campo  
 
-    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id) # Removed account_id
+    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id)
     flash('Transação adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -1192,10 +1098,9 @@ def handle_add_bill():
     recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int)
     bill_type = request.form['bill_type']
     category_id = request.form.get('bill_category_id', type=int)
-    # REMOVIDO: account_id = request.form.get('bill_account_id', type=int) # Novo campo para conta associada à Bill
 
     add_bill_db(description, amount, due_date, current_user.id, 
-                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id) # Removed account_id
+                is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id)
     flash('Conta adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -1248,7 +1153,6 @@ def get_transaction_data(transaction_id):
             'date': transaction.date,
             'type': transaction.type,
             'category_id': transaction.category_id,
-            # REMOVIDO: 'account_id': transaction.account_id # Adicionado account_id
         })
     return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
 
@@ -1260,9 +1164,8 @@ def handle_edit_transaction(transaction_id):
     date = request.form['edit_date']
     transaction_type = request.form['edit_type']
     category_id = request.form.get('edit_category_id', type=int)
-    # REMOVIDO: account_id = request.form.get('edit_account_id', type=int) # Adicionado account_id
 
-    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id): # Removed account_id
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id):
         flash('Transação atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
@@ -1290,7 +1193,6 @@ def get_bill_data(bill_id):
             'is_active_recurring': bill.is_active_recurring,
             'type': bill.type,
             'category_id': bill.category_id,
-            # REMOVIDO: 'account_id': bill.account_id # Adicionado account_id
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
 
@@ -1307,10 +1209,9 @@ def handle_edit_bill(bill_id):
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
     category_id = request.form.get('edit_bill_category_id', type=int)
-    # REMOVIDO: account_id = request.form.get('edit_bill_account_id', type=int) # Adicionado account_id
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
-                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id): # Removed account_id
+                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id):
         flash('Conta atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
@@ -1615,7 +1516,7 @@ def handle_edit_budget(budget_id):
         flash('Orçamento atualizado com sucesso!', 'success')
     else:
         flash('Erro ao atualizar orçamento.', 'danger')
-    # Tenta obter o month_year do orçamento editado para redirecionar corretamente
+    # Tries to get the month_year of the edited budget to redirect correctly
     budget = Budget.query.get(budget_id)
     redirect_month_year = budget.month_year if budget else get_current_month_year_str()
     return redirect(url_for('budgets_page', month_year=redirect_month_year))
@@ -1680,8 +1581,7 @@ def handle_delete_goal(goal_id):
 @login_required
 def handle_contribute_to_goal(goal_id):
     amount = request.form['amount']
-    # REMOVIDO: account_id = request.form.get('account_id', type=int) # Get account_id from form
-    if contribute_to_goal_db(goal_id, current_user.id, amount): # Removed account_id
+    if contribute_to_goal_db(goal_id, current_user.id, amount):
         # Flash message is already generated by the contribute_to_goal_db function
         pass
     else:
@@ -1721,13 +1621,6 @@ with app.app_context():
             db.session.commit()
             print("Categorias padrão adicionadas para o admin.")
 
-        # REMOVIDO: Add example accounts if there are none
-        # if not Account.query.filter_by(user_id=first_user.id).first():
-        #     db.session.add(Account(name='Conta Principal', balance=1000.00, user_id=first_user.id))
-        #     db.session.add(Account(name='Poupança', balance=500.00, user_id=first_user.id))
-        #     db.session.commit()
-        #     print("Contas de exemplo adicionadas para o admin.")
-
         # Add example data only if there are no existing transactions, budgets or goals for the admin
         if not Transaction.query.filter_by(user_id=first_user.id).first() and \
            not Budget.query.filter_by(user_id=first_user.id).first() and \
@@ -1739,33 +1632,31 @@ with app.app_context():
             lazer_cat = Category.query.filter_by(name='Lazer', user_id=first_user.id).first()
             contas_fixas_cat = Category.query.filter_by(name='Contas Fixas', user_id=first_user.id).first()
             poupanca_metas_cat = Category.query.filter_by(name='Poupança para Metas', user_id=first_user.id).first()
-
-            # REMOVIDO: main_account = Account.query.filter_by(name='Conta Principal', user_id=first_user.id).first()
             
             # Add example transactions
-            if salario_cat: # Removed main_account check
-                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(2025, 6, 1).isoformat(), category_id=salario_cat.id, user_id=first_user.id)) # Removed account_id
-            if alimentacao_cat: # Removed main_account check
-                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(2025, 6, 5).isoformat(), category_id=alimentacao_cat.id, user_id=first_user.id)) # Removed account_id
-                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(2025, 6, 10).isoformat(), category_id=alimentacao_cat.id, user_id=first_user.id)) # Removed account_id
-            if transporte_cat: # Removed main_account check
-                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(2025, 6, 12).isoformat(), category_id=transporte_cat.id, user_id=first_user.id)) # Removed account_id
-            if lazer_cat: # Removed main_account check
-                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(2025, 6, 15).isoformat(), category_id=lazer_cat.id, user_id=first_user.id)) # Removed account_id
+            if salario_cat:
+                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(2025, 6, 1).isoformat(), category_id=salario_cat.id, user_id=first_user.id))
+            if alimentacao_cat:
+                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(2025, 6, 5).isoformat(), category_id=alimentacao_cat.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(2025, 6, 10).isoformat(), category_id=alimentacao_cat.id, user_id=first_user.id))
+            if transporte_cat:
+                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(2025, 6, 12).isoformat(), category_id=transporte_cat.id, user_id=first_user.id))
+            if lazer_cat:
+                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(2025, 6, 15).isoformat(), category_id=lazer_cat.id, user_id=first_user.id))
             db.session.commit()
             print("Transações de exemplo adicionadas para o admin.")
 
             # Add example bills (recurring and normal)
             current_month_for_bills = datetime.date.today().strftime('%Y-%m') # Current month
             
-            if contas_fixas_cat: # Removed main_account check
+            if contas_fixas_cat:
                 # Rent (Master recurring)
                 db.session.add(Bill(
                     description='Aluguel Apartamento (Mestra)', amount=1500.00, dueDate='2024-01-05', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
                     recurring_start_date='2024-01-05', recurring_next_due_date='2024-01-05', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id # Removed account_id
+                    category_id=contas_fixas_cat.id
                 ))
                 # Internet (Master recurring)
                 db.session.add(Bill(
@@ -1773,7 +1664,7 @@ with app.app_context():
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
                     recurring_start_date='2024-01-10', recurring_next_due_date='2024-01-10', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id # Removed account_id
+                    category_id=contas_fixas_cat.id
                 ))
                 # Installment Purchase (Master with fixed installments)
                 db.session.add(Bill(
@@ -1781,7 +1672,7 @@ with app.app_context():
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='installments',
                     recurring_start_date='2024-01-01', recurring_next_due_date='2024-01-01', recurring_total_occurrences=5,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id # Removed account_id
+                    category_id=contas_fixas_cat.id
                 ))
             db.session.commit()
             print("Contas e transações recorrentes mestras de exemplo adicionadas para o admin.")
