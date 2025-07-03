@@ -11,27 +11,6 @@
             font-family: 'Inter', sans-serif;
             background-color: #f7fafc; /* Cor de fundo suave */
         }
-        /* Estilos adicionais para botões e cards para maior apelo visual */
-        .btn-green {
-            background-color: #10B981; /* Tailwind green-500 */
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem; /* rounded-md */
-            transition: background-color 0.2s ease-in-out;
-        }
-        .btn-green:hover {
-            background-color: #059669; /* Tailwind green-600 */
-        }
-        .btn-blue {
-            background-color: #3B82F6; /* Tailwind blue-500 */
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s ease-in-out;
-        }
-        .btn-blue:hover {
-            background-color: #2563EB; /* Tailwind blue-600 */
-        }
         .card-shadow {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
@@ -39,17 +18,17 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
-        /* Estilo para o conteúdo colapsável */
         .collapsible-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.5s ease-in-out, padding 0.3s ease-in-out; /* Ajustado para 0.5s para suavidade */
-            padding-bottom: 0; /* Garante que não haja padding quando recolhido */
+            transition: max-height 0.5s ease-in-out, padding 0.3s ease-in-out;
+            padding-top: 0;
+            padding-bottom: 0;
         }
         .collapsible-content.expanded {
-            max-height: 1200px; /* Aumentado para acomodar MUITO conteúdo */
-            padding-top: 1rem; /* Adiciona um padding quando expandido */
-            padding-bottom: 1.5rem; /* Adiciona padding na parte de baixo quando expandido */
+            max-height: 1200px;
+            padding-top: 1rem;
+            padding-bottom: 1.5rem;
         }
         .arrow-icon {
             transition: transform 0.3s ease-out;
@@ -57,12 +36,9 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
-        /* Nova classe para ocultar elementos inicialmente via CSS puro, antes do JS */
         .hidden-initially {
             display: none;
         }
-
-        /* Estilos para o menu de usuário */
         .user-menu-dropdown {
             position: absolute;
             right: 0;
@@ -73,7 +49,7 @@
             z-index: 1000;
             min-width: 180px;
             overflow: hidden;
-            transform: translateY(10px); /* Pequeno deslocamento para baixo */
+            transform: translateY(10px);
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0.2s ease-out;
@@ -83,7 +59,6 @@
             visibility: visible;
             transform: translateY(0);
         }
-        /* Estilos para o modal de edição */
         .modal {
             position: fixed;
             z-index: 1050;
@@ -126,42 +101,30 @@
         .close-button:hover {
             color: #333;
         }
-
-        /* Estilo para a área de rolagem para TODAS as listas */
         .list-scroll-area { 
-            max-height: 400px; /* Altura máxima da área de rolagem */
-            overflow-y: auto; /* Adiciona barra de rolagem vertical quando o conteúdo excede a altura */
-            padding-right: 10px; /* Espaço para a barra de rolagem */
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
         }
-
-        /* Estilo específico para alinhar os botões de ação nas bills */
         .bill-actions-grid {
             display: grid;
-            /* Duas colunas. A primeira para o botão "Pagar", a segunda para "Editar". */
-            /* A linha de baixo terá "Remarcar" (input + botão) e "Excluir". */
             grid-template-columns: repeat(2, minmax(0, 1fr)); 
-            gap: 0.5rem; /* Espaçamento entre os itens do grid */
-            width: 100%; /* Ocupa a largura total disponível */
+            gap: 0.5rem;
+            width: 100%;
         }
-
-        /* Responsividade para o grid de botões - garantir que ele se ajuste */
-        @media (min-width: 640px) { /* Em telas pequenas (sm) e maiores */
+        @media (min-width: 640px) {
             .bill-actions-grid {
-                /* Permite que o grid de botões ocupe a largura que precisar, sem forçar 100% da linha pai */
                 width: auto;
-                /* Impede que o flex-item encolha o conteúdo */
                 flex-shrink: 0; 
-                max-width: 280px; /* Limita a largura para não esticar demais em telas muito grandes */
+                max-width: 280px;
             }
             .bill-actions-grid form, .bill-actions-grid button {
-                width: auto; /* Deixa os itens ajustarem sua largura */
-                min-width: 80px; /* Garante uma largura mínima para botões */
+                width: auto;
+                min-width: 80px;
             }
         }
-
-        /* Estilo para o input de data dentro do form de remarcar */
         .bill-reschedule-form input[type="date"] {
-            min-width: 120px; /* Garante que o input de data não seja muito pequeno */
+            min-width: 120px;
         }
     </style>
 </head>
@@ -169,24 +132,22 @@
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
-            <nav class="relative"> {# Adicionado relative para posicionamento do dropdown #}
+            <nav class="relative">
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
                     
-                    {# Botão do menu hambúrguer #}
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                     </button>
 
-                    {# Dropdown do menu de usuário #}
                     <div id="user-menu" class="user-menu-dropdown">
                         <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Meu Perfil
                         </a>
-                        <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# Novo link para Orçamentos #}
+                        <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Meus Orçamentos
                         </a>
-                        <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# Novo link para Metas #}
+                        <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Minhas Metas
                         </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
@@ -207,7 +168,6 @@
             </nav>
         </header>
 
-        {# Exibe mensagens flash #}
         <div id="flash-messages-container" class="mb-6">
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
@@ -282,10 +242,8 @@
             </div>
         </div>
 
-        {# Grid principal que divide a área em 2 colunas grandes (formulários à esquerda, listas à direita) #}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             
-            {# COLUNA ESQUERDA: Formulário de Nova Transação e Nova Conta a Pagar #}
             <div class="col-span-1 space-y-6"> 
                 <div class="rounded-lg shadow-md bg-white card-shadow">
                     <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('transaction-form-content', 'transaction-arrow', ['bill-form-content'], ['bill-arrow'])">
@@ -294,37 +252,45 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="transaction-form-content" class="collapsible-content hidden-initially"> {# Adicionado hidden-initially #}
+                    <div id="transaction-form-content" class="collapsible-content hidden-initially">
                         <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                                 <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             <div>
                                 <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
                                 <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             <div>
                                 <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
                                 <input type="date" id="date" name="date" value="{{ current_date }}" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             <div>
                                 <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                                <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')">
+                                <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="income">Receita</option>
-                                    <option value="expense">Despesa</option>
+                                    <option value="expense" selected>Despesa</option>
                                 </select>
                             </div>
-                            {# Campo de seleção de categoria para adicionar transação #}
                             <div>
                                 <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                                <select id="category_id" name="category_id"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <select id="category_id" name="category_id" required
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="">Selecione a Categoria</option>
-                                    {# Preenchido dinamicamente via JS #}
+                                </select>
+                            </div>
+                            <!-- CORREÇÃO: Seletor de conta adicionado -->
+                            <div>
+                                <label for="account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                                <select id="account_id" name="account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option value="">Selecione uma conta</option>
+                                    {% for account in accounts %}
+                                    <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
@@ -341,126 +307,109 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="bill-form-content" class="collapsible-content hidden-initially"> {# Adicionado hidden-initially #}
+                    <div id="bill-form-content" class="collapsible-content hidden-initially">
                         <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                                 <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
                                 <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
                                 <input type="date" id="bill-due-date" name="bill_due_date" value="{{ current_date }}" required
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             
-                            {# NOVO: Tipo da Bill (Receita/Despesa) #}
                             <div>
                                 <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
-                                <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id_recurring')"> {# Adicionado onchange para filtrar categorias #}
-                                    <option value="expense">Despesa</option>
-                                    {# Se você precisar de contas recorrentes de receita, descomente abaixo: #}
-                                    {# <option value="income">Receita</option> #}
+                                <select id="bill_type" name="bill_type" required onchange="filterCategoriesByType(this.value, 'bill_category_id')" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="expense" selected>Despesa</option>
+                                    <option value="income">Receita</option>
                                 </select>
                             </div>
-                            {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
                             <div>
-                                <label for="bill_category_id_recurring" class="block text-sm font-medium text-gray-700 mb-1">Categoria (para Recorrência)</label>
-                                <select id="bill_category_id_recurring" name="bill_category_id" {# Alterado name para bill_category_id para corresponder ao backend #}
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <label for="bill_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                                <select id="bill_category_id" name="bill_category_id" required
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="">Selecione a Categoria</option>
-                                    {# Preenchido dinamicamente via JS #}
+                                </select>
+                            </div>
+                            <!-- CORREÇÃO: Seletor de conta adicionado -->
+                            <div>
+                                <label for="bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
+                                <select id="bill_account_id" name="bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Selecione uma conta</option>
+                                    {% for account in accounts %}
+                                    <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
+                                    {% endfor %}
                                 </select>
                             </div>
 
-                            {# NOVO: Checkbox para marcar como recorrente #}
                             <div class="flex items-center">
                                 <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
                                 <label for="is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
                             </div>
 
-                            {# Campos de recorrência (ocultos por padrão) #}
                             <div id="bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
                                 <div>
                                     <label for="recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
                                     <select id="recurring_frequency_bill" name="recurring_frequency_bill"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        onchange="updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill')"> 
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            onchange="updateRecurringOccurrenceLabel('recurring_frequency_bill', 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill')"> 
                                         <option value="monthly">Mensal</option>
                                         <option value="weekly">Semanal</option>
                                         <option value="yearly">Anual</option>
                                         <option value="installments">Parcelas</option>
                                     </select>
                                 </div>
-                                <div id="bill_total_occurrences_field" class="hidden"> {# CORRIGIDO: Este ID estava inconsistente com o JS #}
-                                    <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
+                                <div id="bill_total_occurrences_field" class="hidden">
+                                    <label for="recurring_total_occurrences_bill" id="recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label>
                                     <input type="number" id="recurring_total_occurrences_bill" name="recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 </div>
                             </div>
 
-                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                                 Adicionar Conta
                             </button>
                         </form>
                     </div>
                 </div>
-            </div> {# Fim da COLUNA ESQUERDA #}
+            </div>
 
-            {# COLUNA DIREITA: Container com grid 2x2 para as 4 listas #}
-            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 items-start">
+            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                 
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow md:col-span-2"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
                     </h2>
-                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA CONTAS #}
                     <div class="mb-4 space-y-2">
                         <form id="bills-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
-                            <input type="hidden" name="transaction_type" value="{{ current_transaction_type_filter or '' }}">
-                            <input type="hidden" name="start_date" value="{{ current_start_date or '' }}">
-                            <input type="hidden" name="end_date" value="{{ current_end_date or '' }}">
-                            <input type="hidden" name="sort_by_transactions" value="{{ current_sort_by_transactions or 'date' }}">
-                            <input type="hidden" name="order_transactions" value="{{ current_order_transactions or 'desc' }}">
-                            <input type="hidden" name="category_filter" value="{{ current_category_filter or '' }}">
+                            <input type="hidden" name="transaction_type" value="{{ request.args.get('transaction_type', '') }}">
+                            <input type="hidden" name="start_date" value="{{ request.args.get('start_date', '') }}">
+                            <input type="hidden" name="end_date" value="{{ request.args.get('end_date', '') }}">
+                            <input type="hidden" name="sort_by_transactions" value="{{ request.args.get('sort_by_transactions', 'date') }}">
+                            <input type="hidden" name="order_transactions" value="{{ request.args.get('order_transactions', 'desc') }}">
+                            <input type="hidden" name="category_filter" value="{{ request.args.get('category_filter', '') }}">
 
                             <div>
                                 <label for="bill_status_filter" class="block text-xs font-medium text-gray-700 mb-1">Status:</label>
                                 <select id="bill_status_filter" name="bill_status" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="">Todos</option>
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" onchange="this.form.submit()">
                                     <option value="pending" {% if current_bill_status_filter == 'pending' %}selected{% endif %}>Pendentes</option>
-                                    <option value="paid" {% if current_bill_status_filter == 'paid' %}selected{% endif %}>Pagos</option>
-                                    <option value="overdue" {% if current_bill_status_filter == 'overdue' %}selected{% endif %}>Atrasados</option>
+                                    <option value="paid" {% if current_bill_status_filter == 'paid' %}selected{% endif %}>Pagas</option>
+                                    <option value="overdue" {% if current_bill_status_filter == 'overdue' %}selected{% endif %}>Atrasadas</option>
                                 </select>
                             </div>
-                            <div>
-                                <label for="sort_by_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
-                                <select id="sort_by_bills" name="sort_by_bills" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="dueDate" {% if current_sort_by_bills == 'dueDate' %}selected{% endif %}>Vencimento</option>
-                                    <option value="amount" {% if current_sort_by_bills == 'amount' %}selected{% endif %}>Valor</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="order_bills" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
-                                <select id="order_bills" name="order_bills" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                                    <option value="asc" {% if current_order_bills == 'asc' %}selected{% endif %}>Crescente</option>
-                                    <option value="desc" {% if current_order_bills == 'desc' %}selected{% endif %}>Decrescente</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
                         </form>
                     </div>
 
-                    {# Div com barra de rolagem para a lista de contas #}
                     <div class="list-scroll-area">
                         <div class="space-y-4">
                             {% if not bills %}
@@ -470,25 +419,19 @@
                                 </div>
                             {% else %}
                                 {% for bill in bills %}
-                                    {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %} {# Condição para "em atraso" #}
-                                    <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50{% else %}border-gray-200 bg-white{% endif %} hover:border-blue-300 hover:shadow-md">
-                                        {# Linha principal: Descrição, Valor, Detalhes e Botões #}
-                                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap w-full"> {# w-full para preencher a largura do card #}
-                                            {# Detalhes da Conta (Descrição, Vencimento, Valor) #}
+                                    {% set is_overdue = (bill.dueDate < current_date and bill.status == 'pending') %}
+                                    <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if is_overdue %}border-red-300 bg-red-50{% elif bill.status == 'paid' %}border-green-300 bg-green-50{% else %}border-gray-200 bg-white{% endif %} hover:border-blue-300 hover:shadow-md">
+                                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap w-full">
                                             <div class="flex-1 min-w-0">
                                                 <div class="flex items-center space-x-2 mb-2">
                                                     <h3 class="font-semibold text-lg text-gray-800 truncate">{{ bill.description }}</h3>
                                                     {% if is_overdue %}
-                                                        <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
-                                                            Em atraso
-                                                        </span>
-                                                    {% elif bill.status == 'paid' %} {# Mostra status "pago" #}
-                                                        <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                                                            Pago
-                                                        </span>
+                                                        <span class="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">Em atraso</span>
+                                                    {% elif bill.status == 'paid' %}
+                                                        <span class="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">Pago</span>
                                                     {% endif %}
                                                 </div>
-                                                <div class="flex flex-wrap gap-x-4 text-sm text-gray-600 items-center"> {# Adicionado items-center para alinhamento vertical #}
+                                                <div class="flex flex-wrap gap-x-4 text-sm text-gray-600 items-center">
                                                     <div class="flex items-center space-x-1">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clock h-4 w-4 text-gray-500"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                                                         <span>Vencimento: {{ bill.dueDate }}</span>
@@ -496,51 +439,18 @@
                                                     <div class="font-bold text-xl text-gray-800">
                                                         R$ {{ "%.2f"|format(bill.amount) }}
                                                     </div>
-                                                    {# NOVO: Indica se veio de recorrência e detalhes de parcela #}
-                                                    {% if bill.is_master_recurring_bill or bill.recurring_parent_id %} {# Verifica se é mestra ou filha #}
-                                                        <span class="px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                                                            Recorrente
-                                                            {% if bill.recurring_child_number and bill.recurring_total_occurrences and bill.recurring_total_occurrences > 0 %} {# Só mostra se for Bill filha e tiver total > 0 #}
-                                                                {{ bill.recurring_child_number }}/{{ bill.recurring_total_occurrences }}
-                                                            {% elif bill.is_master_recurring_bill and bill.recurring_total_occurrences == 0 %} {# É mestra e indefinida #}
-                                                                (Indefinido)
-                                                            {% endif %}
-                                                        </span>
-                                                    {% endif %}
-                                                    {# NOVO: Exibe o tipo da Bill (Receita/Despesa) #}
-                                                    {% if bill.type == 'income' %}
-                                                        <span class="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">Receita</span>
-                                                    {% elif bill.type == 'expense' %}
-                                                        <span class="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">Despesa</span>
-                                                    {% endif %}
                                                 </div>
                                             </div>
                                             
-                                            {# Botoes de Ação para cada conta - AGRUPADOS EM FLEX #}
-                                            <div class="grid grid-cols-2 gap-2 w-full sm:w-auto mt-4 sm:mt-0 bill-actions"> {# Usando grid para 2 colunas #}
+                                            <div class="grid grid-cols-2 gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                                                 {% if bill.status == 'pending' %}
-                                                    <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="col-span-1"> {# ocupa 1 coluna #}
-                                                        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                            Pagar
-                                                        </button>
-                                                    </form>
+                                                <form action="{{ url_for('handle_pay_bill', bill_id=bill.id) }}" method="POST" class="col-span-2 sm:col-span-1">
+                                                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Pagar</button>
+                                                </form>
                                                 {% endif %}
-                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                    Editar
-                                                </button>
-                                                {# Nova linha para Remarcar/Excluir se for o caso #}
-                                                {% if bill.status == 'pending' %}
-                                                    <form action="{{ url_for('handle_reschedule_bill', bill_id=bill.id) }}" method="POST" class="flex gap-2 items-center col-span-2 bill-reschedule-form"> {# Ocupa 2 colunas para o input + botão #}
-                                                        <input type="date" name="new_date" class="px-2 py-1 border border-gray-300 rounded-md text-sm flex-1" required> {# flex-1 para o input de data #}
-                                                        <button type="submit" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-1 px-2 rounded-md transition-colors text-sm">
-                                                            Remarcar
-                                                        </button>
-                                                    </form>
-                                                {% endif %}
-                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2"> {# Ocupa 2 colunas #}
-                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                        Excluir
-                                                    </button>
+                                                <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="col-span-2 sm:col-span-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Editar</button>
+                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2">
+                                                    <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Excluir</button>
                                                 </form>
                                             </div>
                                         </div>
@@ -551,101 +461,38 @@
                     </div>
                 </div>
 
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow md:col-span-2"> 
                     <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
-                    {# CONTROLES DE FILTRO E ORDENAÇÃO PARA TRANSAÇÕES #}
-                    <div class="mb-4 space-y-2">
-                        <form id="transactions-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
-                            <input type="hidden" name="bill_status" value="{{ current_bill_status_filter or '' }}">
-                            <input type="hidden" name="sort_by_bills" value="{{ current_sort_by_bills or 'dueDate' }}">
-                            <input type="hidden" name="order_bills" value="{{ current_order_bills or 'asc' }}">
-
-                            <div>
-                                <label for="transaction_type_filter" class="block text-xs font-medium text-gray-700 mb-1">Tipo:</label>
-                                <select id="transaction_type_filter" name="transaction_type" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                    <option value="">Todos</option>
-                                    <option value="income" {% if current_transaction_type_filter == 'income' %}selected{% endif %}>Receitas</option>
-                                    <option value="expense" {% if current_transaction_type_filter == 'expense' %}selected{% endif %}>Despesas</option>
-                                </select>
-                            </div>
-                            {# Filtro por Categoria #}
-                            <div>
-                                <label for="category_filter" class="block text-xs font-medium text-gray-700 mb-1">Categoria:</label>
-                                <select id="category_filter" name="category_filter" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                    <option value="">Todas</option>
-                                    {% for category in all_categories %}
-                                        <option value="{{ category[0] }}" {% if current_category_filter == category[0] %}selected{% endif %}>
-                                            {{ category[2] }} ({{ category[1]|capitalize }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label for="start_date" class="block text-xs font-medium text-gray-700 mb-1">De:</label>
-                                <input type="date" id="start_date" name="start_date" value="{{ current_start_date or '' }}" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                            </div>
-                            <div>
-                                <label for="end_date" class="block text-xs font-medium text-gray-700 mb-1">Até:</label>
-                                <input type="date" id="end_date" name="end_date" value="{{ current_end_date or '' }}" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                            </div>
-                            <div>
-                                <label for="sort_by_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordenar por:</label>
-                                <select id="sort_by_transactions" name="sort_by_transactions" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                    <option value="date" {% if current_sort_by_transactions == 'date' %}selected{% endif %}>Data</option>
-                                    <option value="amount" {% if current_sort_by_transactions == 'amount' %}selected{% endif %}>Valor</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="order_transactions" class="block text-xs font-medium text-gray-700 mb-1">Ordem:</label>
-                                <select id="order_transactions" name="order_transactions" 
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm">
-                                    <option value="desc" {% if current_order_transactions == 'desc' %}selected{% endif %}>Decrescente</option>
-                                    <option value="asc" {% if current_order_transactions == 'asc' %}selected{% endif %}>Crescente</option>
-                                </select>
-                            </div>
-                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-md transition-colors text-sm">Aplicar</button>
-                        </form>
-                    </div>
-
-
-                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
+                    <div class="list-scroll-area">
                         <div class="space-y-3">
                             {% if not transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada com os filtros atuais!</p>
+                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada</p>
                             {% else %}
                                 {% for transaction in transactions %}
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
+                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100">
                                         <div class="flex items-center space-x-3">
                                             <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
+                                                {% if transaction.type == 'income' %}
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+                                                {% else %}
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+                                                {% endif %}
                                             </div>
                                             <div>
                                                 <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
                                                 <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                                {# Exibe a categoria #}
                                                 <p class="text-xs text-gray-400">
                                                     Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
                                                 </p>
                                             </div>
                                         </div>
-                                        <div class="flex flex-col space-y-2 ml-auto">
-                                            <div class="flex space-x-2">
-                                                <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                    Editar
-                                                </button>
-                                            </div>
-                                            <div class="flex space-x-2">
-                                                <form action="{{ url_for('handle_delete_transaction', transaction_id=transaction.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
-                                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md transition-colors text-sm w-full">
-                                                        Excluir
-                                                    </button>
-                                                </form>
-                                            </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-lg {% if transaction.type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
+                                                {{ '+' if transaction.type == 'income' else '-' }} R$ {{ "%.2f"|format(transaction.amount) }}
+                                            </span>
+                                            <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                            </button>
                                         </div>
                                     </div>
                                 {% endfor %}
@@ -653,557 +500,224 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
-                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
-                        <div class="space-y-3">
-                            {% if not income_transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma receita encontrada</p>
-                            {% else %}
-                                {% for transaction in income_transactions %}
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                                            </div>
-                                            <div>
-                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                            </div>
-                                        </div>
-                                        <div class="font-bold text-lg text-green-600">
-                                            + R$ {{ "%.2f"|format(transaction.amount) }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
-                    <div class="list-scroll-area"> {# Aplicando a classe de rolagem aqui #}
-                        <div class="space-y-3">
-                            {% if not expense_transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma despesa encontrada</p>
-                            {% else %}
-                                {% for transaction in expense_transactions %}
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200 ease-in-out shadow-sm">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="p-2 rounded-full {% if transaction.type == 'expense' %}bg-red-100 text-red-600{% else %}bg-green-100 text-green-600{% endif %}">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
-                                            </div>
-                                            <div>
-                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                            </div>
-                                        </div>
-                                        <div class="font-bold text-lg text-red-600">
-                                            - R$ {{ "%.2f"|format(transaction.amount) }}
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div> {# Fim do NOVO div que agrupa as 3 listas (Contas a Pagar, Receitas, Despesas) #}
-
-
-            </div> {# Fim do CONTÊINER DE GRADE UNIFICADO para Formulários e Listas #}
-
-
-        </div>
-
-        <div id="edit-modal" class="modal">
-            <div class="modal-content">
-                <span class="close-button" onclick="closeEditModal()">&times;</span>
-                <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
-                
-                <form id="edit-transaction-form" method="POST" class="space-y-4 hidden">
-                    <input type="hidden" id="edit_transaction_id" name="transaction_id">
-                    <div>
-                        <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                        <input type="text" id="edit_description" name="edit_description" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="edit_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                        <input type="number" step="0.01" id="edit_amount" name="edit_amount" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="edit_date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                        <input type="date" id="edit_date" name="edit_date" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                    </div>
-                    <div>
-                        <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                        <select id="edit_type" name="edit_type" required onchange="filterCategoriesByType(this.value, 'edit_category_id')">
-                            <option value="income">Receita</option>
-                            <option value="expense">Despesa</option>
-                        </select>
-                    </div>
-                    {# Campo de seleção de categoria para editar transação #}
-                    <div>
-                        <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                        <select id="edit_category_id" name="edit_category_id"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                            <option value="">Selecione a Categoria</option>
-                            {# Preenchido dinamicamente via JS #}
-                        </select>
-                    </div>
-                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                        Salvar Edição
-                    </button>
-                </form>
-
-                <form id="edit-bill-form" method="POST" class="space-y-4 hidden">
-                    <input type="hidden" id="edit_bill_id" name="bill_id">
-                    <div>
-                        <label for="edit_bill_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                        <input type="text" id="edit_bill_description" name="edit_bill_description" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="edit_bill_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
-                        <input type="number" step="0.01" id="edit_bill_amount" name="edit_bill_amount" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="edit_bill_dueDate" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
-                        <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-
-                    {# NOVO: Tipo da Bill (Receita/Despesa) no modal de edição #}
-                    <div>
-                        <label for="edit_bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
-                        <select id="edit_bill_type" name="edit_bill_type" required onchange="filterCategoriesByType(this.value, 'edit_bill_category_id_recurring')"> {# Adicionado onchange aqui #}
-                            <option value="expense">Despesa</option>
-                            <option value="income">Receita</option>
-                        </select>
-                    </div>
-
-                    {# Adicionado campo de categoria para Bills (se necessário para a Bill recorrente mestra) #}
-                    <div>
-                        <label for="edit_bill_category_id_recurring" class="block text-sm font-medium text-gray-700 mb-1">Categoria (para Recorrência)</label>
-                        <select id="edit_bill_category_id_recurring" name="edit_bill_category_id" {# Alterado name para edit_bill_category_id para corresponder ao backend #}
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">Selecione a Categoria</option>
-                            {# Preenchido dinamicamente via JS #}
-                        </select>
-                    </div>
-
-                    {# NOVO: Checkbox e campos de recorrência para edição de Bill #}
-                    <div class="flex items-center">
-                        <input type="checkbox" id="edit_is_recurring_bill" name="edit_is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFieldsEdit()">
-                        <label for="edit_is_recurring_bill" class="text-sm font-medium text-gray-700">É Recorrente?</label>
-                    </div>
-
-                    <div id="edit_bill_recurring_fields" class="space-y-4 hidden border-t pt-4 mt-4">
-                        <div>
-                            <label for="edit_recurring_frequency_bill" class="block text-sm font-medium text-gray-700 mb-1">Frequência da Recorrência</label>
-                            <select id="edit_recurring_frequency_bill" name="edit_recurring_frequency_bill"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                onchange="updateRecurringOccurrenceLabel('edit_recurring_frequency_bill', 'edit_recurring_total_occurrences_label', 'edit_recurring_total_occurrences_bill')"> 
-                                <option value="monthly">Mensal</option>
-                                <option value="weekly">Semanal</option>
-                                <option value="yearly">Anual</option>
-                                <option value="installments">Parcelas</option>
-                            </select>
-                        </div>
-                        <div id="edit_bill_total_occurrences_field" class="hidden"> {# CORRIGIDO: Este ID estava inconsistente com o JS #}
-                            <label for="edit_recurring_total_occurrences_bill" id="edit_recurring_total_occurrences_label" class="block text-sm font-medium text-gray-700 mb-1">Total de Ocorrências</label> {# ID da label para JS #}
-                            <input type="number" id="edit_recurring_total_occurrences_bill" name="edit_recurring_total_occurrences_bill" placeholder="Ex: 12" min="0"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        {# Opcional: Checkbox para Ativar/Desativar recorrência mestre #}
-                        <div class="flex items-center">
-                            <input type="checkbox" id="edit_is_active_recurring_bill" name="edit_is_active_recurring_bill" class="mr-2">
-                            <label for="edit_is_active_recurring_bill" class="text-sm font-medium text-gray-700">Recorrência Ativa?</label>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                        Salvar Edição
-                    </button>
-                </form>
             </div>
         </div>
+    </div>
 
-        <script>
-            // Array global para armazenar todas as categorias
-            let allCategories = []; 
-            // Recebe as categorias do Flask (Jinja2)
-            const categoriesData = {{ all_categories | tojson }};
-
-            // Popula allCategories com os dados do Flask e inicializa outras coisas
-            document.addEventListener('DOMContentLoaded', () => {
-                allCategories = categoriesData;
-                // Para o formulário de adição de transação
-                const typeSelect = document.getElementById('type');
-                if (typeSelect) {
-                    filterCategoriesByType(typeSelect.value, 'category_id');
-                    // Não é mais necessário adicionar listener aqui, pois o formulário já tem onchange no HTML
-                }
-
-                // Para o formulário de adição de Bill - inicializa categorias de acordo com o tipo padrão (expense)
-                const billTypeSelect = document.getElementById('bill_type');
-                if (billTypeSelect) {
-                    // Não é mais necessário adicionar listener aqui, pois o formulário já tem onchange no HTML
-                    filterCategoriesByType(billTypeSelect.value, 'bill_category_id_recurring'); // Chama na carga inicial
-                }
-
-
-                populateCategoryFilter('category_filter');
-
-                const urlParams = new URLSearchParams(window.location.search);
-                const initialFilterType = urlParams.get('transaction_type');
-                if (initialFilterType) {
-                    filterCategoriesByType(initialFilterType, 'category_id');
-                }
-
-                // Lógica para mensagens flash desaparecerem automaticamente
-                const flashMessages = document.querySelectorAll('.flash-message');
-                flashMessages.forEach(message => {
-                    setTimeout(() => {
-                        message.style.transition = 'opacity 1s ease-out';
-                        message.style.opacity = '0';
-                        message.addEventListener('transitionend', () => message.remove());
-                    }, 4000); // 4 segundos
-                });
-
-                // Adiciona event listeners aos botões de aplicar
-                document.getElementById('bills-filter-sort-form').addEventListener('submit', function(event) {
-                    // Nada a fazer aqui além de permitir o submit padrão
-                });
-                document.getElementById('transactions-filter-sort-form').addEventListener('submit', function(event) {
-                    // Nada a fazer aqui além de permitir o submit padrão
-                });
-
-                // Inicializa a visibilidade dos campos de recorrência na NOVA CONTA A PAGAR
-                const isRecurringBillCheckbox = document.getElementById('is_recurring_bill');
-                if (isRecurringBillCheckbox) {
-                    // O listener já está no HTML via onchange
-                    toggleBillRecurringFields(); // Chama na carga inicial para ocultar/mostrar corretamente
-                }
-                const addBillFrequencySelect = document.getElementById('recurring_frequency_bill');
-                if (addBillFrequencySelect) {
-                    // Garante que a label e placeholder são atualizados na carga inicial/ativação
-                    updateRecurringOccurrenceLabel(addBillFrequencySelect.id, 'recurring_total_occurrences_label', 'recurring_total_occurrences_bill'); 
-                    // O listener já está no HTML via onchange
-                }
-                
-                // Inicializa o estado dos formulários de acordeão (todos recolhidos por padrão)
-                document.getElementById('transaction-form-content').classList.remove('expanded');
-                document.getElementById('transaction-arrow').classList.remove('rotated');
-                document.getElementById('bill-form-content').classList.remove('expanded');
-                document.getElementById('bill-arrow').classList.remove('rotated');
-            });
-
-            function toggleAccordion(contentIdToToggle, arrowIdToToggle, otherContentIds, otherArrowIds) {
-                const content = document.getElementById(contentIdToToggle);
-                const arrow = document.getElementById(arrowIdToToggle);
-
-                // Oculta outros conteúdos e reverte suas setas
-                otherContentIds.forEach((id, index) => {
-                    const otherContent = document.getElementById(id);
-                    const otherArrow = document.getElementById(otherArrowIds[index]);
-                    if (otherContent.classList.contains('expanded')) {
-                        otherContent.classList.remove('expanded');
-                        otherArrow.classList.remove('rotated');
-                        // Garante que o display seja none quando recolhido
-                        otherContent.classList.add('hidden-initially');
-                    }
-                });
-
-                // Alterna o conteúdo e a seta do acordeão clicado
-                if (content.classList.contains('expanded')) {
-                    content.classList.remove('expanded');
-                    arrow.classList.remove('rotated');
-                    // Adiciona hidden-initially de volta ao recolher
-                    content.classList.add('hidden-initially');
-                } else {
-                    // Remove hidden-initially antes de expandir para permitir a transição
-                    content.classList.remove('hidden-initially');
-                    content.classList.add('expanded');
-                    arrow.classList.add('rotated');
-                }
-            }
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditModal()">&times;</span>
+            <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
             
-            // --- JAVASCRIPT: Desaparecimento de Mensagens Flash ---
-            document.addEventListener('DOMContentLoaded', () => {
-                const flashMessages = document.querySelectorAll('.flash-message');
-                flashMessages.forEach(message => {
-                    setTimeout(() => {
-                        message.style.transition = 'opacity 1s ease-out';
-                        message.style.opacity = '0';
-                        message.addEventListener('transitionend', () => message.remove());
-                    }, 4000); // 4 segundos
-                });
+            <form id="edit-transaction-form" method="POST" class="space-y-4 hidden">
+                <div>
+                    <label for="edit_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" id="edit_description" name="edit_description" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                    <input type="number" step="0.01" id="edit_amount" name="edit_amount" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_date" class="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                    <input type="date" id="edit_date" name="edit_date" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select id="edit_type" name="edit_type" required onchange="filterCategoriesByType(this.value, 'edit_category_id')" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="income">Receita</option>
+                        <option value="expense">Despesa</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select id="edit_category_id" name="edit_category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <!-- CORREÇÃO: Seletor de conta no modal -->
+                <div>
+                    <label for="edit_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
+                    <select id="edit_account_id" name="edit_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md">Salvar Edição</button>
+            </form>
+
+            <form id="edit-bill-form" method="POST" class="space-y-4 hidden">
+                <div>
+                    <label for="edit_bill_description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <input type="text" id="edit_bill_description" name="edit_bill_description" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_bill_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                    <input type="number" step="0.01" id="edit_bill_amount" name="edit_bill_amount" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_bill_dueDate" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
+                    <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <!-- CORREÇÃO: Seletor de conta no modal -->
+                <div>
+                    <label for="edit_bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
+                    <select id="edit_bill_account_id" name="edit_bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Salvar Edição</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const allCategories = {{ all_categories | tojson }};
+        const allAccounts = {{ accounts | tojson }};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            filterCategoriesByType('expense', 'category_id');
+            filterCategoriesByType('expense', 'bill_category_id');
+            
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+        });
+
+        function toggleAccordion(contentId, arrowId, otherContentIds, otherArrowIds) {
+            const content = document.getElementById(contentId);
+            const arrow = document.getElementById(arrowId);
+
+            otherContentIds.forEach((id, index) => {
+                const otherContent = document.getElementById(id);
+                if (otherContent.classList.contains('expanded')) {
+                    otherContent.classList.remove('expanded');
+                    document.getElementById(otherArrowIds[index]).classList.remove('rotated');
+                }
             });
 
-            // --- JAVASCRIPT: Toggle do Menu de Usuário ---
-            function toggleUserMenu() {
-                const userMenu = document.getElementById('user-menu');
-                userMenu.classList.toggle('active');
-            }
+            content.classList.toggle('expanded');
+            arrow.classList.toggle('rotated');
+        }
 
-            document.addEventListener('click', (event) => {
-                const userMenu = document.getElementById('user-menu');
-                const menuButton = document.querySelector('header nav button');
-                if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
-                    userMenu.classList.remove('active');
+        function toggleUserMenu() {
+            document.getElementById('user-menu').classList.toggle('active');
+        }
+
+        document.addEventListener('click', (event) => {
+            const userMenu = document.getElementById('user-menu');
+            const menuButton = document.querySelector('header nav button');
+            if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
+                userMenu.classList.remove('active');
+            }
+        });
+
+        function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
+            allCategories.filter(cat => cat[1] === transactionType).forEach(cat => {
+                const option = new Option(cat[2], cat[0]);
+                if (selectedCategoryId && cat[0] === selectedCategoryId) {
+                    option.selected = true;
                 }
+                selectElement.add(option);
             });
+        }
 
-            // --- JAVASCRIPT: Funcionalidade de Edição via Modal e Categorias ---
+        function populateAccounts(selectElementId, selectedAccountId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione uma conta</option>';
+            allAccounts.forEach(account => {
+                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
+                if (selectedAccountId && account.id === selectedAccountId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
+            });
+        }
 
-            const editModal = document.getElementById('edit-modal');
-            const editTransactionForm = document.getElementById('edit-transaction-form');
-            const editBillForm = document.getElementById('edit-bill-form');
-            const editModalTitle = document.getElementById('edit-modal-title');
+        const editModal = document.getElementById('edit-modal');
+        const editTransactionForm = document.getElementById('edit-transaction-form');
+        const editBillForm = document.getElementById('edit-bill-form');
+        const editModalTitle = document.getElementById('edit-modal-title');
 
-            function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
-                const selectElement = document.getElementById(selectElementId);
-                if (!selectElement) return;
+        async function openEditModal(type, id) {
+            editModal.classList.add('active');
+            editTransactionForm.classList.add('hidden');
+            editBillForm.classList.add('hidden');
 
-                selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
+            const url = type === 'transaction' ? `/get_transaction_data/${id}` : `/get_bill_data/${id}`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Falha ao buscar dados');
+                const data = await response.json();
 
-                // Filtra as categorias com base no tipo (income/expense)
-                const filtered = allCategories.filter(category => category[1] === transactionType);
-
-                filtered.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category[0];
-                    option.textContent = category[2]; // category[2] é o nome
-                    if (selectedCategoryId !== null && category[0] === selectedCategoryId) { // Use !== null for explicit check
-                        option.selected = true;
-                    }
-                    selectElement.appendChild(option);
-                });
-            }
-
-            function populateCategoryFilter(selectElementId, currentFilterValue = null) {
-                const selectElement = document.getElementById(selectElementId);
-                if (!selectElement) return;
-
-                selectElement.innerHTML = '<option value="">Todas</option>';
-
-                allCategories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category[0];
-                    option.textContent = `${category[2]} (${category[1].charAt(0).toUpperCase() + category[1].slice(1)})`;
-                    if (currentFilterValue !== null && category[0] == currentFilterValue) { // Use !== null for explicit check
-                        option.selected = true;
-                    }
-                    selectElement.appendChild(option);
-                });
-            }
-
-            // NOVO: Função para esconder/mostrar campos de recorrência no formulário de NOVA CONTA A PAGAR
-            function toggleBillRecurringFields() {
-                const isRecurringCheckbox = document.getElementById('is_recurring_bill');
-                const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
-                const recurringFrequencySelect = document.getElementById('recurring_frequency_bill');
-                const installmentsTotalField = document.getElementById('bill_total_occurrences_field'); 
-                const installmentsTotalInput = document.getElementById('recurring_total_occurrences_bill'); 
-                const recurringTotalOccurrencesLabel = document.getElementById('recurring_total_occurrences_label'); 
-                const billTypeSelect = document.getElementById('bill_type'); 
-                const billCategoryRecurringSelect = document.getElementById('bill_category_id_recurring');
-
-                if (isRecurringCheckbox.checked) {
-                    recurringFieldsDiv.classList.remove('hidden');
-                    recurringFrequencySelect.setAttribute('required', 'true');
+                if (type === 'transaction') {
+                    editModalTitle.textContent = 'Editar Transação';
+                    document.getElementById('edit_description').value = data.description;
+                    document.getElementById('edit_amount').value = data.amount;
+                    document.getElementById('edit_date').value = data.date;
+                    document.getElementById('edit_type').value = data.type;
                     
-                    // Inicializa a label e placeholder na carga inicial/ativação
-                    updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
-                    
-                    // Filtra as categorias para o tipo selecionado na Bill
-                    filterCategoriesByType(billTypeSelect.value, billCategoryRecurringSelect.id); // Usar o ID correto aqui
-                    
-                } else {
-                    recurringFieldsDiv.classList.add('hidden');
-                    recurringFrequencySelect.removeAttribute('required');
-                    installmentsTotalField.classList.add('hidden');
-                    installmentsTotalInput.removeAttribute('required');
+                    filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
+                    populateAccounts('edit_account_id', data.account_id);
+
+                    editTransactionForm.action = `/edit_transaction/${id}`;
+                    editTransactionForm.classList.remove('hidden');
+                } else if (type === 'bill') {
+                    editModalTitle.textContent = 'Editar Conta';
+                    document.getElementById('edit_bill_description').value = data.description;
+                    document.getElementById('edit_bill_amount').value = data.amount;
+                    document.getElementById('edit_bill_dueDate').value = data.dueDate;
+
+                    populateAccounts('edit_bill_account_id', data.account_id);
+
+                    editBillForm.action = `/edit_bill/${id}`;
+                    editBillForm.classList.remove('hidden');
                 }
+            } catch (error) {
+                console.error('Erro ao abrir modal de edição:', error);
+                alert('Não foi possível carregar os dados para edição.');
+                closeEditModal();
             }
+        }
 
-            // NOVO: Função para esconder/mostrar campos de recorrência no MODAL DE EDIÇÃO DE CONTA
-            // Modificado para aceitar o 'data' diretamente para pré-popular categorias
-            async function toggleBillRecurringFieldsEdit(data = {}) { // Adicionado 'data' como parâmetro opcional
-                const isRecurringCheckbox = document.getElementById('edit_is_recurring_bill');
-                const recurringFieldsDiv = document.getElementById('edit_bill_recurring_fields');
-                const recurringFrequencySelect = document.getElementById('edit_recurring_frequency_bill');
-                const installmentsTotalField = document.getElementById('edit_bill_total_occurrences_field'); 
-                const installmentsTotalInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
-                const recurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label'); 
-                const isActiveRecurringCheckbox = document.getElementById('edit_is_active_recurring_bill');
-                const editBillTypeSelect = document.getElementById('edit_bill_type'); 
-                const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
+        function closeEditModal() {
+            editModal.classList.remove('active');
+        }
 
-
-                if (isRecurringCheckbox.checked) {
-                    recurringFieldsDiv.classList.remove('hidden');
-                    recurringFrequencySelect.setAttribute('required', 'true');
-                    isActiveRecurringCheckbox.parentElement.classList.remove('hidden');
-                    
-                    // Inicializa a label e placeholder na carga inicial/ativação
-                    updateRecurringOccurrenceLabel(recurringFrequencySelect.id, recurringTotalOccurrencesLabel.id, installmentsTotalInput.id);
-
-                    // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
-                    filterCategoriesByType(editBillTypeSelect.value, editBillCategoryRecurringSelect.id, data.category_id);
-
-                } else {
-                    recurringFieldsDiv.classList.add('hidden');
-                    recurringFrequencySelect.removeAttribute('required');
-                    installmentsTotalField.classList.add('hidden');
-                    installmentsTotalInput.removeAttribute('required');
-                    isActiveRecurringCheckbox.parentElement.classList.add('hidden');
-                    // Limpar a seleção de categoria se a recorrência for desativada
-                    editBillCategoryRecurringSelect.value = "";
-                }
+        window.onclick = function(event) {
+            if (event.target == editModal) {
+                closeEditModal();
             }
+        }
 
-            // NOVA FUNÇÃO: Atualiza a label e placeholder do campo "Total de Ocorrências"
-            function updateRecurringOccurrenceLabel(frequencySelectId, labelId, inputId) {
-                const frequencySelect = document.getElementById(frequencySelectId);
-                const label = document.getElementById(labelId);
-                const input = document.getElementById(inputId);
+        function toggleBillRecurringFields() {
+            const isRecurringCheckbox = document.getElementById('is_recurring_bill');
+            const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
+            recurringFieldsDiv.classList.toggle('hidden', !isRecurringCheckbox.checked);
+        }
 
-                if (!frequencySelect || !label || !input) return;
+        function updateRecurringOccurrenceLabel(frequencySelectId, labelId, inputId) {
+            const select = document.getElementById(frequencySelectId);
+            const label = document.getElementById(labelId);
+            const input = document.getElementById(inputId);
+            const fieldDiv = input.parentElement;
 
-                if (frequencySelect.value === 'installments') {
-                    label.textContent = 'Total de Parcelas';
-                    input.placeholder = 'Ex: 12';
-                    input.min = '1'; // Parcelas devem ser no mínimo 1
-                    input.setAttribute('required', 'true');
-                    input.parentElement.classList.remove('hidden'); // Garante que o campo esteja visível
-                } else {
-                    label.textContent = 'Total de Ocorrências (0 para Indefinido)';
-                    input.placeholder = '0 para Indefinido';
-                    input.min = '0'; // 0 para indefinido
-                    input.removeAttribute('required');
-                    // Ocultar o campo se não for de interesse para frequências fixas
-                    // if (input.parentElement.classList.contains('hidden')) { // Só remove se já estava hidden
-                        input.parentElement.classList.remove('hidden'); // Melhor sempre mostrar, mas com placeholder informativo
-                    // }
-                }
+            if (select.value === 'installments') {
+                label.textContent = 'Total de Parcelas';
+                input.placeholder = 'Ex: 12';
+                input.min = "1";
+                input.required = true;
+                fieldDiv.classList.remove('hidden');
+            } else {
+                label.textContent = 'Total de Ocorrências (0 para indefinido)';
+                input.placeholder = '0';
+                input.min = "0";
+                input.required = false;
+                fieldDiv.classList.add('hidden');
             }
-
-
-            async function openEditModal(type, id) {
-                editModal.classList.add('active');
-
-                editTransactionForm.classList.add('hidden');
-                editBillForm.classList.add('hidden');
-
-                try {
-                    let url;
-                    if (type === 'transaction') {
-                        url = `/get_transaction_data/${id}`;
-                        editModalTitle.textContent = 'Editar Transação';
-                    } else if (type === 'bill') {
-                        url = `/get_bill_data/${id}`;
-                        editModalTitle.textContent = 'Editar Conta';
-                    }
-
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-
-                    if (type === 'transaction') {
-                        document.getElementById('edit_transaction_id').value = data.id;
-                        document.getElementById('edit_description').value = data.description;
-                        document.getElementById('edit_amount').value = data.amount;
-                        document.getElementById('edit_date').value = data.date;
-                        document.getElementById('edit_type').value = data.type; // Set transaction type
-                        
-                        // Populate categories for transactions
-                        filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
-
-                        editTransactionForm.action = `/edit_transaction/${data.id}`;
-                        editTransactionForm.classList.remove('hidden');
-                    } else if (type === 'bill') {
-                        document.getElementById('edit_bill_id').value = data.id;
-                        document.getElementById('edit_bill_description').value = data.description;
-                        document.getElementById('edit_bill_amount').value = data.amount;
-                        document.getElementById('edit_bill_dueDate').value = data.dueDate;
-                        
-                        // Preenche campos de recorrência no modal de edição de Bill
-                        const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
-                        const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                        const editRecurringTotalOccurrencesBillInput = document.getElementById('edit_recurring_total_occurrences_bill'); 
-                        const editRecurringTotalOccurrencesLabel = document.getElementById('edit_recurring_total_occurrences_label');
-                        const editIsActiveRecurringBillCheckbox = document.getElementById('edit_is_active_recurring_bill');
-                        const editBillTypeSelect = document.getElementById('edit_bill_type'); 
-                        const editBillCategoryRecurringSelect = document.getElementById('edit_bill_category_id_recurring');
-
-                        editBillTypeSelect.value = data.type; 
-                        editIsRecurringBillCheckbox.checked = data.is_master_recurring_bill; 
-                        editRecurringFrequencyBillSelect.value = data.recurring_frequency || 'monthly';
-                        editRecurringTotalOccurrencesBillInput.value = data.recurring_total_occurrences || ''; 
-                        editIsActiveRecurringBillCheckbox.checked = data.is_active_recurring;
-
-                        // Re-filtra as categorias no modal de edição com base no tipo da Bill, passando a categoria já selecionada
-                        filterCategoriesByType(data.type, editBillCategoryRecurringSelect.id, data.category_id);
-
-                        // Garante que a visibilidade dos campos de recorrência e parcelas seja atualizada
-                        toggleBillRecurringFieldsEdit(data); // Passa 'data' para preencher categorias corretamente
-                        // Garante que a label e placeholder são atualizados
-                        updateRecurringOccurrenceLabel(editRecurringFrequencyBillSelect.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
-
-                        // Adiciona event listeners dinamicamente para o modal de edição
-                        editIsRecurringBillCheckbox.onchange = () => toggleBillRecurringFieldsEdit(data); 
-                        editRecurringFrequencyBillSelect.onchange = (event) => { 
-                            updateRecurringOccurrenceLabel(event.target.id, editRecurringTotalOccurrencesLabel.id, editRecurringTotalOccurrencesBillInput.id);
-                            toggleBillRecurringFieldsEdit(data); 
-                        };
-                        editBillTypeSelect.onchange = (event) => { 
-                            filterCategoriesByType(event.target.value, editBillCategoryRecurringSelect.id, data.category_id); // Re-filtra as categorias aqui
-                            toggleBillRecurringFieldsEdit(data);
-                        };
-                        
-                        editBillForm.action = `/edit_bill/${data.id}`;
-                        editBillForm.classList.remove('hidden');
-                    }
-
-                } catch (error) {
-                    console.error('Erro ao buscar dados para edição:', error);
-                    alert('Não foi possível carregar os dados para edição.');
-                    closeEditModal();
-                }
-            }
-
-            function closeEditModal() {
-                editModal.classList.remove('active');
-                // Remove o listener onchange do modal de edição da conta para evitar múltiplos listeners
-                // É crucial limpar os listeners adicionados dinamicamente para evitar comportamentos inesperados
-                const editRecurringFrequencyBillSelect = document.getElementById('edit_recurring_frequency_bill');
-                if (editRecurringFrequencyBillSelect) {
-                    editRecurringFrequencyBillSelect.onchange = null; 
-                }
-                const editIsRecurringBillCheckbox = document.getElementById('edit_is_recurring_bill');
-                if (editIsRecurringBillCheckbox) {
-                    editIsRecurringBillCheckbox.onchange = null;
-                }
-                const editBillTypeSelect = document.getElementById('edit_bill_type');
-                if (editBillTypeSelect) {
-                    editBillTypeSelect.onchange = null;
-                }
-            }
-
-            window.onclick = function(event) {
-                if (event.target == editModal) {
-                    closeEditModal();
-                }
-            }
-        </script>
-    </body>
+        }
+    </script>
+</body>
 </html>

@@ -642,7 +642,7 @@ def delete_bill_db(bill_id, user_id):
 
 
 def edit_bill_db(bill_id, description, amount, dueDate, user_id, 
-                    is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None, account_id=None):
+                   is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, is_active_recurring=False, bill_type='expense', category_id=None, account_id=None):
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if not bill:
         return False
@@ -687,7 +687,7 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
             print(f"DEBUG: Master Bill '{bill.description}' deactivated, future child bills deleted.")
         elif old_is_active and not is_active_recurring and is_recurring:
-             print(f"DEBUG: Master Bill '{bill.description}' manually set to inactive.")
+                 print(f"DEBUG: Master Bill '{bill.description}' manually set to inactive.")
 
     else:
         bill.is_master_recurring_bill = False
@@ -1191,7 +1191,7 @@ def handle_edit_bill(bill_id):
     account_id = request.form.get('edit_bill_account_id', type=int)
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
-                    is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id, account_id):
+                      is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id, account_id):
         flash('Conta atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
