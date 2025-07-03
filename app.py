@@ -6,14 +6,14 @@ import datetime
 import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import calendar # Para obter o número de dias no mês
-import google.generativeai as genai # Descomentado para a rota de IA
+import google.generativeai as genai # DESCOMENTADO: Necessário para a funcionalidade de IA
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI (IMPORTANTE: Substitua pela sua chave REAL) ---
+# --- CONFIGURAÇÃO DA API KEY GEMINI (IMPORTANTE: SUBSTITUA PELA SUA CHAVE REAL NO RENDER) ---
 # Se você for usar a rota /profile/ai_insight, é ESSENCIAL que esta chave esteja configurada
-# Idealmente, use variáveis de ambiente. Ex: os.getenv('GEMINI_API_KEY')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
+# Idealmente, use variáveis de ambiente no Render.
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # <-- COLOQUE SUA CHAVE AQUI SE NÃO USAR VAR AMBIENTE
 genai.configure(api_key=GEMINI_API_KEY)
 
 
@@ -61,7 +61,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # CORREÇÃO: Adicionada a coluna user_id
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # CORREÇÃO CRUCIAL: Adicionada a coluna user_id
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
     budgets = db.relationship('Budget', backref='category', lazy=True) 
@@ -149,14 +149,14 @@ class Goal(db.Model):
     name = db.Column(db.String(100), nullable=False)
     target_amount = db.Column(db.Float, nullable=False)
     current_amount = db.Column(db.Float, default=0.0, nullable=False)
-    due_date = db.Column(db.String(10), nullable=True) # YYYY-MM-DD
+    due_date = db.Column(db.String(10), nullable=True) #YYYY-MM-DD
     status = db.Column(db.String(20), default='in_progress', nullable=False) # 'in_progress', 'achieved', 'abandoned'
 
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
 
 
-# --- Funções de Lógica de Negócios ---
+# --- Funções de Lógica de Negócios (TODAS DEFINIDAS ANTES DAS ROTAS) ---
 
 TODAY_DATE = datetime.date.today()
 
@@ -761,6 +761,7 @@ def generate_text_with_gemini(prompt_text):
         print(f"Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento. Verifique sua chave de API e conexão."
 
+# --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS (DB operations) ---
 def add_budget_db(user_id, category_id, budget_amount, month_year):
     """Adiciona ou atualiza um orçamento para uma categoria em um dado mês/ano."""
     existing_budget = Budget.query.filter_by(
@@ -1289,42 +1290,37 @@ def delete_account_user():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# ROTA: Resumo Financeiro Mensal (Descomentada e ajustada)
+# ROTA: Resumo Financeiro Mensal (DESCOMENTADA e ajustada)
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
 
-    # Define o ano e mês atuais se não forem fornecidos
     if not year or not month:
         current_date = datetime.date.today()
         year = current_date.year
         month = current_date.month
 
-    # Calcula as datas de início e fim do mês
     start_date = datetime.date(year, month, 1)
     end_date = start_date.replace(day=calendar.monthrange(year, month)[1])
 
-    # Busca transações para o usuário logado e para o período do mês selecionado
     monthly_transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
         db.cast(Transaction.date, db.Date) >= start_date,
         db.cast(Transaction.date, db.Date) <= end_date
     ).all()
 
-    # Calcula totais
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
     monthly_expenses = sum(t.amount for t in monthly_transactions if t.type == 'expense')
     monthly_balance = monthly_income - monthly_expenses
     
-    # Preparar detalhes das transações para o insight da IA
     transactions_details = [
         {'description': t.description, 'amount': t.amount, 'type': t.type, 'date': t.date,
          'category': t.category.name if t.category else 'Sem Categoria'}
         for t in monthly_transactions
     ]
-
+    
     return jsonify({
         'year': year,
         'month': month,
@@ -1334,14 +1330,13 @@ def get_monthly_summary():
         'transactions_details': transactions_details
     })
 
-# ROTA: Insight da IA com Gemini (Descomentada e pronta para uso)
+# ROTA: Insight da IA (DESCOMENTADA e ajustada para usar dados do DB)
 @app.route('/profile/ai_insight', methods=['POST'])
 @login_required
 def get_ai_insight():
     data = request.get_json()
     monthly_summary = data.get('summary_data')
     
-    # Para obter dados de orçamentos e metas do usuário para o prompt da IA
     current_month_year = get_current_month_year_str()
     budgets = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
     goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').all()
@@ -1371,7 +1366,7 @@ def get_ai_insight():
     ]
 
     if monthly_summary.get('transactions_details'):
-        limited_transactions = monthly_summary['transactions_details'][:5] # Pegar as 5 principais transações
+        limited_transactions = monthly_summary['transactions_details'][:5]
         trans_str = ", ".join([f"{t['description']} (R${t['amount']:.2f}, {t['type']}, {t['category']})" for t in limited_transactions])
         prompt_parts.append(f"Principais transações: {trans_str}.")
     
@@ -1429,13 +1424,13 @@ def get_chart_data():
         month_name = datetime.date(target_year, target_month, 1).strftime('%b/%Y')
         month_labels.append(month_name)
         
-        start_date = target_month_date.replace(day=1)
-        end_date = target_month_date.replace(day=calendar.monthrange(target_year, target_month)[1])
+        start_date_of_month = target_month_date.replace(day=1)
+        end_date_of_month = target_month_date.replace(day=calendar.monthrange(target_year, target_month)[1])
 
         transactions_in_month = Transaction.query.filter(
             Transaction.user_id == user_id,
-            db.cast(Transaction.date, db.Date) >= start_date,
-            db.cast(Transaction.date, db.Date) <= end_date
+            db.cast(Transaction.date, db.Date) >= start_date_of_month,
+            db.cast(Transaction.date, db.Date) <= end_date_of_month
         ).all()
         
         monthly_income_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'income')
@@ -1641,19 +1636,18 @@ with app.app_context():
             main_account = Account.query.filter_by(name='Conta Principal', user_id=first_user.id).first()
             
             # Adiciona transações de exemplo para o MÊS ATUAL para garantir que apareçam
-            # Ajuste as datas para o mês de Julho de 2025 para corresponder à sua imagem de log
-            today_month = datetime.date.today().month
-            today_year = datetime.date.today().year
+            current_month = datetime.date.today().month
+            current_year = datetime.date.today().year
 
             if salario_cat and main_account:
-                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(today_year, today_month, 1).isoformat(), category_id=salario_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(current_year, current_month, 1).isoformat(), category_id=salario_cat.id, account_id=main_account.id, user_id=first_user.id))
             if alimentacao_cat and main_account:
-                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(today_year, today_month, 5).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
-                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(today_year, today_month, 10).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(current_year, current_month, 5).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(current_year, current_month, 10).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
             if transporte_cat and main_account:
-                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(today_year, today_month, 12).isoformat(), category_id=transporte_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(current_year, current_month, 12).isoformat(), category_id=transporte_cat.id, account_id=main_account.id, user_id=first_user.id))
             if lazer_cat and main_account:
-                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(today_year, today_month, 15).isoformat(), category_id=lazer_cat.id, account_id=main_account.id, user_id=first_user.id))
+                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(current_year, current_month, 15).isoformat(), category_id=lazer_cat.id, account_id=main_account.id, user_id=first_user.id))
             db.session.commit()
             print("Transações de exemplo adicionadas para o admin.")
 
@@ -1661,23 +1655,23 @@ with app.app_context():
             
             if contas_fixas_cat and main_account:
                 db.session.add(Bill(
-                    description='Aluguel Apartamento (Mestra)', amount=1500.00, dueDate=f'{today_year}-{today_month:02d}-05', status='pending',
+                    description='Aluguel Apartamento (Mestra)', amount=1500.00, dueDate=f'{current_year}-{current_month:02d}-05', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
-                    recurring_start_date=f'{today_year}-{today_month:02d}-05', recurring_next_due_date=f'{today_year}-{today_month:02d}-05', recurring_total_occurrences=0,
+                    recurring_start_date=f'{current_year}-{current_month:02d}-05', recurring_next_due_date=f'{current_year}-{current_month:02d}-05', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
                     category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))
                 db.session.add(Bill(
-                    description='Internet Fibra (Mestra)', amount=99.90, dueDate=f'{today_year}-{today_month:02d}-10', status='pending',
+                    description='Internet Fibra (Mestra)', amount=99.90, dueDate=f'{current_year}-{current_month:02d}-10', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
-                    recurring_start_date=f'{today_year}-{today_month:02d}-10', recurring_next_due_date=f'{today_year}-{today_month:02d}-10', recurring_total_occurrences=0,
+                    recurring_start_date=f'{current_year}-{current_month:02d}-10', recurring_next_due_date=f'{current_year}-{current_month:02d}-10', recurring_total_occurrences=0,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
                     category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))
                 db.session.add(Bill(
-                    description='Compra Parcelada Tênis (Mestra)', amount=100.00, dueDate=f'{today_year}-{today_month:02d}-01', status='pending',
+                    description='Compra Parcelada Tênis (Mestra)', amount=100.00, dueDate=f'{current_year}-{current_month:02d}-01', status='pending',
                     user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='installments',
-                    recurring_start_date=f'{today_year}-{today_month:02d}-01', recurring_next_due_date=f'{today_year}-{today_month:02d}-01', recurring_total_occurrences=5,
+                    recurring_start_date=f'{current_year}-{current_month:02d}-01', recurring_next_due_date=f'{current_year}-{current_month:02d}-01', recurring_total_occurrences=5,
                     recurring_installments_generated=0, is_active_recurring=True, type='expense',
                     category_id=contas_fixas_cat.id, account_id=main_account.id
                 ))

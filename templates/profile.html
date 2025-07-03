@@ -189,7 +189,7 @@
             <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
             </a>
-            {# CORREÇÃO AQUI: A rota correta é 'delete_account_user' #}
+            {# CORREÇÃO AQUI: Mudando 'delete_account' para 'delete_account_user' #}
             <a href="{{ url_for('delete_account_user') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Apagar Conta
             </a>
@@ -252,7 +252,14 @@
             aiInsightOutputEl.textContent = 'Insights sobre seus gastos aparecerão aqui...'; // Limpa o insight anterior
 
             try {
+                // ATENÇÃO: Esta URL deve ser a mesma da rota em app.py
                 const response = await fetch(`/profile/monthly_summary?year=${currentYear}&month=${currentMonth}`);
+                
+                // Verifica se a resposta HTTP foi OK (status 200)
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+                
                 const data = await response.json();
 
                 currentMonthlyData = data; // Armazena os dados para uso da IA
@@ -274,7 +281,7 @@
                 monthlyIncomeEl.textContent = 'Erro';
                 monthlyExpensesEl.textContent = 'Erro';
                 monthlyBalanceEl.textContent = 'Erro';
-                aiInsightOutputEl.textContent = 'Não foi possível carregar o resumo mensal.';
+                aiInsightOutputEl.textContent = 'Não foi possível carregar o resumo mensal. Verifique o console para detalhes.';
             }
         }
 
@@ -297,8 +304,8 @@
             const aiButtonText = document.getElementById('ai-button-text');
             const aiInsightOutputEl = document.getElementById('ai-insight-output');
 
-            if (Object.keys(currentMonthlyData).length === 0) {
-                aiInsightOutputEl.textContent = 'Carregue um resumo mensal primeiro para obter insights.';
+            if (Object.keys(currentMonthlyData).length === 0 || (currentMonthlyData.income === 0 && currentMonthlyData.expenses === 0)) {
+                aiInsightOutputEl.textContent = 'Carregue um resumo mensal com dados para obter insights.';
                 return;
             }
 
@@ -307,6 +314,7 @@
             aiInsightOutputEl.textContent = 'Gerando insights de IA...';
 
             try {
+                // ATENÇÃO: Esta URL deve ser a mesma da rota em app.py
                 const response = await fetch('/profile/ai_insight', {
                     method: 'POST',
                     headers: {
@@ -314,6 +322,12 @@
                     },
                     body: JSON.stringify({ summary_data: currentMonthlyData }),
                 });
+                
+                // Verifica se a resposta HTTP foi OK (status 200)
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+
                 const data = await response.json();
 
                 if (data.insight) {
@@ -325,7 +339,7 @@
                 }
             } catch (error) {
                 console.error('Erro ao chamar API de IA:', error);
-                aiInsightOutputEl.textContent = 'Erro ao conectar com o serviço de IA.';
+                aiInsightOutputEl.textContent = 'Erro ao conectar com o serviço de IA. Verifique sua chave de API e o console.';
             } finally {
                 aiSpinner.classList.add('hidden');
                 aiButtonText.textContent = 'Obter Insight da IA';
@@ -339,7 +353,7 @@
             try {
                 const response = await fetch('/get_chart_data');
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
                 const data = await response.json();
                 globalChartRawData = data; // Armazena os dados brutos globalmente
@@ -492,7 +506,6 @@
         const chartModal = document.getElementById('chart-modal');
         const chartModalTitle = document.getElementById('chart-modal-title');
         
-        // MUDANÇA AQUI: openChartModal agora aceita chartType, chartData e chartTitle diretamente
         function openChartModal(chartId) { // Recebe o ID do canvas original
             let chartType, chartData, chartTitle;
 
