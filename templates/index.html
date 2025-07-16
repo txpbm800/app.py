@@ -18,7 +18,6 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
-        /* CORREÇÃO: Animação de deslize para o acordeão */
         .collapsible-content {
             max-height: 0;
             overflow: hidden;
@@ -27,7 +26,7 @@
             padding-bottom: 0;
         }
         .collapsible-content.expanded {
-            max-height: 1200px; /* Valor alto para permitir conteúdo grande */
+            max-height: 1200px;
             padding-top: 1rem;
             padding-bottom: 1.5rem;
         }
@@ -250,7 +249,6 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <!-- CORREÇÃO: Removida a classe 'hidden-initially' para permitir a animação -->
                     <div id="transaction-form-content" class="collapsible-content">
                         <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
@@ -305,7 +303,6 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <!-- CORREÇÃO: Removida a classe 'hidden-initially' para permitir a animação -->
                     <div id="bill-form-content" class="collapsible-content">
                         <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
@@ -460,9 +457,7 @@
             </div>
         </div>
 
-        <!-- MELHORIA: Adicionadas as seções de Receitas e Despesas -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <!-- Seção Minhas Receitas -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                 <div class="list-scroll-area">
@@ -493,7 +488,6 @@
                 </div>
             </div>
 
-            <!-- Seção Minhas Despesas -->
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                 <div class="list-scroll-area">
@@ -586,7 +580,8 @@
 
     <script>
         const allCategories = {{ all_categories | tojson }};
-        const allAccounts = {{ accounts | tojson }};
+        // CORREÇÃO: Usa a nova variável 'accounts_json' que é segura para conversão
+        const allAccounts = {{ accounts_json | tojson }};
 
         document.addEventListener('DOMContentLoaded', () => {
             filterCategoriesByType('expense', 'category_id');

@@ -6,14 +6,12 @@ import datetime
 import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import calendar # Para obter o número de dias no mês
-import google.generativeai as genai # DESCOMENTADO: Necessário para a funcionalidade de IA
+import google.generativeai as genai 
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DA API KEY GEMINI (IMPORTANTE: SUBSTITUA PELA SUA CHAVE REAL NO RENDER) ---
-# Se você for usar a rota /profile/ai_insight, é ESSENCIAL que esta chave esteja configurada
-# Idealmente, use variáveis de ambiente no Render.
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI') # <-- COLOQUE SUA CHAVE AQUI SE NÃO USAR VAR AMBIENTE
+# --- CONFIGURAÇÃO DA API KEY GEMINI ---
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'SUA_CHAVE_DE_API_GEMINI_AQUI')
 genai.configure(api_key=GEMINI_API_KEY)
 
 
@@ -1007,6 +1005,8 @@ def index():
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     
     user_accounts = Account.query.filter_by(user_id=current_user.id).all()
+    # CORREÇÃO: Cria uma lista de dicionários para ser convertida em JSON de forma segura
+    accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
 
     current_month_year = get_current_month_year_str()
     budgets_with_alerts = []
@@ -1045,6 +1045,7 @@ def index():
         all_categories=all_categories_formatted,
         current_category_filter=category_filter_id,
         accounts=user_accounts,
+        accounts_json=accounts_json, # CORREÇÃO: Passa a nova lista segura para o template
         budgets_with_alerts=budgets_with_alerts,
         active_goals=active_goals
     )
@@ -1202,7 +1203,6 @@ def handle_edit_bill(bill_id):
 
 # --- ROTAS DE AUTENTICAÇÃO E GERENCIAMENTO DE USUÁRIO ---
 
-# CORREÇÃO: Função auxiliar para criar dados padrão para um novo usuário
 def create_default_data_for_user(user):
     # Cria categorias padrão
     db.session.add(Category(name='Salário', type='income', user_id=user.id))
@@ -1241,9 +1241,8 @@ def register():
             new_user = User(username=username)
             new_user.set_password(password)
             db.session.add(new_user)
-            db.session.commit() # Salva o usuário para obter um ID
+            db.session.commit()
 
-            # CORREÇÃO: Chama a função para criar dados padrão para o novo usuário
             create_default_data_for_user(new_user)
 
             flash('Conta criada com sucesso! Faça login.', 'success')
@@ -1625,10 +1624,8 @@ with app.app_context():
         db.session.commit()
         print("Usuário 'admin' criado com senha 'admin123'.")
         
-        # Cria dados padrão para o usuário admin
         create_default_data_for_user(admin_user)
 
-        # Adiciona dados de exemplo específicos para o admin
         main_account = Account.query.filter_by(name='Conta Principal', user_id=admin_user.id).first()
         if main_account:
             main_account.balance = 1000.00
@@ -1639,7 +1636,6 @@ with app.app_context():
         db.session.commit()
         print("Contas de exemplo adicionadas para o admin.")
 
-        # Adiciona transações de exemplo para o MÊS ATUAL para garantir que apareçam
         current_month = datetime.date.today().month
         current_year = datetime.date.today().year
         salario_cat = Category.query.filter_by(name='Salário', user_id=admin_user.id).first()
