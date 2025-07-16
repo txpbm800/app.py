@@ -687,7 +687,7 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
             Bill.query.filter_by(recurring_parent_id=bill.id, user_id=user_id, status='pending').delete()
             print(f"DEBUG: Master Bill '{bill.description}' deactivated, future child bills deleted.")
         elif old_is_active and not is_active_recurring and is_recurring:
-                 print(f"DEBUG: Master Bill '{bill.description}' manually set to inactive.")
+                print(f"DEBUG: Master Bill '{bill.description}' manually set to inactive.")
 
     else:
         bill.is_master_recurring_bill = False
@@ -1006,6 +1006,9 @@ def index():
 
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     
+    # CORREÇÃO: Buscar as contas do usuário e passá-las para o template.
+    user_accounts = Account.query.filter_by(user_id=current_user.id).all()
+
     current_month_year = get_current_month_year_str()
     budgets_with_alerts = []
     all_budgets_for_month = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
@@ -1042,7 +1045,7 @@ def index():
         current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
         current_category_filter=category_filter_id,
-        
+        accounts=user_accounts, # CORREÇÃO: Passando a variável 'accounts' para o template.
         budgets_with_alerts=budgets_with_alerts,
         active_goals=active_goals
     )
