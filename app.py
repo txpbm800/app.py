@@ -752,7 +752,7 @@ def get_dashboard_data_db(user_id):
 # --- FUNÇÕES GEMINI ---
 def generate_text_with_gemini(prompt_text):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash') # Use 'gemini-1.5-flash' ou outro modelo disponível
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
@@ -761,7 +761,6 @@ def generate_text_with_gemini(prompt_text):
 
 # --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS (DB operations) ---
 def add_budget_db(user_id, category_id, budget_amount, month_year):
-    """Adiciona ou atualiza um orçamento para uma categoria em um dado mês/ano."""
     existing_budget = Budget.query.filter_by(
         user_id=user_id,
         category_id=category_id,
@@ -802,7 +801,6 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
     return True
 
 def edit_budget_db(budget_id, user_id, budget_amount=None):
-    """Edita o valor de um orçamento existente."""
     budget = Budget.query.filter_by(id=budget_id, user_id=user_id).first()
     if budget:
         if budget_amount is not None:
@@ -821,7 +819,6 @@ def edit_budget_db(budget_id, user_id, budget_amount=None):
     return False
 
 def delete_budget_db(budget_id, user_id):
-    """Exclui um orçamento."""
     budget = Budget.query.filter_by(id=budget_id, user_id=user_id).first()
     if budget:
         db.session.delete(budget)
@@ -830,7 +827,6 @@ def delete_budget_db(budget_id, user_id):
     return False
 
 def add_goal_db(user_id, name, target_amount, due_date=None):
-    """Adiciona uma nova meta financeira."""
     new_goal = Goal(
         user_id=user_id,
         name=name,
@@ -843,7 +839,6 @@ def add_goal_db(user_id, name, target_amount, due_date=None):
     return True
 
 def edit_goal_db(goal_id, user_id, name=None, target_amount=None, current_amount=None, due_date=None, status=None):
-    """Edita uma meta financeira existente."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if goal:
         if name:
@@ -861,7 +856,6 @@ def edit_goal_db(goal_id, user_id, name=None, target_amount=None, current_amount
     return False
 
 def delete_goal_db(goal_id, user_id):
-    """Exclui uma meta financeira."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if goal:
         db.session.delete(goal)
@@ -870,7 +864,6 @@ def delete_goal_db(goal_id, user_id):
     return False
 
 def contribute_to_goal_db(goal_id, user_id, amount):
-    """Registra uma contribuição para uma meta, criando uma transação de despesa."""
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if not goal:
         return False
@@ -935,48 +928,21 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
+    # CORREÇÃO: Lógica de consulta de transações simplificada e corrigida.
+    # Estas consultas são agora independentes para popular os painéis do dashboard.
+    income_transactions = Transaction.query.filter_by(user_id=current_user.id, type='income')\
+                                         .order_by(Transaction.date.desc())\
+                                         .limit(10).all()
 
-    transaction_type_filter = request.args.get('transaction_type')
-    if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
-        transactions_query_obj = transactions_query_obj.filter_by(type=transaction_type_filter)
+    expense_transactions = Transaction.query.filter_by(user_id=current_user.id, type='expense')\
+                                          .order_by(Transaction.date.desc())\
+                                          .limit(10).all()
 
-    start_date_filter = request.args.get('start_date')
-    end_date_filter = request.args.get('end_date')
-    if start_date_filter:
-        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) >= db.cast(start_date_filter, db.Date))
-    if end_date_filter:
-        transactions_query_obj = transactions_query_obj.filter(db.cast(Transaction.date, db.Date) <= db.cast(end_date_filter, db.Date))
-
-    category_filter_id = request.args.get('category_filter', type=int)
-    if category_filter_id:
-        transactions_query_obj = transactions_query_obj.filter_by(category_id=category_filter_id)
-
-    sort_by_transactions = request.args.get('sort_by_transactions', 'date')
-    order_transactions = request.args.get('order_transactions', 'desc')
-
-    if sort_by_transactions == 'date':
-        if order_transactions == 'asc':
-            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.asc())
-        else:
-            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.desc())
-    elif sort_by_transactions == 'amount':
-        if order_transactions == 'asc':
-            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.asc())
-        else:
-            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.desc())
-            
-    all_transactions = transactions_query_obj.all()
-    
-    income_transactions = [t for t in all_transactions if t.type == 'income']
-    expense_transactions = [t for t in all_transactions if t.type == 'expense']
-
-
+    # A lógica de filtro de contas foi mantida, pois é usada no formulário de filtro de contas.
     bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False
     )
-
     bill_status_filter = request.args.get('bill_status')
     if bill_status_filter and bill_status_filter in ['pending', 'paid', 'overdue']:
         if bill_status_filter == 'overdue':
@@ -985,27 +951,12 @@ def index():
             bills_query_obj = bills_query_obj.filter_by(status=bill_status_filter)
     elif not bill_status_filter:
             bills_query_obj = bills_query_obj.filter_by(status='pending')
-
-    sort_by_bills = request.args.get('sort_by_bills', 'dueDate')
-    order_bills = request.args.get('order_bills', 'asc')
-
-    if sort_by_bills == 'dueDate':
-        if order_bills == 'asc':
-            bills_query_obj = bills_query_obj.order_by(db.cast(Bill.dueDate, db.Date).asc())
-        else:
-            bills_query_obj = bills_query_obj.order_by(db.cast(Bill.dueDate, db.Date).desc())
-    elif sort_by_bills == 'amount':
-        if order_bills == 'asc':
-            bills_query_obj = bills_query_obj.order_by(Bill.amount.asc())
-        else:
-            bills_query_obj = bills_query_obj.order_by(Bill.amount.desc())
             
-    filtered_bills = bills_query_obj.all()
+    filtered_bills = bills_query_obj.order_by(db.cast(Bill.dueDate, db.Date).asc()).all()
 
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     
     user_accounts = Account.query.filter_by(user_id=current_user.id).all()
-    # CORREÇÃO: Cria uma lista de dicionários para ser convertida em JSON de forma segura
     accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
 
     current_month_year = get_current_month_year_str()
@@ -1028,24 +979,15 @@ def index():
     return render_template(
         'index.html',
         dashboard=dashboard_data,
-        transactions=all_transactions,
         bills=filtered_bills,
         income_transactions=income_transactions,
         expense_transactions=expense_transactions,
         current_date=TODAY_DATE.isoformat(),
         current_user=current_user,
-        current_transaction_type_filter=transaction_type_filter,
         current_bill_status_filter=bill_status_filter,
-        current_sort_by_transactions=sort_by_transactions,
-        current_order_transactions=order_transactions,
-        current_sort_by_bills=sort_by_bills,
-        current_order_bills=order_bills,
-        current_start_date=start_date_filter,
-        current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
-        current_category_filter=category_filter_id,
         accounts=user_accounts,
-        accounts_json=accounts_json, # CORREÇÃO: Passa a nova lista segura para o template
+        accounts_json=accounts_json,
         budgets_with_alerts=budgets_with_alerts,
         active_goals=active_goals
     )
@@ -1499,7 +1441,6 @@ def get_chart_data():
 @app.route('/budgets')
 @login_required
 def budgets_page():
-    """Exibe a lista de orçamentos do usuário para o mês atual ou selecionado."""
     user_id = current_user.id
     
     selected_month_year = request.args.get('month_year', get_current_month_year_str())
