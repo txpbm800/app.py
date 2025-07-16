@@ -18,15 +18,16 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
+        /* CORREÇÃO: Animação de deslize para o acordeão */
         .collapsible-content {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.5s ease-in-out, padding 0.3s ease-in-out;
+            transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
             padding-top: 0;
             padding-bottom: 0;
         }
         .collapsible-content.expanded {
-            max-height: 1200px;
+            max-height: 1200px; /* Valor alto para permitir conteúdo grande */
             padding-top: 1rem;
             padding-bottom: 1.5rem;
         }
@@ -35,9 +36,6 @@
         }
         .arrow-icon.rotated {
             transform: rotate(180deg);
-        }
-        .hidden-initially {
-            display: none;
         }
         .user-menu-dropdown {
             position: absolute;
@@ -252,7 +250,8 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="transaction-form-content" class="collapsible-content hidden-initially">
+                    <!-- CORREÇÃO: Removida a classe 'hidden-initially' para permitir a animação -->
+                    <div id="transaction-form-content" class="collapsible-content">
                         <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
@@ -283,7 +282,6 @@
                                     <option value="">Selecione a Categoria</option>
                                 </select>
                             </div>
-                            <!-- CORREÇÃO: Seletor de conta adicionado -->
                             <div>
                                 <label for="account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
                                 <select id="account_id" name="account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -307,7 +305,8 @@
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                     </button>
-                    <div id="bill-form-content" class="collapsible-content hidden-initially">
+                    <!-- CORREÇÃO: Removida a classe 'hidden-initially' para permitir a animação -->
+                    <div id="bill-form-content" class="collapsible-content">
                         <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
@@ -339,7 +338,6 @@
                                     <option value="">Selecione a Categoria</option>
                                 </select>
                             </div>
-                            <!-- CORREÇÃO: Seletor de conta adicionado -->
                             <div>
                                 <label for="bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
                                 <select id="bill_account_id" name="bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -382,9 +380,8 @@
                 </div>
             </div>
 
-            <div class="col-span-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow md:col-span-2"> 
+            <div class="col-span-1">
+                <div class="rounded-lg shadow-md bg-white p-6 card-shadow"> 
                     <h2 class="flex items-center space-x-2 text-2xl font-bold text-gray-800 mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-6 w-6 text-blue-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
                         <span>Contas a Pagar</span>
@@ -460,44 +457,69 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <div class="rounded-lg shadow-md bg-white p-6 card-shadow md:col-span-2"> 
-                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimas Transações</h2>
-                    <div class="list-scroll-area">
-                        <div class="space-y-3">
-                            {% if not transactions %}
-                                <p class="text-gray-500 text-center py-4 text-md">Nenhuma transação encontrada</p>
-                            {% else %}
-                                {% for transaction in transactions %}
-                                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100">
-                                        <div class="flex items-center space-x-3">
-                                            <div class="p-2 rounded-full {% if transaction.type == 'income' %}bg-green-100 text-green-600{% else %}bg-red-100 text-red-600{% endif %}">
-                                                {% if transaction.type == 'income' %}
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                                                {% else %}
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
-                                                {% endif %}
-                                            </div>
-                                            <div>
-                                                <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
-                                                <p class="text-sm text-gray-500">{{ transaction.date }}</p>
-                                                <p class="text-xs text-gray-400">
-                                                    Categoria: {{ transaction.category.name if transaction.category else 'N/A' }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-lg {% if transaction.type == 'income' %}text-green-600{% else %}text-red-600{% endif %}">
-                                                {{ '+' if transaction.type == 'income' else '-' }} R$ {{ "%.2f"|format(transaction.amount) }}
-                                            </span>
-                                            <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                                            </button>
+        <!-- MELHORIA: Adicionadas as seções de Receitas e Despesas -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <!-- Seção Minhas Receitas -->
+            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
+                <div class="list-scroll-area">
+                    <div class="space-y-3">
+                        {% if not income_transactions %}
+                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma receita encontrada</p>
+                        {% else %}
+                            {% for transaction in income_transactions %}
+                                <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100">
+                                    <div class="flex items-center space-x-3">
+                                        <div>
+                                            <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                            <p class="text-sm text-gray-500">{{ transaction.date }}</p>
                                         </div>
                                     </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-lg text-green-600">
+                                            + R$ {{ "%.2f"|format(transaction.amount) }}
+                                        </span>
+                                        <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Seção Minhas Despesas -->
+            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
+                <div class="list-scroll-area">
+                    <div class="space-y-3">
+                        {% if not expense_transactions %}
+                            <p class="text-gray-500 text-center py-4 text-md">Nenhuma despesa encontrada</p>
+                        {% else %}
+                            {% for transaction in expense_transactions %}
+                                <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100">
+                                    <div class="flex items-center space-x-3">
+                                        <div>
+                                            <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
+                                            <p class="text-sm text-gray-500">{{ transaction.date }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-bold text-lg text-red-600">
+                                            - R$ {{ "%.2f"|format(transaction.amount) }}
+                                        </span>
+                                        <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -533,7 +555,6 @@
                     <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                     <select id="edit_category_id" name="edit_category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
                 </div>
-                <!-- CORREÇÃO: Seletor de conta no modal -->
                 <div>
                     <label for="edit_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
                     <select id="edit_account_id" name="edit_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
@@ -554,7 +575,6 @@
                     <label for="edit_bill_dueDate" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
                     <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
-                <!-- CORREÇÃO: Seletor de conta no modal -->
                 <div>
                     <label for="edit_bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
                     <select id="edit_bill_account_id" name="edit_bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
