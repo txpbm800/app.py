@@ -61,7 +61,7 @@ class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(10), nullable=False) # 'income' ou 'expense'
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False) # CORREÇÃO CRUCIAL: Adicionada a coluna user_id
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
     budgets = db.relationship('Budget', backref='category', lazy=True) 
@@ -1006,7 +1006,6 @@ def index():
 
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     
-    # CORREÇÃO: Buscar as contas do usuário e passá-las para o template.
     user_accounts = Account.query.filter_by(user_id=current_user.id).all()
 
     current_month_year = get_current_month_year_str()
@@ -1045,7 +1044,7 @@ def index():
         current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
         current_category_filter=category_filter_id,
-        accounts=user_accounts, # CORREÇÃO: Passando a variável 'accounts' para o template.
+        accounts=user_accounts,
         budgets_with_alerts=budgets_with_alerts,
         active_goals=active_goals
     )
@@ -1203,6 +1202,29 @@ def handle_edit_bill(bill_id):
 
 # --- ROTAS DE AUTENTICAÇÃO E GERENCIAMENTO DE USUÁRIO ---
 
+# CORREÇÃO: Função auxiliar para criar dados padrão para um novo usuário
+def create_default_data_for_user(user):
+    # Cria categorias padrão
+    db.session.add(Category(name='Salário', type='income', user_id=user.id))
+    db.session.add(Category(name='Freelance', type='income', user_id=user.id))
+    db.session.add(Category(name='Outras Receitas', type='income', user_id=user.id))
+    db.session.add(Category(name='Alimentação', type='expense', user_id=user.id))
+    db.session.add(Category(name='Transporte', type='expense', user_id=user.id))
+    db.session.add(Category(name='Lazer', type='expense', user_id=user.id))
+    db.session.add(Category(name='Moradia', type='expense', user_id=user.id))
+    db.session.add(Category(name='Saúde', type='expense', user_id=user.id))
+    db.session.add(Category(name='Educação', type='expense', user_id=user.id))
+    db.session.add(Category(name='Contas Fixas', type='expense', user_id=user.id))
+    db.session.add(Category(name='Outras Despesas', type='expense', user_id=user.id))
+    db.session.add(Category(name='Poupança para Metas', type='expense', user_id=user.id))
+    
+    # Cria uma conta principal padrão
+    db.session.add(Account(name='Conta Principal', balance=0.00, user_id=user.id))
+    
+    db.session.commit()
+    print(f"Categorias e conta padrão criadas para o usuário '{user.username}'.")
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
@@ -1219,7 +1241,11 @@ def register():
             new_user = User(username=username)
             new_user.set_password(password)
             db.session.add(new_user)
-            db.session.commit()
+            db.session.commit() # Salva o usuário para obter um ID
+
+            # CORREÇÃO: Chama a função para criar dados padrão para o novo usuário
+            create_default_data_for_user(new_user)
+
             flash('Conta criada com sucesso! Faça login.', 'success')
             return redirect(url_for('login'))
     return render_template('register.html')
@@ -1293,7 +1319,7 @@ def delete_account_user():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# ROTA: Resumo Financeiro Mensal (DESCOMENTADA e ajustada)
+# ROTA: Resumo Financeiro Mensal
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -1333,7 +1359,7 @@ def get_monthly_summary():
         'transactions_details': transactions_details
     })
 
-# ROTA: Insight da IA (DESCOMENTADA e ajustada para usar dados do DB)
+# ROTA: Insight da IA
 @app.route('/profile/ai_insight', methods=['POST'])
 @login_required
 def get_ai_insight():
@@ -1598,102 +1624,34 @@ with app.app_context():
         db.session.add(admin_user)
         db.session.commit()
         print("Usuário 'admin' criado com senha 'admin123'.")
-    
-    first_user = User.query.filter_by(username='admin').first()
-    if first_user:
-        # Garante que as categorias são adicionadas APENAS UMA VEZ e com user_id
-        if not Category.query.filter_by(user_id=first_user.id).first():
-            db.session.add(Category(name='Salário', type='income', user_id=first_user.id))
-            db.session.add(Category(name='Freelance', type='income', user_id=first_user.id))
-            db.session.add(Category(name='Outras Receitas', type='income', user_id=first_user.id))
-            db.session.add(Category(name='Alimentação', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Transporte', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Lazer', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Moradia', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Saúde', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Educação', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Contas Fixas', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Outras Despesas', type='expense', user_id=first_user.id))
-            db.session.add(Category(name='Poupança para Metas', type='expense', user_id=first_user.id))
-            db.session.commit()
-            print("Categorias padrão adicionadas para o admin.")
+        
+        # Cria dados padrão para o usuário admin
+        create_default_data_for_user(admin_user)
 
-        if not Account.query.filter_by(user_id=first_user.id).first():
-            db.session.add(Account(name='Conta Principal', balance=1000.00, user_id=first_user.id))
-            db.session.add(Account(name='Poupança', balance=500.00, user_id=first_user.id))
-            db.session.commit()
-            print("Contas de exemplo adicionadas para o admin.")
+        # Adiciona dados de exemplo específicos para o admin
+        main_account = Account.query.filter_by(name='Conta Principal', user_id=admin_user.id).first()
+        if main_account:
+            main_account.balance = 1000.00
+            db.session.add(main_account)
+        
+        poupanca_account = Account(name='Poupança', balance=500.00, user_id=admin_user.id)
+        db.session.add(poupanca_account)
+        db.session.commit()
+        print("Contas de exemplo adicionadas para o admin.")
 
-        # Adiciona dados de exemplo somente se não houver transações, orçamentos ou metas existentes para o admin
-        if not Transaction.query.filter_by(user_id=first_user.id).first() and \
-           not Budget.query.filter_by(user_id=first_user.id).first() and \
-           not Goal.query.filter_by(user_id=first_user.id).first():
+        # Adiciona transações de exemplo para o MÊS ATUAL para garantir que apareçam
+        current_month = datetime.date.today().month
+        current_year = datetime.date.today().year
+        salario_cat = Category.query.filter_by(name='Salário', user_id=admin_user.id).first()
+        alimentacao_cat = Category.query.filter_by(name='Alimentação', user_id=admin_user.id).first()
+        
+        if salario_cat and main_account:
+            add_transaction_db('Salário Mensal', 3000.00, datetime.date(current_year, current_month, 1).isoformat(), 'income', admin_user.id, salario_cat.id, main_account.id)
+        if alimentacao_cat and main_account:
+            add_transaction_db('Compras Supermercado', 250.00, datetime.date(current_year, current_month, 5).isoformat(), 'expense', admin_user.id, alimentacao_cat.id, main_account.id)
+        
+        print("Transações de exemplo adicionadas para o admin.")
 
-            salario_cat = Category.query.filter_by(name='Salário', user_id=first_user.id).first()
-            alimentacao_cat = Category.query.filter_by(name='Alimentação', user_id=first_user.id).first()
-            transporte_cat = Category.query.filter_by(name='Transporte', user_id=first_user.id).first()
-            lazer_cat = Category.query.filter_by(name='Lazer', user_id=first_user.id).first()
-            contas_fixas_cat = Category.query.filter_by(name='Contas Fixas', user_id=first_user.id).first()
-            poupanca_metas_cat = Category.query.filter_by(name='Poupança para Metas', user_id=first_user.id).first()
-
-            main_account = Account.query.filter_by(name='Conta Principal', user_id=first_user.id).first()
-            
-            # Adiciona transações de exemplo para o MÊS ATUAL para garantir que apareçam
-            current_month = datetime.date.today().month
-            current_year = datetime.date.today().year
-
-            if salario_cat and main_account:
-                db.session.add(Transaction(description='Salário Mensal', amount=3000.00, type='income', date=datetime.date(current_year, current_month, 1).isoformat(), category_id=salario_cat.id, account_id=main_account.id, user_id=first_user.id))
-            if alimentacao_cat and main_account:
-                db.session.add(Transaction(description='Compras Supermercado', amount=250.00, type='expense', date=datetime.date(current_year, current_month, 5).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
-                db.session.add(Transaction(description='Jantar fora', amount=80.00, type='expense', date=datetime.date(current_year, current_month, 10).isoformat(), category_id=alimentacao_cat.id, account_id=main_account.id, user_id=first_user.id))
-            if transporte_cat and main_account:
-                db.session.add(Transaction(description='Gasolina', amount=150.00, type='expense', date=datetime.date(current_year, current_month, 12).isoformat(), category_id=transporte_cat.id, account_id=main_account.id, user_id=first_user.id))
-            if lazer_cat and main_account:
-                db.session.add(Transaction(description='Cinema', amount=40.00, type='expense', date=datetime.date(current_year, current_month, 15).isoformat(), category_id=lazer_cat.id, account_id=main_account.id, user_id=first_user.id))
-            db.session.commit()
-            print("Transações de exemplo adicionadas para o admin.")
-
-            current_month_for_bills = datetime.date.today().strftime('%Y-%m')
-            
-            if contas_fixas_cat and main_account:
-                db.session.add(Bill(
-                    description='Aluguel Apartamento (Mestra)', amount=1500.00, dueDate=f'{current_year}-{current_month:02d}-05', status='pending',
-                    user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
-                    recurring_start_date=f'{current_year}-{current_month:02d}-05', recurring_next_due_date=f'{current_year}-{current_month:02d}-05', recurring_total_occurrences=0,
-                    recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id, account_id=main_account.id
-                ))
-                db.session.add(Bill(
-                    description='Internet Fibra (Mestra)', amount=99.90, dueDate=f'{current_year}-{current_month:02d}-10', status='pending',
-                    user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='monthly',
-                    recurring_start_date=f'{current_year}-{current_month:02d}-10', recurring_next_due_date=f'{current_year}-{current_month:02d}-10', recurring_total_occurrences=0,
-                    recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id, account_id=main_account.id
-                ))
-                db.session.add(Bill(
-                    description='Compra Parcelada Tênis (Mestra)', amount=100.00, dueDate=f'{current_year}-{current_month:02d}-01', status='pending',
-                    user_id=first_user.id, is_master_recurring_bill=True, recurring_frequency='installments',
-                    recurring_start_date=f'{current_year}-{current_month:02d}-01', recurring_next_due_date=f'{current_year}-{current_month:02d}-01', recurring_total_occurrences=5,
-                    recurring_installments_generated=0, is_active_recurring=True, type='expense',
-                    category_id=contas_fixas_cat.id, account_id=main_account.id
-                ))
-            db.session.commit()
-            print("Contas e transações recorrentes mestras de exemplo adicionadas para o admin.")
-
-            current_month_year_for_examples = datetime.date.today().strftime('%Y-%m')
-            if alimentacao_cat:
-                add_budget_db(user_id=first_user.id, category_id=alimentacao_cat.id, budget_amount=500.00, month_year=current_month_year_for_examples)
-            if lazer_cat:
-                add_budget_db(user_id=first_user.id, category_id=lazer_cat.id, budget_amount=200.00, month_year=current_month_year_for_examples)
-            if transporte_cat:
-                add_budget_db(user_id=first_user.id, category_id=transporte_cat.id, budget_amount=300.00, month_year=current_month_year_for_examples)
-            print("Orçamentos de exemplo adicionados para o admin.")
-
-            db.session.add(Goal(name='Viagem dos Sonhos', target_amount=5000.00, current_amount=1500.00, due_date=datetime.date(2026, 12, 31).isoformat(), user_id=first_user.id))
-            db.session.add(Goal(name='Fundo de Emergência', target_amount=2000.00, current_amount=800.00, due_date=datetime.date(2025, 12, 31).isoformat(), user_id=first_user.id))
-            db.session.commit()
-            print("Metas de exemplo adicionadas para o admin.")
 
     print(f"DEBUG: Caminho final do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
