@@ -771,34 +771,35 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
 
     if existing_budget:
         existing_budget.budget_amount = float(budget_amount)
-        start_date, end_date = get_month_start_end_dates(month_year)
-        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
-            Transaction.user_id == user_id,
-            Transaction.category_id == category_id,
-            Transaction.type == 'expense',
-            db.cast(Transaction.date, db.Date) >= start_date,
-            db.cast(Transaction.date, db.Date) <= end_date
-        ).scalar() or 0.0
-        existing_budget.current_spent = total_spent_in_category
-        db.session.add(existing_budget)
     else:
-        start_date, end_date = get_month_start_end_dates(month_year)
-        total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
-            Transaction.user_id == user_id,
-            Transaction.category_id == category_id,
-            Transaction.type == 'expense',
-            db.cast(Transaction.date, db.Date) >= start_date,
-            db.cast(Transaction.date, db.Date) <= end_date
-        ).scalar() or 0.0
-
         new_budget = Budget(
             user_id=user_id,
             category_id=category_id,
             budget_amount=float(budget_amount),
-            current_spent=total_spent_in_category,
             month_year=month_year
         )
         db.session.add(new_budget)
+    
+    # Recalcula o gasto atual para o orçamento, seja ele novo ou existente
+    start_date, end_date = get_month_start_end_dates(month_year)
+    start_date_str = start_date.isoformat()
+    end_date_str = end_date.isoformat()
+
+    total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
+        Transaction.user_id == user_id,
+        Transaction.category_id == category_id,
+        Transaction.type == 'expense',
+        Transaction.date >= start_date_str,
+        Transaction.date <= end_date_str
+    ).scalar() or 0.0
+
+    if existing_budget:
+        existing_budget.current_spent = total_spent_in_category
+        db.session.add(existing_budget)
+    else: # new_budget
+        new_budget.current_spent = total_spent_in_category
+        db.session.add(new_budget)
+
     db.session.commit()
     return True
 
@@ -807,13 +808,18 @@ def edit_budget_db(budget_id, user_id, budget_amount=None):
     if budget:
         if budget_amount is not None:
             budget.budget_amount = float(budget_amount)
+        
+        # Recalcula o gasto atual após a edição
         start_date, end_date = get_month_start_end_dates(budget.month_year)
+        start_date_str = start_date.isoformat()
+        end_date_str = end_date.isoformat()
+        
         total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.type == 'expense',
-            db.cast(Transaction.date, db.Date) >= start_date,
-            db.cast(Transaction.date, db.Date) <= end_date
+            Transaction.date >= start_date_str,
+            Transaction.date <= end_date_str
         ).scalar() or 0.0
         budget.current_spent = total_spent_in_category
         db.session.commit()
@@ -1434,7 +1440,6 @@ def get_chart_data():
         start_date_of_month = target_month_date.replace(day=1)
         end_date_of_month = target_month_date.replace(day=calendar.monthrange(target_year, target_month)[1])
 
-        # CORREÇÃO: Usando o método de string para consulta de data
         start_date_str = start_date_of_month.isoformat()
         end_date_str = (end_date_of_month + datetime.timedelta(days=1)).isoformat()
 
@@ -1458,7 +1463,6 @@ def get_chart_data():
     current_year_start = today.replace(month=1, day=1)
     current_year_end = today.replace(month=12, day=31)
 
-    # CORREÇÃO: Usando o método de string para consulta de data
     start_year_str = current_year_start.isoformat()
     end_year_str = (current_year_end + datetime.timedelta(days=1)).isoformat()
 
@@ -1494,14 +1498,17 @@ def budgets_page():
     expense_categories = Category.query.filter_by(user_id=user_id, type='expense').all()
 
     start_date_obj, end_date_obj = get_month_start_end_dates(selected_month_year)
+    start_date_str = start_date_obj.isoformat()
+    end_date_str = end_date_obj.isoformat()
 
     for budget in budgets:
+        # CORREÇÃO: Usando consulta de data baseada em string para confiabilidade
         total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,
             Transaction.type == 'expense',
-            db.cast(Transaction.date, db.Date) >= start_date_obj,
-            db.cast(Transaction.date, db.Date) <= end_date_obj
+            Transaction.date >= start_date_str,
+            Transaction.date <= end_date_str
         ).scalar() or 0.0
         budget.current_spent = total_spent_in_category
 
