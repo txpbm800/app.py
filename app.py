@@ -6,6 +6,7 @@ import datetime
 import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import calendar # Para obter o número de dias no mês
+import json
 import google.generativeai as genai 
 
 app = Flask(__name__)
@@ -206,7 +207,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
             print(f"DEBUG: No budget found for category {category_id} in {transaction_month_year} for user {user_id}. Transaction added without budget update.")
     
     db.session.commit()
-    return new_transaction # CORREÇÃO: Retorna o objeto da transação criada
+    return new_transaction
 
 def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None, account_id=None):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
@@ -487,7 +488,6 @@ def pay_bill_db(bill_id, user_id):
             print("AVISO: Nenhuma categoria de despesa padrão encontrada para o pagamento da conta.")
             return False
 
-    # CORREÇÃO: Centraliza a lógica de criação de transação e atualização de orçamento
     new_payment_transaction = add_transaction_db(
         description=f"Pagamento: {bill.description}",
         amount=bill.amount,
@@ -503,7 +503,6 @@ def pay_bill_db(bill_id, user_id):
         bill.status = 'paid'
         db.session.add(bill)
         
-        # Lógica para gerar a próxima conta recorrente, se aplicável
         master_bill_to_process = None
         if bill.is_master_recurring_bill:
             master_bill_to_process = bill
@@ -966,7 +965,6 @@ def index():
     budgets_with_alerts = []
     all_budgets_for_month = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
 
-    # FUNCIONALIDADE: Lógica de Alertas de Orçamento
     for budget in all_budgets_for_month:
         if budget.budget_amount > 0:
             percentage_spent = (budget.current_spent / budget.budget_amount * 100)
@@ -986,6 +984,10 @@ def index():
                 budgets_with_alerts.append(alert_data)
 
     active_goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').order_by(db.cast(Goal.due_date, db.Date).asc()).all()
+
+    show_new_budget_alert = False
+    if not all_budgets_for_month:
+        show_new_budget_alert = True
 
 
     return render_template(
@@ -1007,7 +1009,8 @@ def index():
         accounts=user_accounts,
         accounts_json=accounts_json,
         budgets_with_alerts=budgets_with_alerts,
-        active_goals=active_goals
+        active_goals=active_goals,
+        show_new_budget_alert=show_new_budget_alert
     )
 
 @app.route('/add_transaction', methods=['POST'])
@@ -1489,10 +1492,17 @@ def budgets_page():
         ).scalar() or 0.0
         budget.current_spent = total_spent_in_category
 
+    # FUNCIONALIDADE: Lógica para navegação de meses
+    current_date = datetime.datetime.strptime(selected_month_year + '-01', '%Y-%m-%d').date()
+    prev_month = (current_date - relativedelta(months=1)).strftime('%Y-%m')
+    next_month = (current_date + relativedelta(months=1)).strftime('%Y-%m')
+
     return render_template('budgets.html', 
                            budgets=budgets, 
                            expense_categories=expense_categories, 
-                           current_month_year=selected_month_year)
+                           current_month_year=selected_month_year,
+                           prev_month_year=prev_month,
+                           next_month_year=next_month)
 
 @app.route('/add_budget', methods=['POST'])
 @login_required

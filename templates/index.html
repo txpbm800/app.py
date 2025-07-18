@@ -239,7 +239,20 @@
             </div>
         </div>
 
-        <!-- FUNCIONALIDADE: Seção de Alertas de Orçamento -->
+        {% if show_new_budget_alert %}
+        <div class="mb-8 p-4 rounded-lg bg-blue-100 border border-blue-200 text-blue-800">
+            <h3 class="font-bold text-lg mb-2">Hora de planejar o seu mês!</h3>
+            <p class="text-sm mb-4">Percebi que você ainda não tem um orçamento para este mês. O que gostaria de fazer?</p>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ url_for('budgets_page') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Criar Manualmente</a>
+                <a href="{{ url_for('recreate_last_month_budget') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Recriar Orçamento Anterior</a>
+                <a href="{{ url_for('suggest_budget_with_ai') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center gap-2">
+                    Pedir Sugestão da IA ✨
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         {% if budgets_with_alerts %}
         <div class="mb-8 space-y-3">
             <h2 class="text-xl font-bold text-gray-700">Alertas de Orçamento</h2>
