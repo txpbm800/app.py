@@ -206,6 +206,7 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
             print(f"DEBUG: No budget found for category {category_id} in {transaction_month_year} for user {user_id}. Transaction added without budget update.")
     
     db.session.commit()
+    return new_transaction # CORREÇÃO: Retorna o objeto da transação criada
 
 def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None, account_id=None):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
@@ -463,16 +464,16 @@ def pay_bill_db(bill_id, user_id):
         return False
 
     if bill.status == 'paid':
-        print(f"DEBUG: Bill {bill_id} already paid.")
+        print(f"DEBUG: Bill {bill_id} já está paga.")
         return False
 
     account = Account.query.get(bill.account_id)
     if not account or account.user_id != user_id:
-        print(f"ERROR: Account {bill.account_id} not found or doesn't belong to user {user_id}.")
+        print(f"ERROR: Conta {bill.account_id} não encontrada ou não pertence ao usuário {user_id}.")
         return False
 
     if account.balance < bill.amount:
-        print(f"ERROR: Insufficient balance in account {account.name} for bill {bill.description}.")
+        print(f"ERROR: Saldo insuficiente na conta {account.name} para a conta {bill.description}.")
         return False
 
     category_for_payment_id = bill.category_id
@@ -483,69 +484,39 @@ def pay_bill_db(bill_id, user_id):
         if default_cat:
             category_for_payment_id = default_cat.id
         else:
-            print("WARNING: No default expense category found for bill payment.")
+            print("AVISO: Nenhuma categoria de despesa padrão encontrada para o pagamento da conta.")
+            return False
 
+    # CORREÇÃO: Centraliza a lógica de criação de transação e atualização de orçamento
+    new_payment_transaction = add_transaction_db(
+        description=f"Pagamento: {bill.description}",
+        amount=bill.amount,
+        date=TODAY_DATE.isoformat(),
+        type='expense',
+        user_id=user_id,
+        category_id=category_for_payment_id,
+        account_id=bill.account_id
+    )
 
-    if category_for_payment_id:
-        existing_payment_transaction = Transaction.query.filter_by(
-            user_id=user_id,
-            description=f"Pagamento: {bill.description} (Conta ID: {bill.id})",
-            date=TODAY_DATE.isoformat(),
-            type='expense'
-        ).first()
-
-        if not existing_payment_transaction:
-            new_payment_transaction = Transaction(
-                description=f"Pagamento: {bill.description} (Conta ID: {bill.id})",
-                amount=bill.amount,
-                date=TODAY_DATE.isoformat(),
-                type='expense',
-                user_id=user_id,
-                category_id=category_for_payment_id,
-                account_id=bill.account_id
-            )
-            db.session.add(new_payment_transaction)
-            db.session.flush()
-            bill.payment_transaction_id = new_payment_transaction.id
-            print(f"DEBUG: Created new payment transaction ID: {new_payment_transaction.id}")
-        else:
-            print(f"DEBUG: Payment transaction for Bill ID {bill.id} on {TODAY_DATE} already exists.")
-            bill.payment_transaction_id = existing_payment_transaction.id
-            new_payment_transaction = existing_payment_transaction
-
-        account.balance -= bill.amount
-        db.session.add(account)
-
+    if new_payment_transaction:
+        bill.payment_transaction_id = new_payment_transaction.id
         bill.status = 'paid'
         db.session.add(bill)
+        
+        # Lógica para gerar a próxima conta recorrente, se aplicável
+        master_bill_to_process = None
+        if bill.is_master_recurring_bill:
+            master_bill_to_process = bill
+        elif bill.recurring_parent_id:
+            master_bill_to_process = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
 
-        if new_payment_transaction and new_payment_transaction.type == 'expense' and new_payment_transaction.category_id:
-            payment_month_year = TODAY_DATE.strftime('%Y-%m')
-            budget = Budget.query.filter_by(
-                user_id=user_id,
-                category_id=new_payment_transaction.category_id,
-                month_year=payment_month_year
-            ).first()
-            if budget:
-                budget.current_spent += new_payment_transaction.amount
-                db.session.add(budget)
-                print(f"DEBUG: Budget {budget.category.name} updated with payment of {new_payment_transaction.amount}. New spent: {budget.current_spent}")
-            else:
-                print(f"DEBUG: No budget found for category {new_payment_transaction.category.name} in {payment_month_year} to update.")
-    else:
-        print("WARNING: Cannot create payment transaction: no valid category_id provided.")
+        if master_bill_to_process and master_bill_to_process.is_active_recurring:
+            _generate_future_recurring_bills(master_bill_to_process)
 
-    master_bill_to_process = None
-    if bill.is_master_recurring_bill:
-        master_bill_to_process = bill
-    elif bill.recurring_parent_id:
-        master_bill_to_process = Bill.query.filter_by(id=bill.recurring_parent_id, user_id=user_id, is_master_recurring_bill=True).first()
-
-    if master_bill_to_process and master_bill_to_process.is_active_recurring:
-        _generate_future_recurring_bills(master_bill_to_process)
-
-    db.session.commit()
-    return True
+        db.session.commit()
+        return True
+    
+    return False
 
 
 def reschedule_bill_db(bill_id, new_date, user_id):
@@ -780,7 +751,6 @@ def add_budget_db(user_id, category_id, budget_amount, month_year):
         )
         db.session.add(new_budget)
     
-    # Recalcula o gasto atual para o orçamento, seja ele novo ou existente
     start_date, end_date = get_month_start_end_dates(month_year)
     start_date_str = start_date.isoformat()
     end_date_str = end_date.isoformat()
@@ -809,7 +779,6 @@ def edit_budget_db(budget_id, user_id, budget_amount=None):
         if budget_amount is not None:
             budget.budget_amount = float(budget_amount)
         
-        # Recalcula o gasto atual após a edição
         start_date, end_date = get_month_start_end_dates(budget.month_year)
         start_date_str = start_date.isoformat()
         end_date_str = end_date.isoformat()
@@ -997,15 +966,24 @@ def index():
     budgets_with_alerts = []
     all_budgets_for_month = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
 
+    # FUNCIONALIDADE: Lógica de Alertas de Orçamento
     for budget in all_budgets_for_month:
-        percentage_spent = (budget.current_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0
-        if percentage_spent >= 80:
-            budgets_with_alerts.append({
+        if budget.budget_amount > 0:
+            percentage_spent = (budget.current_spent / budget.budget_amount * 100)
+            
+            alert_data = {
                 'category_name': budget.category.name,
-                'budget_amount': budget.budget_amount,
-                'current_spent': budget.current_spent,
-                'percentage_spent': percentage_spent
-            })
+                'percentage_spent': round(percentage_spent)
+            }
+
+            if percentage_spent > 100:
+                alert_data['status'] = 'danger'
+                alert_data['message'] = f"Alerta: Você ultrapassou em {round(percentage_spent - 100)}% o orçamento para"
+                budgets_with_alerts.append(alert_data)
+            elif percentage_spent >= 80:
+                alert_data['status'] = 'warning'
+                alert_data['message'] = f"Atenção: Você já utilizou {round(percentage_spent)}% do seu orçamento para"
+                budgets_with_alerts.append(alert_data)
 
     active_goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').order_by(db.cast(Goal.due_date, db.Date).asc()).all()
 
@@ -1502,7 +1480,6 @@ def budgets_page():
     end_date_str = end_date_obj.isoformat()
 
     for budget in budgets:
-        # CORREÇÃO: Usando consulta de data baseada em string para confiabilidade
         total_spent_in_category = db.session.query(db.func.sum(Transaction.amount)).filter(
             Transaction.user_id == user_id,
             Transaction.category_id == budget.category_id,

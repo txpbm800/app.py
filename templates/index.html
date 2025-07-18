@@ -98,9 +98,8 @@
         .close-button:hover {
             color: #333;
         }
-        /* CORREÇÃO: Aplicando altura máxima e rolagem para as listas */
         .list-scroll-area { 
-            max-height: 300px; /* Altura ajustada para 3-4 itens */
+            max-height: 300px;
             overflow-y: auto;
             padding-right: 10px;
         }
@@ -239,6 +238,23 @@
                 </div>
             </div>
         </div>
+
+        <!-- FUNCIONALIDADE: Seção de Alertas de Orçamento -->
+        {% if budgets_with_alerts %}
+        <div class="mb-8 space-y-3">
+            <h2 class="text-xl font-bold text-gray-700">Alertas de Orçamento</h2>
+            {% for alert in budgets_with_alerts %}
+                <div class="p-4 rounded-lg flex items-center space-x-3 {% if alert.status == 'danger' %}bg-red-100 text-red-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                    <div>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-alert-triangle h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                    </div>
+                    <p class="text-sm font-medium">
+                        {{ alert.message }} <strong class="font-bold">'{{ alert.category_name }}'</strong> este mês.
+                    </p>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 items-start">
             
@@ -458,7 +474,6 @@
             </div>
         </div>
 
-        <!-- CORREÇÃO: Formulário de filtro de transações restaurado -->
         <div class="rounded-lg shadow-md bg-white p-6 card-shadow my-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Filtrar Transações</h2>
             <form id="transactions-filter-form" action="{{ url_for('index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
