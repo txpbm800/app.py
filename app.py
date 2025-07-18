@@ -1492,7 +1492,6 @@ def budgets_page():
         ).scalar() or 0.0
         budget.current_spent = total_spent_in_category
 
-    # FUNCIONALIDADE: Lógica para navegação de meses
     current_date = datetime.datetime.strptime(selected_month_year + '-01', '%Y-%m-%d').date()
     prev_month = (current_date - relativedelta(months=1)).strftime('%Y-%m')
     next_month = (current_date + relativedelta(months=1)).strftime('%Y-%m')
