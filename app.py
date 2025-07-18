@@ -1309,7 +1309,6 @@ def get_monthly_summary():
     start_date = datetime.date(year, month, 1)
     end_date = start_date.replace(day=calendar.monthrange(year, month)[1])
     
-    # CORREÇÃO: Usando comparação de strings para datas
     start_date_str = start_date.isoformat()
     end_date_str = (end_date + datetime.timedelta(days=1)).isoformat()
 
@@ -1435,10 +1434,14 @@ def get_chart_data():
         start_date_of_month = target_month_date.replace(day=1)
         end_date_of_month = target_month_date.replace(day=calendar.monthrange(target_year, target_month)[1])
 
+        # CORREÇÃO: Usando o método de string para consulta de data
+        start_date_str = start_date_of_month.isoformat()
+        end_date_str = (end_date_of_month + datetime.timedelta(days=1)).isoformat()
+
         transactions_in_month = Transaction.query.filter(
             Transaction.user_id == user_id,
-            db.cast(Transaction.date, db.Date) >= start_date_of_month,
-            db.cast(Transaction.date, db.Date) <= end_date_of_month
+            Transaction.date >= start_date_str,
+            Transaction.date < end_date_str
         ).all()
         
         monthly_income_data[month_name] = sum(t.amount for t in transactions_in_month if t.type == 'income')
@@ -1455,10 +1458,14 @@ def get_chart_data():
     current_year_start = today.replace(month=1, day=1)
     current_year_end = today.replace(month=12, day=31)
 
+    # CORREÇÃO: Usando o método de string para consulta de data
+    start_year_str = current_year_start.isoformat()
+    end_year_str = (current_year_end + datetime.timedelta(days=1)).isoformat()
+
     current_year_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
-        db.cast(Transaction.date, db.Date) >= current_year_start,
-        db.cast(Transaction.date, db.Date) <= current_year_end,
+        Transaction.date >= start_year_str,
+        Transaction.date < end_year_str,
         Transaction.type == 'expense'
     ).all()
 
