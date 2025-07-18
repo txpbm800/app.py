@@ -930,7 +930,6 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    # CORREÇÃO: Lógica de filtro de transações restaurada
     transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
 
     transaction_type_filter = request.args.get('transaction_type')
@@ -1309,11 +1308,15 @@ def get_monthly_summary():
 
     start_date = datetime.date(year, month, 1)
     end_date = start_date.replace(day=calendar.monthrange(year, month)[1])
+    
+    # CORREÇÃO: Usando comparação de strings para datas
+    start_date_str = start_date.isoformat()
+    end_date_str = (end_date + datetime.timedelta(days=1)).isoformat()
 
     monthly_transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
-        db.cast(Transaction.date, db.Date) >= start_date,
-        db.cast(Transaction.date, db.Date) <= end_date
+        Transaction.date >= start_date_str,
+        Transaction.date < end_date_str
     ).all()
 
     monthly_income = sum(t.amount for t in monthly_transactions if t.type == 'income')
