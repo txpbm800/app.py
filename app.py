@@ -702,24 +702,30 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
 def get_dashboard_data_db(user_id):
     current_month_start = datetime.date.today().replace(day=1)
     next_month_start = (current_month_start + relativedelta(months=1))
+    
+    # Convert dates to strings for reliable comparison
+    start_date_str = current_month_start.isoformat()
+    end_date_str = next_month_start.isoformat()
 
     total_balance = db.session.query(db.func.sum(Account.balance)).filter_by(user_id=user_id).scalar() or 0.0
 
+    # CORREÇÃO: Usando comparação de strings para datas para maior confiabilidade
     monthly_income = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.user_id == user_id,
         Transaction.type == 'income',
-        db.cast(Transaction.date, db.Date) >= current_month_start,
-        db.cast(Transaction.date, db.Date) < next_month_start
+        Transaction.date >= start_date_str,
+        Transaction.date < end_date_str
     ).scalar() or 0.0
 
+    # CORREÇÃO: Usando comparação de strings para datas para maior confiabilidade
     monthly_expenses = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.user_id == user_id,
         Transaction.type == 'expense',
-        db.cast(Transaction.date, db.Date) >= current_month_start,
-        db.cast(Transaction.date, db.Date) < next_month_start
+        Transaction.date >= start_date_str,
+        Transaction.date < end_date_str
     ).scalar() or 0.0
     
-    today_str = TODAY_DATE.isoformat()
+    # Mantendo a lógica original de contas a pagar, pois o usuário disse que está funcionando
     monthly_pending_bills_amount = db.session.query(db.func.sum(Bill.amount)).filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
@@ -928,8 +934,6 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    # CORREÇÃO: Lógica de consulta de transações simplificada e corrigida.
-    # Estas consultas são agora independentes para popular os painéis do dashboard.
     income_transactions = Transaction.query.filter_by(user_id=current_user.id, type='income')\
                                          .order_by(Transaction.date.desc())\
                                          .limit(10).all()
@@ -938,7 +942,6 @@ def index():
                                           .order_by(Transaction.date.desc())\
                                           .limit(10).all()
 
-    # A lógica de filtro de contas foi mantida, pois é usada no formulário de filtro de contas.
     bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
         Bill.is_master_recurring_bill == False
