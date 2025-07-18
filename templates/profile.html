@@ -11,11 +11,6 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f7fafc;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start; /* Ajustado para alinhar no topo */
-            min-height: 100vh;
-            padding: 2rem; /* Adicionado padding para melhor visualização em telas pequenas */
         }
         .card-shadow {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -47,13 +42,11 @@
             justify-content: center;
             margin-bottom: 1.5rem;
         }
-        /* Contêiner responsivo para o canvas do gráfico */
         .chart-container {
             position: relative;
-            height: 300px; /* Altura fixa para o gráfico para garantir que não fique gigantesco */
+            height: 300px;
             width: 100%;
         }
-        /* Estilo para o texto quando o gráfico está vazio */
         .chart-empty-message {
             position: absolute;
             top: 50%;
@@ -63,8 +56,6 @@
             font-size: 1.125rem; /* text-lg */
             text-align: center;
         }
-
-        /* Estilos para o modal de ampliação do gráfico */
         .modal {
             position: fixed;
             z-index: 1050;
@@ -73,7 +64,7 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.6); /* Fundo mais escuro */
+            background-color: rgba(0,0,0,0.6);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -86,17 +77,17 @@
             visibility: visible;
             opacity: 1;
         }
-        .modal-content-chart { /* Nome diferente para evitar conflito com modal de edição */
+        .modal-content-chart {
             background-color: #fefefe;
             padding: 2rem;
             border-radius: 0.5rem;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            width: 90%; /* Mais largo para o gráfico */
-            max-width: 900px; /* Máx. largura para desktop */
+            width: 90%;
+            max-width: 900px;
             position: relative;
-            height: 80%; /* Altura um pouco maior para o gráfico */
+            height: 80%;
         }
-        .close-button-chart { /* Nome diferente */
+        .close-button-chart {
             position: absolute;
             top: 1rem;
             right: 1.5rem;
@@ -110,14 +101,13 @@
         }
     </style>
 </head>
-<body>
-    <div class="max-w-xl w-full bg-white rounded-lg shadow-md p-8 text-center">
+<body class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8 text-center">
         <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2>
         
-        {# Foto de Perfil #}
         <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
         <form id="profile-picture-form" action="{{ url_for('update_profile_picture') }}" method="POST" class="mb-4">
-            <input type="url" id="profile_picture_url_input" name="profile_picture_url" placeholder="URL da Foto de Perfil" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+            <input type="url" id="profile_picture_url_input" name="profile_picture_url" placeholder="URL da Foto de Perfil" class="w-full max-w-sm mx-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
             <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                 Atualizar Foto
             </button>
@@ -125,11 +115,12 @@
 
         <p class="text-gray-600 mb-8">Gerencie suas configurações de conta ou veja seu resumo financeiro.</p>
 
+        <!-- CORREÇÃO: Adicionada a classe 'flash-message' para o JS funcionar -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                <div class="mb-4">
+                <div class="mb-4 max-w-xl mx-auto">
                     {% for category, message in messages %}
-                        <div class="p-3 rounded-md text-sm {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
+                        <div class="flash-message p-3 rounded-md text-sm {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}">
                             {{ message }}
                         </div>
                     {% endfor %}
@@ -137,8 +128,7 @@
             {% endif %}
         {% endwith %}
 
-        {# Resumo Financeiro Mensal #}
-        <div class="mb-8">
+        <div class="mb-8 border-t pt-8">
             <h3 class="text-2xl font-bold text-gray-900 mb-4">Resumo Mensal</h3>
             <div class="month-selector">
                 <button onclick="changeMonth(-1)" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">&lt;</button>
@@ -146,27 +136,25 @@
                 <button onclick="changeMonth(1)" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">&gt;</button>
             </div>
             
-            <div class="grid grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm font-medium text-gray-700 mb-4 max-w-xl mx-auto">
                 <div class="p-3 bg-green-50 rounded-lg">Receita: <br><span id="monthly-income" class="font-bold text-green-700 text-lg">R$ 0,00</span></div>
                 <div class="p-3 bg-red-50 rounded-lg">Despesa: <br><span id="monthly-expenses" class="font-bold text-red-700 text-lg">R$ 0,00</span></div>
                 <div class="p-3 bg-blue-50 rounded-lg">Saldo: <br><span id="monthly-balance" class="font-bold text-blue-700 text-lg">R$ 0,00</span></div>
             </div>
 
-            <button onclick="getAiInsight()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
+            <button onclick="getAiInsight()" class="w-full max-w-sm mx-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
                 <span id="ai-spinner" class="hidden loading-spinner"></span>
                 <span id="ai-button-text">Obter Insight da IA</span>
             </button>
-            <div id="ai-insight-output" class="mt-4 p-4 bg-gray-100 rounded-md text-left text-gray-800 text-sm italic border border-gray-200">
+            <div id="ai-insight-output" class="mt-4 p-4 bg-gray-100 rounded-md text-left text-gray-800 text-sm italic border border-gray-200 max-w-xl mx-auto">
                 Insights sobre seus gastos aparecerão aqui...
             </div>
         </div>
 
-        {# SEÇÃO DE GRÁFICOS - AGORA NO PROFILE.HTML - ALTERADO PARA GRID DE 2 COLUNAS #}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8"> {# Alterado de grid-cols-1 para lg:grid-cols-2 #}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8 border-t pt-8">
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Visão Geral de Receitas e Despesas</h3>
-                {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal('monthlyOverviewChart')"> {# Simplificado para passar apenas o ID #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal('monthlyOverviewChart')">
                     <canvas id="monthlyOverviewChart"></canvas>
                     <p id="monthlyOverviewEmpty" class="chart-empty-message hidden">
                         Adicione transações para ver o gráfico de Visão Geral Mensal.
@@ -175,8 +163,7 @@
             </div>
             <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
                 <h3 class="text-2xl font-bold text-gray-900 mb-4">Despesas por Categoria (Ano Atual)</h3>
-                {# MUDANÇA AQUI: Passa a instância do gráfico e os dados reais ao invés de IDs #}
-                <div class="chart-container cursor-pointer" onclick="openChartModal('expensesByCategoryChart')"> {# Simplificado para passar apenas o ID #}
+                <div class="chart-container cursor-pointer" onclick="openChartModal('expensesByCategoryChart')">
                     <canvas id="expensesByCategoryChart"></canvas>
                     <p id="expensesByCategoryEmpty" class="chart-empty-message hidden">
                         Adicione despesas categorizadas para ver este gráfico.
@@ -185,11 +172,10 @@
             </div>
         </div>
 
-        <div class="space-y-4 mt-8"> {# Adicionado mt-8 para espaçamento após os gráficos #}
+        <div class="space-y-4 mt-8 border-t pt-8 max-w-sm mx-auto">
             <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
             </a>
-            {# CORREÇÃO AQUI: Mudando 'delete_account' para 'delete_account_user' #}
             <a href="{{ url_for('delete_account_user') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Apagar Conta
             </a>
@@ -203,10 +189,8 @@
         <div class="modal-content-chart">
             <span class="close-button-chart" onclick="closeChartModal()">&times;</span>
             <h3 id="chart-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center"></h3>
-            {# O canvas dentro do modal precisa de um id único para o Chart.js #}
             <div style="width: 100%; height: calc(100% - 60px);"> 
                 <canvas id="amplifiedChart"></canvas>
-                {# Adicione uma mensagem de vazio também para o modal, caso os dados estejam ausentes #}
                 <p id="amplifiedChartEmpty" class="chart-empty-message hidden">
                     Não há dados para exibir neste gráfico.
                 </p>
@@ -216,57 +200,64 @@
 
 
     <script>
-        // Função para formatar moeda
+        // ... (todo o script existente da página de perfil) ...
+
+        // CORREÇÃO: Adicionado o script para fazer as mensagens desaparecerem
+        document.addEventListener('DOMContentLoaded', () => {
+            // Lógica para mensagens flash
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000); // 4 segundos
+            });
+
+            // Lógica existente para resumo, gráficos e foto de perfil
+            fetchMonthlySummary();
+            fetchChartDataAndRender();
+            
+            const profilePicElement = document.getElementById('profile-picture');
+            if (profilePicElement && (!profilePicElement.src || profilePicElement.src === window.location.origin + '/' || profilePicElement.src.startsWith('https://placehold.co/'))) {
+                profilePicElement.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
+            } else if (profilePicElement) {
+                profilePicElement.onerror = function() {
+                    this.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
+                };
+            }
+        });
+
+        // (O resto do seu script de profile.html permanece aqui sem alterações)
         function formatCurrency(value) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
         }
-
-        // Variáveis para controlar o mês/ano
-        let currentMonth = new Date().getMonth() + 1; // Mês atual (1-12)
-        let currentYear = new Date().getFullYear(); // Ano atual
-        let currentMonthlyData = {}; // Armazenará os dados do mês selecionado para a IA
-
-        // Nomes dos meses para exibição
-        const monthNames = [
-            "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-            "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-        ];
-
-        // Gráficos globais para que possam ser destruídos e recriados
+        let currentMonth = new Date().getMonth() + 1;
+        let currentYear = new Date().getFullYear();
+        let currentMonthlyData = {};
+        const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
         let monthlyOverviewChartInstance;
         let expensesByCategoryChartInstance;
-        let amplifiedChartInstance; // Instância para o gráfico ampliado
+        let amplifiedChartInstance;
+        let globalChartRawData = null;
 
-        // Variável global para armazenar os dados brutos dos gráficos
-        let globalChartRawData = null; 
-
-        // Função para buscar e exibir o resumo mensal
         async function fetchMonthlySummary() {
             const monthYearDisplay = document.getElementById('current-month-year');
             const monthlyIncomeEl = document.getElementById('monthly-income');
             const monthlyExpensesEl = document.getElementById('monthly-expenses');
             const monthlyBalanceEl = document.getElementById('monthly-balance');
             const aiInsightOutputEl = document.getElementById('ai-insight-output');
-
             monthYearDisplay.textContent = `${monthNames[currentMonth - 1]} de ${currentYear}`;
-            aiInsightOutputEl.textContent = 'Insights sobre seus gastos aparecerão aqui...'; // Limpa o insight anterior
-
+            aiInsightOutputEl.textContent = 'Insights sobre seus gastos aparecerão aqui...';
             try {
-                // ATENÇÃO: Esta URL deve ser a mesma da rota em app.py
                 const response = await fetch(`/profile/monthly_summary?year=${currentYear}&month=${currentMonth}`);
-                
-                // Verifica se a resposta HTTP foi OK (status 200)
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
-                
                 const data = await response.json();
-
-                currentMonthlyData = data; // Armazena os dados para uso da IA
-
+                currentMonthlyData = data;
                 monthlyIncomeEl.textContent = formatCurrency(data.income);
                 monthlyExpensesEl.textContent = formatCurrency(data.expenses);
-                // Define a cor do saldo com base no valor
                 if (data.balance >= 0) {
                     monthlyBalanceEl.classList.remove('text-red-700');
                     monthlyBalanceEl.classList.add('text-green-700');
@@ -275,7 +266,6 @@
                     monthlyBalanceEl.classList.add('text-red-700');
                 }
                 monthlyBalanceEl.textContent = formatCurrency(data.balance);
-
             } catch (error) {
                 console.error('Erro ao buscar resumo mensal:', error);
                 monthlyIncomeEl.textContent = 'Erro';
@@ -285,7 +275,6 @@
             }
         }
 
-        // Função para mudar o mês
         function changeMonth(offset) {
             currentMonth += offset;
             if (currentMonth > 12) {
@@ -298,38 +287,27 @@
             fetchMonthlySummary();
         }
 
-        // Função para obter insight da IA
         async function getAiInsight() {
             const aiSpinner = document.getElementById('ai-spinner');
             const aiButtonText = document.getElementById('ai-button-text');
             const aiInsightOutputEl = document.getElementById('ai-insight-output');
-
             if (Object.keys(currentMonthlyData).length === 0 || (currentMonthlyData.income === 0 && currentMonthlyData.expenses === 0)) {
                 aiInsightOutputEl.textContent = 'Carregue um resumo mensal com dados para obter insights.';
                 return;
             }
-
             aiSpinner.classList.remove('hidden');
             aiButtonText.textContent = 'Gerando Insight...';
             aiInsightOutputEl.textContent = 'Gerando insights de IA...';
-
             try {
-                // ATENÇÃO: Esta URL deve ser a mesma da rota em app.py
                 const response = await fetch('/profile/ai_insight', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ summary_data: currentMonthlyData }),
                 });
-                
-                // Verifica se a resposta HTTP foi OK (status 200)
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
-
                 const data = await response.json();
-
                 if (data.insight) {
                     aiInsightOutputEl.textContent = data.insight;
                 } else if (data.error) {
@@ -346,9 +324,6 @@
             }
         }
 
-        // --- FUNÇÕES PARA GRÁFICOS ---
-
-        // Função para buscar dados do gráfico do backend
         async function fetchChartData() {
             try {
                 const response = await fetch('/get_chart_data');
@@ -356,7 +331,7 @@
                     throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
                 const data = await response.json();
-                globalChartRawData = data; // Armazena os dados brutos globalmente
+                globalChartRawData = data;
                 return data;
             } catch (error) {
                 console.error('Erro ao buscar dados do gráfico:', error);
@@ -364,152 +339,52 @@
             }
         }
 
-        // Função para renderizar um gráfico específico
         function renderChart(canvasId, chartType, chartData, chartTitle) {
             const ctx = document.getElementById(canvasId);
-            // Mensagem de vazio associada (se existir)
-            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty')); 
-            
-            // Verifica se há dados válidos para o gráfico
-            const hasData = (chartData.labels && chartData.labels.length > 0 && 
-                             (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
-
-            if (ctx) { // Verifica se o canvas existe
-                // Destruir instância existente se houver (para evitar duplicidade)
+            const emptyMessageEl = document.getElementById(canvasId.replace('Chart', 'Empty'));
+            const hasData = (chartData.labels && chartData.labels.length > 0 && (chartData.income && chartData.income.some(v => v > 0) || chartData.expenses && chartData.expenses.some(v => v > 0) || chartData.values && chartData.values.some(v => v > 0)));
+            if (ctx) {
                 let chartInstanceToDestroy;
                 if (canvasId === 'monthlyOverviewChart') chartInstanceToDestroy = monthlyOverviewChartInstance;
                 else if (canvasId === 'expensesByCategoryChart') chartInstanceToDestroy = expensesByCategoryChartInstance;
                 else if (canvasId === 'amplifiedChart') chartInstanceToDestroy = amplifiedChartInstance;
-
                 if (chartInstanceToDestroy) {
                     chartInstanceToDestroy.destroy();
                 }
-
                 if (hasData) {
-                    // Esconde a mensagem de vazio e mostra o canvas
                     if (emptyMessageEl) emptyMessageEl.classList.add('hidden');
                     ctx.classList.remove('hidden');
-
                     let chartConfig = {};
                     if (chartType === 'bar') {
-                        chartConfig = {
-                            type: 'bar',
-                            data: {
-                                labels: chartData.labels, // Nomes dos meses
-                                datasets: [
-                                    {
-                                        label: 'Receitas',
-                                        data: chartData.income,
-                                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
-                                        borderColor: 'rgba(16, 185, 129, 1)',
-                                        borderWidth: 1
-                                    },
-                                    {
-                                        label: 'Despesas',
-                                        data: chartData.expenses,
-                                        backgroundColor: 'rgba(239, 68, 68, 0.6)',
-                                        borderColor: 'rgba(239, 68, 68, 1)',
-                                        borderWidth: 1
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    y: {
-                                        beginAtZero: true
-                                    }
-                                },
-                                plugins: {
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        };
+                        chartConfig = { type: 'bar', data: { labels: chartData.labels, datasets: [{ label: 'Receitas', data: chartData.income, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }, { label: 'Despesas', data: chartData.expenses, backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw); } } } } } };
                     } else if (chartType === 'doughnut') {
-                        const backgroundColors = [
-                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'
-                        ];
+                        const backgroundColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'];
                         const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
-                        
-                        chartConfig = {
-                            type: 'doughnut', // Pode ser 'pie' ou 'doughnut'
-                            data: {
-                                labels: chartData.labels, // Nomes das categorias
-                                datasets: [{
-                                    data: chartData.values,
-                                    backgroundColor: backgroundColors.slice(0, chartData.labels.length),
-                                    borderColor: borderColors.slice(0, chartData.labels.length),
-                                    borderWidth: 1
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    legend: {
-                                        position: 'top',
-                                    },
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                let label = context.label || '';
-                                                if (label) {
-                                                    label += ': ';
-                                                }
-                                                if (context.parsed !== null) {
-                                                    label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed);
-                                                }
-                                                return label;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        };
+                        chartConfig = { type: 'doughnut', data: { labels: chartData.labels, datasets: [{ data: chartData.values, backgroundColor: backgroundColors.slice(0, chartData.labels.length), borderColor: borderColors.slice(0, chartData.labels.length), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed); } return label; } } } } } };
                     }
-                    
-                    // Criar nova instância do gráfico
                     const newChartInstance = new Chart(ctx.getContext('2d'), chartConfig);
-
                     if (canvasId === 'monthlyOverviewChart') monthlyOverviewChartInstance = newChartInstance;
                     else if (canvasId === 'expensesByCategoryChart') expensesByCategoryChartInstance = newChartInstance;
                     else if (canvasId === 'amplifiedChart') amplifiedChartInstance = newChartInstance;
-
                 } else {
-                    // Esconde o canvas e mostra a mensagem de vazio
                     ctx.classList.add('hidden');
                     if (emptyMessageEl) emptyMessageEl.classList.remove('hidden');
                 }
             }
         }
 
-        // Função para carregar e renderizar todos os gráficos principais
         async function fetchChartDataAndRender() {
             const chartData = await fetchChartData();
-            if (!chartData) {
-                return;
-            }
-
+            if (!chartData) { return; }
             renderChart('monthlyOverviewChart', 'bar', chartData.monthly_summary, 'Visão Geral de Receitas e Despesas');
             renderChart('expensesByCategoryChart', 'doughnut', chartData.expenses_by_category, 'Despesas por Categoria (Ano Atual)');
         }
 
-        // --- FUNÇÕES PARA O MODAL DE AMPLIAÇÃO DE GRÁFICO ---
-
         const chartModal = document.getElementById('chart-modal');
         const chartModalTitle = document.getElementById('chart-modal-title');
         
-        function openChartModal(chartId) { // Recebe o ID do canvas original
+        function openChartModal(chartId) {
             let chartType, chartData, chartTitle;
-
-            // Determina qual gráfico foi clicado e obtém seus dados e tipo do globalChartRawData
             if (chartId === 'monthlyOverviewChart' && globalChartRawData) {
                 chartType = 'bar';
                 chartData = globalChartRawData.monthly_summary;
@@ -522,75 +397,36 @@
                 console.error("Dados do gráfico não disponíveis para ampliação.");
                 return;
             }
-
-            chartModal.classList.add('active'); // Mostra o modal
-            chartModalTitle.textContent = chartTitle; // Define o título do modal
-
-            // Destruir instância anterior do gráfico ampliado (se houver)
+            chartModal.classList.add('active');
+            chartModalTitle.textContent = chartTitle;
             if (amplifiedChartInstance) {
                 amplifiedChartInstance.destroy();
                 amplifiedChartInstance = null;
             }
-
-            // Remova e recrie o canvas para garantir que o Chart.js o redesenhe corretamente
             const oldCanvas = document.getElementById('amplifiedChart');
             const parentDiv = oldCanvas.parentNode;
-            oldCanvas.remove(); // Remove o canvas antigo
-            const newCanvas = document.createElement('canvas'); // Cria um novo canvas
-            newCanvas.id = 'amplifiedChart'; // Atribui o mesmo ID
-            parentDiv.appendChild(newCanvas); // Adiciona o novo canvas ao DOM
-
-            // Renderiza o gráfico ampliado dentro do modal com um pequeno atraso
+            oldCanvas.remove();
+            const newCanvas = document.createElement('canvas');
+            newCanvas.id = 'amplifiedChart';
+            parentDiv.appendChild(newCanvas);
             setTimeout(() => {
                 renderChart('amplifiedChart', chartType, chartData, chartTitle);
-            }, 50); // Atraso reduzido para 50ms para tentar um carregamento mais rápido
-
-            // Opcional: Garante que a mensagem de vazio do modal esteja escondida ao abrir
+            }, 50);
             const amplifiedEmpty = document.getElementById('amplifiedChartEmpty');
             if (amplifiedEmpty) amplifiedEmpty.classList.add('hidden');
         }
 
-        // Fecha o modal de gráfico
         function closeChartModal() {
             chartModal.classList.remove('active');
             if (amplifiedChartInstance) {
-                amplifiedChartInstance.destroy(); // Destroi a instância do gráfico do modal
+                amplifiedChartInstance.destroy();
                 amplifiedChartInstance = null;
             }
-            // Não precisamos mais resetar width/height manual aqui pois o canvas é recriado
         }
 
-        // Fecha o modal ao clicar fora dele
         window.addEventListener('click', (event) => {
             if (event.target == chartModal) {
                 closeChartModal();
-            }
-        });
-
-
-        // Ao carregar a página
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchMonthlySummary(); // Carrega o resumo do mês atual
-            fetchChartDataAndRender(); // Carrega e renderiza os gráficos
-
-            // Lógica para mensagens flash desaparecerem automaticamente
-            const flashMessages = document.querySelectorAll('.flash-message');
-            flashMessages.forEach(message => {
-                setTimeout(() => {
-                    message.style.transition = 'opacity 1s ease-out';
-                    message.style.opacity = '0';
-                    message.addEventListener('transitionend', () => message.remove());
-                }, 4000); // 4 segundos
-            });
-
-            // Lógica para carregar a imagem de perfil. Se a URL estiver vazia, usa placeholder.
-            const profilePicElement = document.getElementById('profile-picture');
-            if (profilePicElement && (!profilePicElement.src || profilePicElement.src === window.location.origin + '/' || profilePicElement.src.startsWith('https://placehold.co/'))) {
-                profilePicElement.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
-            } else if (profilePicElement) {
-                profilePicElement.onerror = function() {
-                    this.src = 'https://placehold.co/100x100/aabbcc/ffffff?text=PF';
-                };
             }
         });
     </script>
