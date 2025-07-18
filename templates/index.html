@@ -298,16 +298,26 @@
                             </div>
                             <div>
                                 <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                                <select id="type" name="type" required onchange="filterCategoriesByType(this.value, 'category_id')" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                <select id="type" name="type" required onchange="handleCategoryChange('type', 'category_id', 'goal-field-container')" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="income">Receita</option>
                                     <option value="expense" selected>Despesa</option>
                                 </select>
                             </div>
                             <div>
                                 <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                                <select id="category_id" name="category_id" required
+                                <select id="category_id" name="category_id" required onchange="handleCategoryChange('type', 'category_id', 'goal-field-container')"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="">Selecione a Categoria</option>
+                                </select>
+                            </div>
+                            <!-- NOVO: Campo de Metas que aparece condicionalmente -->
+                            <div id="goal-field-container" class="hidden">
+                                <label for="goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta (Opcional)</label>
+                                <select id="goal_id" name="goal_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                                    <option value="">Nenhuma</option>
+                                    {% for goal in active_goals %}
+                                        <option value="{{ goal.id }}">{{ goal.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div>
@@ -367,7 +377,7 @@
                             </div>
                             <div>
                                 <label for="bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
-                                <select id="bill_account_id" name="bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select id="bill_account_id" name="bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="">Selecione uma conta</option>
                                     {% for account in accounts %}
                                     <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
@@ -597,14 +607,19 @@
                 </div>
                 <div>
                     <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select id="edit_type" name="edit_type" required onchange="filterCategoriesByType(this.value, 'edit_category_id')" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <select id="edit_type" name="edit_type" required onchange="handleCategoryChange('edit_type', 'edit_category_id', 'edit-goal-field-container')" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                         <option value="income">Receita</option>
                         <option value="expense">Despesa</option>
                     </select>
                 </div>
                 <div>
                     <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                    <select id="edit_category_id" name="edit_category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                    <select id="edit_category_id" name="edit_category_id" required onchange="handleCategoryChange('edit_type', 'edit_category_id', 'edit-goal-field-container')" class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
+                </div>
+                <!-- NOVO: Campo de Metas no modal de edição -->
+                <div id="edit-goal-field-container" class="hidden">
+                    <label for="edit_goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta (Opcional)</label>
+                    <select id="edit_goal_id" name="edit_goal_id" class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
                 </div>
                 <div>
                     <label for="edit_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta</label>
@@ -638,6 +653,7 @@
     <script>
         const allCategories = {{ all_categories | tojson }};
         const allAccounts = {{ accounts_json | tojson }};
+        const allGoals = {{ goals_json | tojson }};
 
         document.addEventListener('DOMContentLoaded', () => {
             filterCategoriesByType('expense', 'category_id');
@@ -707,6 +723,32 @@
             });
         }
 
+        function populateGoals(selectElementId, selectedGoalId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Nenhuma</option>';
+            allGoals.forEach(goal => {
+                const option = new Option(goal.name, goal.id);
+                if (selectedGoalId && goal.id === selectedGoalId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
+            });
+        }
+
+        function handleCategoryChange(typeSelectId, categorySelectId, goalContainerId) {
+            const categorySelect = document.getElementById(categorySelectId);
+            const goalContainer = document.getElementById(goalContainerId);
+            const selectedCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+
+            if (selectedCategoryOption && selectedCategoryOption.text === 'Poupança para Metas') {
+                goalContainer.classList.remove('hidden');
+            } else {
+                goalContainer.classList.add('hidden');
+            }
+            filterCategoriesByType(document.getElementById(typeSelectId).value, categorySelectId, parseInt(categorySelect.value));
+        }
+
         const editModal = document.getElementById('edit-modal');
         const editTransactionForm = document.getElementById('edit-transaction-form');
         const editBillForm = document.getElementById('edit-bill-form');
@@ -732,6 +774,8 @@
                     
                     filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
                     populateAccounts('edit_account_id', data.account_id);
+                    populateGoals('edit_goal_id', data.goal_id);
+                    handleCategoryChange('edit_type', 'edit_category_id', 'edit-goal-field-container');
 
                     editTransactionForm.action = `/edit_transaction/${id}`;
                     editTransactionForm.classList.remove('hidden');
