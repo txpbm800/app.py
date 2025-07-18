@@ -1591,6 +1591,78 @@ def handle_contribute_to_goal(goal_id):
         flash('Erro ao contribuir para a meta. Verifique o valor ou se a meta existe.', 'danger')
     return redirect(url_for('index'))
 
+# --- NOVAS ROTAS PARA ORÇAMENTO INTELIGENTE ---
+@app.route('/recreate_budget')
+@login_required
+def recreate_last_month_budget():
+    current_month_date = datetime.date.today().replace(day=1)
+    last_month_date = current_month_date - relativedelta(months=1)
+    last_month_year = last_month_date.strftime('%Y-%m')
+    current_month_year = current_month_date.strftime('%Y-%m')
+
+    last_month_budgets = Budget.query.filter_by(user_id=current_user.id, month_year=last_month_year).all()
+
+    if not last_month_budgets:
+        flash('Nenhum orçamento encontrado no mês anterior para copiar.', 'warning')
+        return redirect(url_for('budgets_page'))
+
+    for budget in last_month_budgets:
+        add_budget_db(current_user.id, budget.category_id, budget.budget_amount, current_month_year)
+    
+    flash('Orçamento do mês anterior recriado com sucesso!', 'success')
+    return redirect(url_for('budgets_page'))
+
+@app.route('/suggest_budget_ai')
+@login_required
+def suggest_budget_with_ai():
+    current_month_date = datetime.date.today().replace(day=1)
+    last_month_date = current_month_date - relativedelta(months=1)
+    last_month_year = last_month_date.strftime('%Y-%m')
+    current_month_year = current_month_date.strftime('%Y-%m')
+
+    last_month_budgets = Budget.query.filter_by(user_id=current_user.id, month_year=last_month_year).all()
+
+    if not last_month_budgets:
+        flash('Nenhum orçamento encontrado no mês anterior para usar como base para a sugestão.', 'warning')
+        return redirect(url_for('budgets_page'))
+
+    # Coleta dados de gastos reais do mês anterior
+    budget_vs_actual = []
+    for budget in last_month_budgets:
+        budget_vs_actual.append(
+            f"- Categoria: {budget.category.name}, Orçado: R${budget.budget_amount:.2f}, Gasto Real: R${budget.current_spent:.2f}"
+        )
+    
+    data_summary = "\n".join(budget_vs_actual)
+
+    prompt = (
+        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.username}' no mês passado, "
+        f"sugira um novo orçamento para o mês atual. Ajuste os valores de forma realista. "
+        f"Se o gasto foi muito maior que o orçado, sugira um aumento moderado. Se foi muito menor, sugira uma pequena redução. "
+        f"Mantenha os valores arredondados para facilitar. Responda APENAS com um JSON contendo uma chave 'sugestoes' que é uma lista de objetos, "
+        f"onde cada objeto tem as chaves 'categoria' e 'valor_sugerido'.\n\n"
+        f"Dados do Mês Anterior:\n{data_summary}"
+    )
+
+    try:
+        ai_response_text = generate_text_with_gemini(prompt).replace("```json", "").replace("```", "").strip()
+        suggestions = json.loads(ai_response_text)
+
+        if 'sugestoes' not in suggestions:
+            raise ValueError("Resposta da IA não contém a chave 'sugestoes'.")
+
+        for sug in suggestions['sugestoes']:
+            category = Category.query.filter_by(user_id=current_user.id, name=sug['categoria'], type='expense').first()
+            if category:
+                add_budget_db(current_user.id, category.id, sug['valor_sugerido'], current_month_year)
+        
+        flash('Orçamento sugerido pela IA foi criado! Revise e ajuste se necessário.', 'success')
+    except Exception as e:
+        print(f"Erro ao processar sugestão da IA: {e}")
+        flash('Não foi possível gerar uma sugestão da IA no momento. Por favor, tente novamente mais tarde.', 'danger')
+
+    return redirect(url_for('budgets_page'))
+
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS E DADOS DE EXEMPLO ---
 with app.app_context():
