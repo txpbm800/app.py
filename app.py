@@ -157,8 +157,7 @@ class Goal(db.Model):
 
 # --- Funções de Lógica de Negócios (TODAS DEFINIDAS ANTES DAS ROTAS) ---
 
-#TODAY_DATE = datetime.date.today()
-TODAY_DATE = datetime.date(2025, 8, 1)
+TODAY_DATE = datetime.date.today()
 
 def get_current_month_year_str():
     return datetime.date.today().strftime('%Y-%m')
