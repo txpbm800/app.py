@@ -95,6 +95,7 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
     account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True)
+    goal_id = db.Column(db.Integer, db.ForeignKey('goal.id'), nullable=True)
 
 
     def __repr__(self):
@@ -150,6 +151,7 @@ class Goal(db.Model):
     current_amount = db.Column(db.Float, default=0.0, nullable=False)
     due_date = db.Column(db.String(10), nullable=True) #YYYY-MM-DD
     status = db.Column(db.String(20), default='in_progress', nullable=False) # 'in_progress', 'achieved', 'abandoned'
+    transactions = db.relationship('Transaction', backref='goal', lazy=True)
 
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
@@ -168,7 +170,7 @@ def get_month_start_end_dates(month_year_str):
     end_date = start_date.replace(day=calendar.monthrange(year, month)[1])
     return start_date, end_date
 
-def add_transaction_db(description, amount, date, type, user_id, category_id=None, account_id=None):
+def add_transaction_db(description, amount, date, type, user_id, category_id=None, account_id=None, goal_id=None):
     amount = float(amount)
     date_obj = datetime.datetime.strptime(date, '%Y-%m-%d').date()
 
@@ -179,7 +181,8 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         type=type,
         user_id=user_id,
         category_id=category_id,
-        account_id=account_id
+        account_id=account_id,
+        goal_id=goal_id
     )
     db.session.add(new_transaction)
     db.session.flush()
@@ -202,14 +205,20 @@ def add_transaction_db(description, amount, date, type, user_id, category_id=Non
         if budget:
             budget.current_spent += amount
             db.session.add(budget)
-            print(f"DEBUG: Budget for category {Category.query.get(category_id).name} updated. New spent: {budget.current_spent}")
-        else:
-            print(f"DEBUG: No budget found for category {category_id} in {transaction_month_year} for user {user_id}. Transaction added without budget update.")
+
+    if goal_id:
+        goal = Goal.query.get(goal_id)
+        if goal and goal.user_id == user_id:
+            goal.current_amount += amount
+            if goal.current_amount >= goal.target_amount:
+                goal.status = 'achieved'
+                flash(f'Parabéns! Com esta transação, a meta "{goal.name}" foi atingida!', 'success')
+            db.session.add(goal)
     
     db.session.commit()
     return new_transaction
 
-def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None, account_id=None):
+def edit_transaction_db(transaction_id, description, amount, date, type, user_id, category_id=None, account_id=None, goal_id=None):
     transaction = Transaction.query.filter_by(id=transaction_id, user_id=user_id).first()
     if not transaction:
         return False
@@ -218,57 +227,53 @@ def edit_transaction_db(transaction_id, description, amount, date, type, user_id
     old_type = transaction.type
     old_category_id = transaction.category_id
     old_account_id = transaction.account_id
+    old_goal_id = transaction.goal_id
     old_date_obj = datetime.datetime.strptime(transaction.date, '%Y-%m-%d').date()
 
     new_amount = float(amount)
     new_date_obj = datetime.datetime.strptime(date, '%Y-%m-%d').date()
 
+    # Reverte valores antigos
     if old_account_id:
         old_account = Account.query.get(old_account_id)
         if old_account:
-            if old_type == 'income':
-                old_account.balance -= old_amount
-            else: # expense
-                old_account.balance += old_amount
-
+            if old_type == 'income': old_account.balance -= old_amount
+            else: old_account.balance += old_amount
     if old_type == 'expense' and old_category_id:
-        old_month_year = old_date_obj.strftime('%Y-%m')
-        old_budget = Budget.query.filter_by(
-            user_id=user_id,
-            category_id=old_category_id,
-            month_year=old_month_year
-        ).first()
-        if old_budget:
-            old_budget.current_spent -= old_amount
-            db.session.add(old_budget)
+        old_budget = Budget.query.filter_by(user_id=user_id, category_id=old_category_id, month_year=old_date_obj.strftime('%Y-%m')).first()
+        if old_budget: old_budget.current_spent -= old_amount
+    if old_goal_id:
+        old_goal = Goal.query.get(old_goal_id)
+        if old_goal:
+            old_goal.current_amount -= old_amount
+            if old_goal.status == 'achieved' and old_goal.current_amount < old_goal.target_amount:
+                old_goal.status = 'in_progress'
 
+    # Atualiza a transação
     transaction.description = description
     transaction.amount = new_amount
     transaction.date = date
     transaction.type = type
     transaction.category_id = category_id
     transaction.account_id = account_id
+    transaction.goal_id = goal_id
 
+    # Aplica novos valores
     if account_id:
         new_account = Account.query.get(account_id)
         if new_account:
-            if type == 'income':
-                new_account.balance += new_amount
-            else: # expense
-                new_account.balance -= new_amount
-
+            if type == 'income': new_account.balance += new_amount
+            else: new_account.balance -= new_amount
     if type == 'expense' and category_id:
-        new_month_year = new_date_obj.strftime('%Y-%m')
-        new_budget = Budget.query.filter_by(
-            user_id=user_id,
-            category_id=category_id,
-            month_year=new_month_year
-        ).first()
-        if new_budget:
-            new_budget.current_spent += new_amount
-            db.session.add(new_budget)
-        else:
-            print(f"DEBUG: No budget found for category {category_id} in {new_month_year} for user {user_id} after edit.")
+        new_budget = Budget.query.filter_by(user_id=user_id, category_id=category_id, month_year=new_date_obj.strftime('%Y-%m')).first()
+        if new_budget: new_budget.current_spent += new_amount
+    if goal_id:
+        new_goal = Goal.query.get(goal_id)
+        if new_goal:
+            new_goal.current_amount += new_amount
+            if new_goal.current_amount >= new_goal.target_amount:
+                new_goal.status = 'achieved'
+                flash(f'Parabéns! Com esta transação, a meta "{new_goal.name}" foi atingida!', 'success')
 
     db.session.commit()
     return True
@@ -296,7 +301,14 @@ def delete_transaction_db(transaction_id, user_id):
         if budget:
             budget.current_spent -= transaction.amount
             db.session.add(budget)
-            print(f"DEBUG: Budget for category {transaction.category.name} updated after deletion. New spent: {budget.current_spent}")
+
+    if transaction.goal_id:
+        goal = Goal.query.get(transaction.goal_id)
+        if goal and goal.user_id == user_id:
+            goal.current_amount -= transaction.amount
+            if goal.status == 'achieved' and goal.current_amount < goal.target_amount:
+                goal.status = 'in_progress'
+            db.session.add(goal)
     
     db.session.delete(transaction)
     db.session.commit()
@@ -983,7 +995,8 @@ def index():
                 alert_data['message'] = f"Atenção: Você já utilizou {round(percentage_spent)}% do seu orçamento para"
                 budgets_with_alerts.append(alert_data)
 
-    active_goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').order_by(db.cast(Goal.due_date, db.Date).asc()).all()
+    active_goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').order_by(Goal.name.asc()).all()
+    goals_json = [{'id': goal.id, 'name': goal.name} for goal in active_goals]
 
     show_new_budget_alert = False
     if not all_budgets_for_month:
@@ -1010,6 +1023,7 @@ def index():
         accounts_json=accounts_json,
         budgets_with_alerts=budgets_with_alerts,
         active_goals=active_goals,
+        goals_json=goals_json,
         show_new_budget_alert=show_new_budget_alert
     )
 
@@ -1022,8 +1036,9 @@ def handle_add_transaction():
     transaction_type = request.form['type']
     category_id = request.form.get('category_id', type=int)
     account_id = request.form.get('account_id', type=int)
+    goal_id = request.form.get('goal_id', type=int) if request.form.get('goal_id') else None
 
-    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id, account_id)
+    add_transaction_db(description, amount, date, transaction_type, current_user.id, category_id, account_id, goal_id)
     flash('Transação adicionada com sucesso!', 'success')
     return redirect(url_for('index'))
 
@@ -1095,7 +1110,8 @@ def get_transaction_data(transaction_id):
             'date': transaction.date,
             'type': transaction.type,
             'category_id': transaction.category_id,
-            'account_id': transaction.account_id
+            'account_id': transaction.account_id,
+            'goal_id': transaction.goal_id
         })
     return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
 
@@ -1108,8 +1124,9 @@ def handle_edit_transaction(transaction_id):
     transaction_type = request.form['edit_type']
     category_id = request.form.get('edit_category_id', type=int)
     account_id = request.form.get('edit_account_id', type=int)
+    goal_id = request.form.get('edit_goal_id', type=int) if request.form.get('edit_goal_id') else None
 
-    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id, account_id):
+    if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id, account_id, goal_id):
         flash('Transação atualizada com sucesso!', 'success')
     else:
         flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
