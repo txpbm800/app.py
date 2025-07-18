@@ -703,13 +703,11 @@ def get_dashboard_data_db(user_id):
     current_month_start = datetime.date.today().replace(day=1)
     next_month_start = (current_month_start + relativedelta(months=1))
     
-    # Convert dates to strings for reliable comparison
     start_date_str = current_month_start.isoformat()
     end_date_str = next_month_start.isoformat()
 
     total_balance = db.session.query(db.func.sum(Account.balance)).filter_by(user_id=user_id).scalar() or 0.0
 
-    # CORREÇÃO: Usando comparação de strings para datas para maior confiabilidade
     monthly_income = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.user_id == user_id,
         Transaction.type == 'income',
@@ -717,7 +715,6 @@ def get_dashboard_data_db(user_id):
         Transaction.date < end_date_str
     ).scalar() or 0.0
 
-    # CORREÇÃO: Usando comparação de strings para datas para maior confiabilidade
     monthly_expenses = db.session.query(db.func.sum(Transaction.amount)).filter(
         Transaction.user_id == user_id,
         Transaction.type == 'expense',
@@ -725,7 +722,6 @@ def get_dashboard_data_db(user_id):
         Transaction.date < end_date_str
     ).scalar() or 0.0
     
-    # Mantendo a lógica original de contas a pagar, pois o usuário disse que está funcionando
     monthly_pending_bills_amount = db.session.query(db.func.sum(Bill.amount)).filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
@@ -934,13 +930,43 @@ def index():
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
-    income_transactions = Transaction.query.filter_by(user_id=current_user.id, type='income')\
-                                         .order_by(Transaction.date.desc())\
-                                         .limit(10).all()
+    # CORREÇÃO: Lógica de filtro de transações restaurada
+    transactions_query_obj = Transaction.query.filter_by(user_id=current_user.id) 
 
-    expense_transactions = Transaction.query.filter_by(user_id=current_user.id, type='expense')\
-                                          .order_by(Transaction.date.desc())\
-                                          .limit(10).all()
+    transaction_type_filter = request.args.get('transaction_type')
+    if transaction_type_filter and transaction_type_filter in ['income', 'expense']:
+        transactions_query_obj = transactions_query_obj.filter_by(type=transaction_type_filter)
+
+    start_date_filter = request.args.get('start_date')
+    end_date_filter = request.args.get('end_date')
+    if start_date_filter:
+        transactions_query_obj = transactions_query_obj.filter(Transaction.date >= start_date_filter)
+    if end_date_filter:
+        transactions_query_obj = transactions_query_obj.filter(Transaction.date <= end_date_filter)
+
+    category_filter_id = request.args.get('category_filter', type=int)
+    if category_filter_id:
+        transactions_query_obj = transactions_query_obj.filter_by(category_id=category_filter_id)
+
+    sort_by_transactions = request.args.get('sort_by_transactions', 'date')
+    order_transactions = request.args.get('order_transactions', 'desc')
+
+    if sort_by_transactions == 'date':
+        if order_transactions == 'asc':
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.asc())
+        else:
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.date.desc())
+    elif sort_by_transactions == 'amount':
+        if order_transactions == 'asc':
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.asc())
+        else:
+            transactions_query_obj = transactions_query_obj.order_by(Transaction.amount.desc())
+            
+    all_transactions = transactions_query_obj.all()
+    
+    income_transactions = [t for t in all_transactions if t.type == 'income']
+    expense_transactions = [t for t in all_transactions if t.type == 'expense']
+
 
     bills_query_obj = Bill.query.filter( 
         Bill.user_id == current_user.id,
@@ -987,8 +1013,14 @@ def index():
         expense_transactions=expense_transactions,
         current_date=TODAY_DATE.isoformat(),
         current_user=current_user,
+        current_transaction_type_filter=transaction_type_filter,
         current_bill_status_filter=bill_status_filter,
+        current_sort_by_transactions=sort_by_transactions,
+        current_order_transactions=order_transactions,
+        current_start_date=start_date_filter,
+        current_end_date=end_date_filter,
         all_categories=all_categories_formatted,
+        current_category_filter=category_filter_id,
         accounts=user_accounts,
         accounts_json=accounts_json,
         budgets_with_alerts=budgets_with_alerts,
