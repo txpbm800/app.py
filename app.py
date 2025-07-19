@@ -40,12 +40,10 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
-    # CORREÇÃO: Adicionado 'cascade' para garantir que os dados do usuário sejam deletados em cascata.
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
     budgets = db.relationship('Budget', backref='user_budget_owner', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('Goal', backref='user_goal_owner', lazy=True, cascade='all, delete-orphan')
-    # Adicionando a regra de cascata que estava faltando
     categories = db.relationship('Category', backref='owner', lazy=True, cascade='all, delete-orphan')
     accounts = db.relationship('Account', backref='owner', lazy=True, cascade='all, delete-orphan')
 
