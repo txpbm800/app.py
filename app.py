@@ -37,7 +37,6 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    # CORREÇÃO: Aumentado o tamanho do campo para acomodar hashes mais longos
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
@@ -686,7 +685,7 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
     return True
 
 def get_dashboard_data_db(user_id):
-    current_month_start = datetime.date.today().replace(day=1)
+    current_month_start = TODAY_DATE.replace(day=1)
     next_month_start = (current_month_start + relativedelta(months=1))
     
     start_date_str = current_month_start.isoformat()
@@ -708,24 +707,19 @@ def get_dashboard_data_db(user_id):
         Transaction.date < end_date_str
     ).scalar() or 0.0
     
+    # CORREÇÃO: A query agora filtra corretamente as contas pendentes do mês atual e as atrasadas.
     monthly_pending_bills_amount = db.session.query(db.func.sum(Bill.amount)).filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
         Bill.is_master_recurring_bill == False,
-        db.or_(
-            db.cast(Bill.dueDate, db.Date) >= current_month_start,
-            db.cast(Bill.dueDate, db.Date) < TODAY_DATE
-        )
+        db.cast(Bill.dueDate, db.Date) < next_month_start
     ).scalar() or 0.0
 
     all_pending_bills_list = Bill.query.filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
         Bill.is_master_recurring_bill == False,
-        db.or_(
-            db.cast(Bill.dueDate, db.Date) >= current_month_start,
-            db.cast(Bill.dueDate, db.Date) < TODAY_DATE
-        )
+        db.cast(Bill.dueDate, db.Date) < next_month_start
     ).order_by(db.cast(Bill.dueDate, db.Date).asc()).all()
 
 
