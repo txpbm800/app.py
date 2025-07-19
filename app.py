@@ -40,10 +40,14 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
+    # CORREÇÃO: Adicionado 'cascade' para garantir que os dados do usuário sejam deletados em cascata.
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
     budgets = db.relationship('Budget', backref='user_budget_owner', lazy=True, cascade='all, delete-orphan')
     goals = db.relationship('Goal', backref='user_goal_owner', lazy=True, cascade='all, delete-orphan')
+    # Adicionando a regra de cascata que estava faltando
+    categories = db.relationship('Category', backref='owner', lazy=True, cascade='all, delete-orphan')
+    accounts = db.relationship('Account', backref='owner', lazy=True, cascade='all, delete-orphan')
 
 
     def set_password(self, password):
@@ -707,12 +711,12 @@ def get_dashboard_data_db(user_id):
         Transaction.date < end_date_str
     ).scalar() or 0.0
     
-    # CORREÇÃO: A query agora filtra corretamente as contas pendentes do mês atual e as atrasadas.
     monthly_pending_bills_amount = db.session.query(db.func.sum(Bill.amount)).filter(
         Bill.user_id == user_id,
         Bill.status == 'pending',
         Bill.is_master_recurring_bill == False,
-        db.cast(Bill.dueDate, db.Date) < next_month_start
+        db.cast(Bill.dueDate, db.Date) < next_month_start,
+        db.cast(Bill.dueDate, db.Date) >= current_month_start.replace(day=1)
     ).scalar() or 0.0
 
     all_pending_bills_list = Bill.query.filter(
