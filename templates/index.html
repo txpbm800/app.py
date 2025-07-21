@@ -150,7 +150,7 @@
                         <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Minhas Contas
                         </a>
-                        <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# NOVO LINK #}
+                        <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Relatórios
                         </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
@@ -252,7 +252,7 @@
             <div class="flex flex-wrap gap-2">
                 <a href="{{ url_for('budgets_page') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Criar Manualmente</a>
                 <a href="{{ url_for('recreate_last_month_budget') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Recriar Orçamento Anterior</a>
-                <a href="{{ url_for('suggest_budget_with_ai') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center gap-2">
+                <a href="{{ url_for('suggest_budget_ai') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center gap-2">
                     Pedir Sugestão da IA ✨
                 </a>
             </div>
@@ -540,6 +540,7 @@
                             {% for transaction in income_transactions %}
                                 <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100">
                                     <div class="flex items-center space-x-3">
+                                        <div class="category-icon w-5 h-5 text-gray-600" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}"></div> {# Ícone da categoria #}
                                         <div>
                                             <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
                                             <p class="text-sm text-gray-500">{{ transaction.date }}</p>
@@ -570,6 +571,7 @@
                             {% for transaction in expense_transactions %}
                                 <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100">
                                     <div class="flex items-center space-x-3">
+                                        <div class="category-icon w-5 h-5 text-gray-600" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}"></div> {# Ícone da categoria #}
                                         <div>
                                             <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
                                             <p class="text-sm text-gray-500">{{ transaction.date }}</p>
@@ -703,7 +705,94 @@
 
             // Dispara a lógica de visibilidade da meta ao carregar a página
             handleCategoryChange('type', 'category_id', 'goal-field-container');
+
+            // Renderiza os ícones nas listas de transações
+            renderCategoryIconsInLists();
         });
+
+        // Função para mapear nomes de categoria para SVGs de ícones Lucide
+        function getCategoryIconSvg(categoryName) {
+            const icons = {
+                'Salário': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wallet"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h14a2 2 0 0 1 0 4H5a2 2 0 0 0 0 4h14v3a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M20 12h-6"/></svg>',
+                'Freelance': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-briefcase"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
+                'Outras Receitas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>',
+                'Alimentação': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-utensils"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 21v-5"/><path d="M17 11V2c0-1.1-.9-2-2-2h-4a2 2 0 0 0-2 2v9"/><path d="M15 21v-5"/></svg>',
+                'Transporte': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-car"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 0 0 1-2 2z"/><circle cx="7" cy="13" r="1"/><circle cx="17" cy="13" r="1"/></svg>',
+                'Lazer': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gamepad"><path d="M6 12H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z"/><path d="M18 12h2a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2z"/><path d="M12 18V6"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 22v-4"/></svg>',
+                'Moradia': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+                'Saúde': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-pulse"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.2 12.8H6V20"/><path d="M12 20v-7.5H14L17 20"/></svg>',
+                'Educação': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
+                'Contas Fixas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-receipt"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2h-18z"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h8"/></svg>',
+                'Outras Despesas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>',
+                'Poupança para Metas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-piggy-bank"><path d="M16 2H8a4 4 0 0 0-4 4v12a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4z"/><path d="M12 16a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>',
+                'Sem Categoria': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>'
+            };
+            return icons[categoryName] || icons['Sem Categoria']; // Retorna o ícone mapeado ou um ícone padrão
+        }
+
+        // Função para renderizar os ícones nas listas de transações
+        function renderCategoryIconsInLists() {
+            document.querySelectorAll('.category-icon').forEach(element => {
+                const categoryName = element.dataset.categoryName;
+                element.innerHTML = getCategoryIconSvg(categoryName);
+            });
+        }
+
+        // Função para atualizar as opções de categoria com ícones no dropdown
+        function updateCategorySelectWithOptions(selectElementId, selectedCategoryId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
+            allCategories.filter(cat => cat[1] === document.getElementById(selectElementId === 'category_id' ? 'type' : 'bill_type').value).forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat[0];
+                option.textContent = cat[2];
+                if (selectedCategoryId && cat[0] === selectedCategoryId) {
+                    option.selected = true;
+                }
+                selectElement.appendChild(option);
+            });
+        }
+
+        // Modifica filterCategoriesByType para usar a nova função de atualização de dropdown
+        function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
+            updateCategorySelectWithOptions(selectElementId, selectedCategoryId);
+        }
+
+        // Modifica populateAccounts para garantir que o dropdown de contas seja populado corretamente
+        function populateAccounts(selectElementId, selectedAccountId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
+            allAccounts.forEach(account => {
+                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
+                if (selectedAccountId && account.id === selectedAccountId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
+            });
+            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
+            if (!selectedAccountId && allAccounts.length === 1) {
+                selectElement.value = allAccounts[0].id;
+            }
+        }
+
+        // Modifica populateGoals para garantir que o dropdown de metas seja populado corretamente
+        function populateGoals(selectElementId, selectedGoalId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione uma Meta</option>'; // Garante a opção padrão
+            allGoals.forEach(goal => {
+                const option = new Option(goal.name, goal.id);
+                if (selectedGoalId && goal.id === selectedGoalId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
+            });
+        }
+
+        // Restante do JavaScript (toggleAccordion, toggleUserMenu, openEditModal, closeEditModal, etc.) permanece o mesmo.
+        // Apenas certifique-se de que a chamada para renderCategoryIconsInLists() está no DOMContentLoaded.
 
         function toggleAccordion(contentId, arrowId, otherContentIds, otherArrowIds) {
             const content = document.getElementById(contentId);
@@ -732,49 +821,6 @@
                 userMenu.classList.remove('active');
             }
         });
-
-        function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
-            const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
-            allCategories.filter(cat => cat[1] === transactionType).forEach(cat => {
-                const option = new Option(cat[2], cat[0]);
-                if (selectedCategoryId && cat[0] === selectedCategoryId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
-            });
-        }
-
-        function populateAccounts(selectElementId, selectedAccountId = null) {
-            const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
-            allAccounts.forEach(account => {
-                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
-                if (selectedAccountId && account.id === selectedAccountId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
-            });
-            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
-            if (!selectedAccountId && allAccounts.length === 1) {
-                selectElement.value = allAccounts[0].id;
-            }
-        }
-
-        function populateGoals(selectElementId, selectedGoalId = null) {
-            const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma Meta</option>'; // Garante a opção padrão
-            allGoals.forEach(goal => {
-                const option = new Option(goal.name, goal.id);
-                if (selectedGoalId && goal.id === selectedGoalId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
-            });
-        }
 
         function handleCategoryChange(typeSelectId, categorySelectId, goalContainerId) {
             const categorySelect = document.getElementById(categorySelectId);
