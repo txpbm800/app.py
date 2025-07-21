@@ -36,6 +36,7 @@ login_manager.login_view = 'login'
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False) # Novo campo para nome de usuário
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
@@ -863,7 +864,7 @@ def contribute_to_goal_db(goal_id, user_id, amount):
     if goal.current_amount + amount_to_add >= goal.target_amount:
         amount_to_add = goal.target_amount - goal.current_amount
         goal.status = 'achieved'
-        flash(f'Parabéns! A meta "{goal.name}" foi atingida!', 'success')
+        flash(f'Parabéns! Com esta transação, a meta "{goal.name}" foi atingida!', 'success')
     else:
         flash(f'Contribuição de R$ {amount_to_add:.2f} adicionada à meta "{goal.name}".', 'success')
         
@@ -899,8 +900,6 @@ def contribute_to_goal_db(goal_id, user_id, amount):
             print(f"DEBUG: Budget for category '{poupanca_metas_category.name}' updated with goal contribution. New spent: {budget.current_spent}")
         else:
             print(f"DEBUG: No budget found for category 'Poupança para Metas' for {transaction_month_year} to update.")
-    else:
-        print("WARNING: Could not create transaction for goal contribution (missing category 'Poupança para Metas' or default account).")
 
     db.session.commit()
     return True
@@ -1204,21 +1203,29 @@ def create_default_data_for_user(user):
     db.session.commit()
     print(f"Categorias e conta padrão criadas para o usuário '{user.email}'.")
 
-
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
     if request.method == 'POST':
+        username = request.form['username'] # Captura o nome de usuário
         email = request.form['email']
         password = request.form['password']
 
-        existing_user = User.query.filter_by(email=email).first()
-        if existing_user:
+        if len(password) < 8: # Validação do tamanho mínimo da senha no backend
+            flash('A senha deve ter no mínimo 8 caracteres.', 'danger')
+            return redirect(url_for('register'))
+
+        existing_user_email = User.query.filter_by(email=email).first()
+        existing_user_username = User.query.filter_by(username=username).first() # Verifica se o nome de usuário já existe
+
+        if existing_user_email:
             flash('Este e-mail já está em uso. Por favor, escolha outro.', 'danger')
+        elif existing_user_username: # Mensagem de erro para nome de usuário duplicado
+            flash('Este nome de usuário já está em uso. Por favor, escolha outro.', 'danger')
         else:
-            new_user = User(email=email)
+            new_user = User(email=email, username=username) # Passa o username para o construtor do User
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
@@ -1235,16 +1242,16 @@ def login():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        email = request.form['email']
+        identifier = request.form['identifier'] # Pode ser email ou username
         password = request.form['password']
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter((User.email == identifier) | (User.username == identifier)).first() # Busca por email ou username
         if user and user.check_password(password):
             login_user(user)
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('index'))
         else:
-            flash('E-mail ou senha incorretos.', 'danger')
+            flash('E-mail/Nome de usuário ou senha incorretos.', 'danger') # Mensagem de erro atualizada
     return render_template('login.html')
 
 @app.route('/logout')
@@ -1269,6 +1276,8 @@ def change_password():
 
         if not current_user.check_password(old_password):
             flash('Senha antiga incorreta.', 'danger')
+        elif len(new_password) < 8: # Validação do tamanho mínimo da nova senha
+            flash('A nova senha deve ter no mínimo 8 caracteres.', 'danger')
         elif new_password != confirm_new_password:
             flash('A nova senha e a confirmação não coincidem.', 'danger')
         else:
@@ -1370,7 +1379,7 @@ def get_ai_insight():
         return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
 
     prompt_parts = [
-        f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.email}:",
+        f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:", # Usa username para IA
         f"Receita Total: R${monthly_summary['income']:.2f},",
         f"Despesa Total: R${monthly_summary['expenses']:.2f},",
         f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
@@ -1653,7 +1662,7 @@ def suggest_budget_with_ai():
     data_summary = "\n".join(budget_vs_actual)
 
     prompt = (
-        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.email}' no mês passado, "
+        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.username}' no mês passado, " # Usa username para IA
         f"sugira um novo orçamento para o mês atual. Ajuste os valores de forma realista. "
         f"Se o gasto foi muito maior que o orçado, sugira um aumento moderado. Se foi muito menor, sugira uma pequena redução. "
         f"Mantenha os valores arredondados para facilitar. Responda APENAS com um JSON contendo uma chave 'sugestoes' que é uma lista de objetos, "
