@@ -131,7 +131,7 @@
             <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
             <nav class="relative">
                 {% if current_user.is_authenticated %}
-                    <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span> {# Exibe o nome de usuário #}
+                    <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
                     
                     <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
@@ -146,6 +146,9 @@
                         </a>
                         <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Minhas Metas
+                        </a>
+                        <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# NOVO LINK #}
+                            Minhas Contas
                         </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Redefinir Senha

@@ -904,6 +904,56 @@ def contribute_to_goal_db(goal_id, user_id, amount):
     db.session.commit()
     return True
 
+# --- Funções de Gerenciamento de Contas ---
+def add_account_db(user_id, name, initial_balance):
+    """Adiciona uma nova conta para o usuário."""
+    existing_account = Account.query.filter_by(user_id=user_id, name=name).first()
+    if existing_account:
+        return False # Conta com o mesmo nome já existe para este usuário
+    
+    new_account = Account(
+        user_id=user_id,
+        name=name,
+        balance=float(initial_balance)
+    )
+    db.session.add(new_account)
+    db.session.commit()
+    return True
+
+def edit_account_db(account_id, user_id, new_name=None, new_balance=None):
+    """Edita uma conta existente do usuário."""
+    account = Account.query.filter_by(id=account_id, user_id=user_id).first()
+    if not account:
+        return False
+    
+    if new_name and new_name != account.name:
+        # Verifica se o novo nome já existe para evitar duplicatas
+        existing_account_with_new_name = Account.query.filter_by(user_id=user_id, name=new_name).first()
+        if existing_account_with_new_name and existing_account_with_new_name.id != account_id:
+            return False # Já existe outra conta com este nome
+        account.name = new_name
+    
+    if new_balance is not None:
+        account.balance = float(new_balance)
+    
+    db.session.commit()
+    return True
+
+def delete_account_db(account_id, user_id):
+    """Exclui uma conta e desvincula suas transações."""
+    account = Account.query.filter_by(id=account_id, user_id=user_id).first()
+    if not account:
+        return False
+    
+    # Antes de deletar a conta, desvincular todas as transações e contas a pagar associadas
+    # Definindo account_id para None
+    Transaction.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
+    Bill.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
+    
+    db.session.delete(account)
+    db.session.commit()
+    return True
+
 
 # --- ROTAS DA APLICAÇÃO ---
 
@@ -1202,6 +1252,7 @@ def create_default_data_for_user(user):
     
     db.session.commit()
     print(f"Categorias e conta padrão criadas para o usuário '{user.email}'.")
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -1662,7 +1713,7 @@ def suggest_budget_with_ai():
     data_summary = "\n".join(budget_vs_actual)
 
     prompt = (
-        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.username}' no mês passado, " # Usa username para IA
+        f"Você é um assistente financeiro. Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:" # Usa username para IA
         f"sugira um novo orçamento para o mês atual. Ajuste os valores de forma realista. "
         f"Se o gasto foi muito maior que o orçado, sugira um aumento moderado. Se foi muito menor, sugira uma pequena redução. "
         f"Mantenha os valores arredondados para facilitar. Responda APENAS com um JSON contendo uma chave 'sugestoes' que é uma lista de objetos, "
@@ -1689,6 +1740,63 @@ def suggest_budget_with_ai():
 
     return redirect(url_for('budgets_page'))
 
+# --- ROTAS DE GERENCIAMENTO DE CONTAS ---
+@app.route('/accounts')
+@login_required
+def accounts_page():
+    """Exibe a página de gerenciamento de contas."""
+    user_accounts = Account.query.filter_by(user_id=current_user.id).order_by(Account.name.asc()).all()
+    return render_template('accounts.html', accounts=user_accounts)
+
+@app.route('/add_account', methods=['POST'])
+@login_required
+def handle_add_account():
+    """Lida com a adição de uma nova conta."""
+    name = request.form['name']
+    initial_balance = request.form['initial_balance']
+    
+    if add_account_db(current_user.id, name, initial_balance):
+        flash('Conta adicionada com sucesso!', 'success')
+    else:
+        flash('Erro ao adicionar conta. Uma conta com este nome já pode existir.', 'danger')
+    return redirect(url_for('accounts_page'))
+
+@app.route('/edit_account/<int:account_id>', methods=['POST'])
+@login_required
+def handle_edit_account(account_id):
+    """Lida com a edição de uma conta existente."""
+    name = request.form['name']
+    balance = request.form['balance']
+    
+    if edit_account_db(account_id, current_user.id, name, balance):
+        flash('Conta atualizada com sucesso!', 'success')
+    else:
+        flash('Erro ao atualizar conta. Uma conta com este nome já pode existir.', 'danger')
+    return redirect(url_for('accounts_page'))
+
+@app.route('/delete_account/<int:account_id>', methods=['POST'])
+@login_required
+def handle_delete_account(account_id):
+    """Lida com a exclusão de uma conta."""
+    if delete_account_db(account_id, current_user.id):
+        flash('Conta excluída com sucesso! Transações associadas foram desvinculadas.', 'info')
+    else:
+        flash('Erro ao excluir conta. Verifique se ela existe ou pertence a você.', 'danger')
+    return redirect(url_for('accounts_page'))
+
+@app.route('/get_account_data/<int:account_id>', methods=['GET'])
+@login_required
+def get_account_data(account_id):
+    """Retorna dados de uma conta específica para edição via AJAX."""
+    account = Account.query.filter_by(id=account_id, user_id=current_user.id).first()
+    if account:
+        return jsonify({
+            'id': account.id,
+            'name': account.name,
+            'balance': account.balance
+        })
+    return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
 with app.app_context():
@@ -1698,3 +1806,4 @@ with app.app_context():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
