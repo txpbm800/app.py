@@ -147,7 +147,7 @@
                         <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Minhas Metas
                         </a>
-                        <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100"> {# NOVO LINK #}
+                        <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
                             Minhas Contas
                         </a>
                         <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
@@ -314,9 +314,9 @@
                                 </select>
                             </div>
                             <div id="goal-field-container" class="hidden">
-                                <label for="goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta (Opcional)</label>
+                                <label for="goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta</label> {# Rótulo atualizado #}
                                 <select id="goal_id" name="goal_id" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                    <option value="">Nenhuma</option>
+                                    <option value="">Selecione uma Meta</option> {# Opção padrão atualizada #}
                                     {% for goal in active_goals %}
                                         <option value="{{ goal.id }}">{{ goal.name }}</option>
                                     {% endfor %}
@@ -619,7 +619,7 @@
                     <select id="edit_category_id" name="edit_category_id" required onchange="handleCategoryChange('edit_type', 'edit_category_id', 'edit-goal-field-container')" class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
                 </div>
                 <div id="edit-goal-field-container" class="hidden">
-                    <label for="edit_goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta (Opcional)</label>
+                    <label for="edit_goal_id" class="block text-sm font-medium text-gray-700 mb-1">Associar a Meta</label>
                     <select id="edit_goal_id" name="edit_goal_id" class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
                 </div>
                 <div>
@@ -668,6 +668,14 @@
                     message.addEventListener('transitionend', () => message.remove());
                 }, 4000);
             });
+
+            // Garante que o campo de conta esteja populado e selecionado se houver apenas uma
+            populateAccounts('account_id');
+            populateAccounts('bill_account_id');
+            populateGoals('goal_id'); // Popula metas na carga inicial
+
+            // Dispara a lógica de visibilidade da meta ao carregar a página
+            handleCategoryChange('type', 'category_id', 'goal-field-container');
         });
 
         function toggleAccordion(contentId, arrowId, otherContentIds, otherArrowIds) {
@@ -714,7 +722,7 @@
         function populateAccounts(selectElementId, selectedAccountId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma conta</option>';
+            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
             allAccounts.forEach(account => {
                 const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
                 if (selectedAccountId && account.id === selectedAccountId) {
@@ -722,12 +730,16 @@
                 }
                 selectElement.add(option);
             });
+            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
+            if (!selectedAccountId && allAccounts.length === 1) {
+                selectElement.value = allAccounts[0].id;
+            }
         }
 
         function populateGoals(selectElementId, selectedGoalId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Nenhuma</option>';
+            selectElement.innerHTML = '<option value="">Selecione uma Meta</option>'; // Garante a opção padrão
             allGoals.forEach(goal => {
                 const option = new Option(goal.name, goal.id);
                 if (selectedGoalId && goal.id === selectedGoalId) {
@@ -740,12 +752,16 @@
         function handleCategoryChange(typeSelectId, categorySelectId, goalContainerId) {
             const categorySelect = document.getElementById(categorySelectId);
             const goalContainer = document.getElementById(goalContainerId);
+            const goalSelect = document.getElementById('goal_id'); // Campo de seleção da meta
             const selectedCategoryOption = categorySelect.options[categorySelect.selectedIndex];
 
             if (selectedCategoryOption && selectedCategoryOption.text === 'Poupança para Metas') {
                 goalContainer.classList.remove('hidden');
+                goalSelect.setAttribute('required', 'required'); // Torna a meta obrigatória
             } else {
                 goalContainer.classList.add('hidden');
+                goalSelect.removeAttribute('required'); // Remove a obrigatoriedade
+                goalSelect.value = ''; // Limpa a seleção da meta se não for mais obrigatória
             }
             filterCategoriesByType(document.getElementById(typeSelectId).value, categorySelectId, parseInt(categorySelect.value));
         }
@@ -776,7 +792,19 @@
                     filterCategoriesByType(data.type, 'edit_category_id', data.category_id);
                     populateAccounts('edit_account_id', data.account_id);
                     populateGoals('edit_goal_id', data.goal_id);
-                    handleCategoryChange('edit_type', 'edit_category_id', 'edit-goal-field-container');
+                    // Lógica para o modal de edição:
+                    const editCategorySelect = document.getElementById('edit_category_id');
+                    const editGoalContainer = document.getElementById('edit-goal-field-container');
+                    const editGoalSelect = document.getElementById('edit_goal_id');
+                    const selectedEditCategoryOption = editCategorySelect.options[editCategorySelect.selectedIndex];
+
+                    if (selectedEditCategoryOption && selectedEditCategoryOption.text === 'Poupança para Metas') {
+                        editGoalContainer.classList.remove('hidden');
+                        editGoalSelect.setAttribute('required', 'required');
+                    } else {
+                        editGoalContainer.classList.add('hidden');
+                        editGoalSelect.removeAttribute('required');
+                    }
 
                     editTransactionForm.action = `/edit_transaction/${id}`;
                     editTransactionForm.classList.remove('hidden');
@@ -793,7 +821,8 @@
                 }
             } catch (error) {
                 console.error('Erro ao abrir modal de edição:', error);
-                alert('Não foi possível carregar os dados para edição.');
+                // Usar um modal customizado ou flash message em vez de alert
+                // alert('Não foi possível carregar os dados para edição.');
                 closeEditModal();
             }
         }
