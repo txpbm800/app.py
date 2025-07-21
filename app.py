@@ -1202,7 +1202,7 @@ def create_default_data_for_user(user):
     db.session.add(Account(name='Conta Principal', balance=0.00, user_id=user.id))
     
     db.session.commit()
-    print(f"Categorias e conta padrão criadas para o usuário '{user.username}'.")
+    print(f"Categorias e conta padrão criadas para o usuário '{user.email}'.")
 
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -1211,14 +1211,14 @@ def register():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
 
-        existing_user = User.query.filter_by(username=username).first()
+        existing_user = User.query.filter_by(email=email).first()
         if existing_user:
-            flash('Nome de usuário já existe. Por favor, escolha outro.', 'danger')
+            flash('Este e-mail já está em uso. Por favor, escolha outro.', 'danger')
         else:
-            new_user = User(username=username)
+            new_user = User(email=email)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
@@ -1235,16 +1235,16 @@ def login():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        username = request.form['username']
+        email = request.form['email']
         password = request.form['password']
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
             login_user(user)
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('index'))
         else:
-            flash('Nome de usuário ou senha incorretos.', 'danger')
+            flash('E-mail ou senha incorretos.', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -1370,7 +1370,7 @@ def get_ai_insight():
         return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
 
     prompt_parts = [
-        f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:",
+        f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.email}:",
         f"Receita Total: R${monthly_summary['income']:.2f},",
         f"Despesa Total: R${monthly_summary['expenses']:.2f},",
         f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
@@ -1653,7 +1653,7 @@ def suggest_budget_with_ai():
     data_summary = "\n".join(budget_vs_actual)
 
     prompt = (
-        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.username}' no mês passado, "
+        f"Você é um assistente financeiro. Com base nos dados de orçamento e gastos reais do usuário '{current_user.email}' no mês passado, "
         f"sugira um novo orçamento para o mês atual. Ajuste os valores de forma realista. "
         f"Se o gasto foi muito maior que o orçado, sugira um aumento moderado. Se foi muito menor, sugira uma pequena redução. "
         f"Mantenha os valores arredondados para facilitar. Responda APENAS com um JSON contendo uma chave 'sugestoes' que é uma lista de objetos, "
@@ -1681,42 +1681,9 @@ def suggest_budget_with_ai():
     return redirect(url_for('budgets_page'))
 
 
-# --- INICIALIZAÇÃO DO BANCO DE DADOS E DADOS DE EXEMPLO ---
+# --- INICIALIZAÇÃO DO BANCO DE DADOS ---
 with app.app_context():
     db.create_all()
-
-    if not User.query.filter_by(username='admin').first():
-        admin_user = User(username='admin')
-        admin_user.set_password('admin123')
-        db.session.add(admin_user)
-        db.session.commit()
-        print("Usuário 'admin' criado com senha 'admin123'.")
-        
-        create_default_data_for_user(admin_user)
-
-        main_account = Account.query.filter_by(name='Conta Principal', user_id=admin_user.id).first()
-        if main_account:
-            main_account.balance = 1000.00
-            db.session.add(main_account)
-        
-        poupanca_account = Account(name='Poupança', balance=500.00, user_id=admin_user.id)
-        db.session.add(poupanca_account)
-        db.session.commit()
-        print("Contas de exemplo adicionadas para o admin.")
-
-        current_month = datetime.date.today().month
-        current_year = datetime.date.today().year
-        salario_cat = Category.query.filter_by(name='Salário', user_id=admin_user.id).first()
-        alimentacao_cat = Category.query.filter_by(name='Alimentação', user_id=admin_user.id).first()
-        
-        if salario_cat and main_account:
-            add_transaction_db('Salário Mensal', 3000.00, datetime.date(current_year, current_month, 1).isoformat(), 'income', admin_user.id, salario_cat.id, main_account.id)
-        if alimentacao_cat and main_account:
-            add_transaction_db('Compras Supermercado', 250.00, datetime.date(current_year, current_month, 5).isoformat(), 'expense', admin_user.id, alimentacao_cat.id, main_account.id)
-        
-        print("Transações de exemplo adicionadas para o admin.")
-
-
     print(f"DEBUG: Caminho final do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
 
 if __name__ == '__main__':
