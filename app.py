@@ -1287,6 +1287,14 @@ def delete_account_user():
         if current_user.check_password(confirm_password):
             user_to_delete = User.query.get(current_user.id)
             if user_to_delete:
+                # CORREÇÃO: Exclui dependências manualmente na ordem correta
+                Bill.query.filter_by(user_id=user_to_delete.id).delete()
+                Transaction.query.filter_by(user_id=user_to_delete.id).delete()
+                Budget.query.filter_by(user_id=user_to_delete.id).delete()
+                Goal.query.filter_by(user_id=user_to_delete.id).delete()
+                Category.query.filter_by(user_id=user_to_delete.id).delete()
+                Account.query.filter_by(user_id=user_to_delete.id).delete()
+                
                 logout_user()
                 db.session.delete(user_to_delete)
                 db.session.commit()
