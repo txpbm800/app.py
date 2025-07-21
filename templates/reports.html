@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatórios - Gestão Financeira Pessoal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        .chart-container {
+            position: relative;
+            height: 350px; /* Altura padrão para os gráficos */
+            width: 100%;
+        }
+        .chart-empty-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #a0aec0;
+            font-size: 1.125rem;
+            text-align: center;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #6366f1; /* purple-500 */
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900">Relatórios Detalhados</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a>
+            </nav>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-messages-container" class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="flash-message p-3 rounded-md text-sm mb-2 {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Gerar Relatório</h2>
+            <form id="report-filters-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                    <input type="date" id="start_date" name="start_date" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                    <input type="date" id="end_date" name="end_date" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="transaction_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Transação</label>
+                    <select id="transaction_type" name="transaction_type"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Todos</option>
+                        <option value="income">Receita</option>
+                        <option value="expense">Despesa</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
+                    <select id="category_id" name="category_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Todas as Categorias</option>
+                        {# Options populated by JavaScript #}
+                    </select>
+                </div>
+                <div class="lg:col-span-4 flex gap-2">
+                    <button type="button" onclick="fetchReportDataAndRenderCharts()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                        Gerar Relatório
+                    </button>
+                    <button type="button" onclick="getAiReportInsight()" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
+                        <span id="ai-report-spinner" class="hidden loading-spinner"></span>
+                        <span id="ai-report-button-text">Obter Insight da IA</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div class="rounded-lg shadow-md bg-white p-6">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">Despesas por Categoria</h3>
+                <div class="chart-container">
+                    <canvas id="expensesByCategoryChart"></canvas>
+                    <p id="expensesByCategoryEmpty" class="chart-empty-message hidden">
+                        Nenhum dado de despesa encontrado para o período e filtros selecionados.
+                    </p>
+                </div>
+            </div>
+            <div class="rounded-lg shadow-md bg-white p-6">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">Evolução do Patrimônio Líquido</h3>
+                <div class="chart-container">
+                    <canvas id="netWorthEvolutionChart"></canvas>
+                    <p id="netWorthEvolutionEmpty" class="chart-empty-message hidden">
+                        Nenhum dado de patrimônio encontrado para o período e filtros selecionados.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 mt-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Insight da IA sobre o Relatório</h2>
+            <div id="ai-report-insight-output" class="p-4 bg-gray-100 rounded-md text-left text-gray-800 text-sm italic border border-gray-200">
+                Insights sobre o período e filtros selecionados aparecerão aqui...
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const allCategories = {{ all_categories | tojson }};
+        let expensesByCategoryChartInstance;
+        let netWorthEvolutionChartInstance;
+        let currentReportData = null; // Para armazenar os dados do último relatório gerado
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+
+            populateCategories('category_id');
+
+            // Define as datas padrão para os últimos 3 meses
+            const today = new Date();
+            const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 2, 1); // Começa no 1º dia de 3 meses atrás
+            document.getElementById('start_date').value = threeMonthsAgo.toISOString().split('T')[0];
+            document.getElementById('end_date').value = today.toISOString().split('T')[0];
+
+            fetchReportDataAndRenderCharts(); // Gera o relatório inicial
+        });
+
+        function populateCategories(selectElementId, selectedCategoryId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Todas as Categorias</option>';
+            // Filtrar apenas categorias de despesa para o relatório de despesas por categoria,
+            // mas manter todas as categorias para o filtro geral se a transação for "Todos"
+            const filteredCategories = allCategories; // Por enquanto, todas as categorias
+            
+            filteredCategories.forEach(cat => {
+                const option = new Option(cat[2], cat[0]);
+                if (selectedCategoryId && cat[0] === selectedCategoryId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
+            });
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+        }
+
+        async function fetchReportDataAndRenderCharts() {
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const transactionType = document.getElementById('transaction_type').value;
+            const categoryId = document.getElementById('category_id').value;
+
+            if (!startDate || !endDate) {
+                alert('Por favor, selecione as datas de início e fim.');
+                return;
+            }
+
+            let url = `/get_detailed_report_data?start_date=${startDate}&end_date=${endDate}`;
+            if (transactionType) url += `&transaction_type=${transactionType}`;
+            if (categoryId) url += `&category_id=${categoryId}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Erro ao buscar dados do relatório: ${errorData.error || response.statusText}`);
+                }
+                const data = await response.json();
+                currentReportData = data; // Armazena os dados para uso da IA
+
+                renderExpensesByCategoryChart(data.expenses_by_category_chart);
+                renderNetWorthEvolutionChart(data.net_worth_evolution_chart);
+
+            } catch (error) {
+                console.error('Erro ao gerar relatório:', error);
+                alert(error.message);
+                // Limpa gráficos e insights em caso de erro
+                if (expensesByCategoryChartInstance) expensesByCategoryChartInstance.destroy();
+                if (netWorthEvolutionChartInstance) netWorthEvolutionChartInstance.destroy();
+                document.getElementById('expensesByCategoryEmpty').classList.remove('hidden');
+                document.getElementById('netWorthEvolutionEmpty').classList.remove('hidden');
+                document.getElementById('ai-report-insight-output').textContent = 'Não foi possível gerar o relatório. Verifique os filtros e o console para detalhes.';
+            }
+        }
+
+        function renderExpensesByCategoryChart(chartData) {
+            const ctx = document.getElementById('expensesByCategoryChart');
+            const emptyMessageEl = document.getElementById('expensesByCategoryEmpty');
+            const hasData = chartData.labels && chartData.labels.length > 0 && chartData.values.some(v => v > 0);
+
+            if (expensesByCategoryChartInstance) {
+                expensesByCategoryChartInstance.destroy();
+            }
+
+            if (hasData) {
+                emptyMessageEl.classList.add('hidden');
+                ctx.classList.remove('hidden');
+                const backgroundColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'];
+                const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
+                expensesByCategoryChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            data: chartData.values,
+                            backgroundColor: backgroundColors.slice(0, chartData.labels.length),
+                            borderColor: borderColors.slice(0, chartData.labels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed !== null) { label += formatCurrency(context.parsed); }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                ctx.classList.add('hidden');
+                emptyMessageEl.classList.remove('hidden');
+            }
+        }
+
+        function renderNetWorthEvolutionChart(chartData) {
+            const ctx = document.getElementById('netWorthEvolutionChart');
+            const emptyMessageEl = document.getElementById('netWorthEvolutionEmpty');
+            const hasData = chartData.labels && chartData.labels.length > 0;
+
+            if (netWorthEvolutionChartInstance) {
+                netWorthEvolutionChartInstance.destroy();
+            }
+
+            if (hasData) {
+                emptyMessageEl.classList.add('hidden');
+                ctx.classList.remove('hidden');
+                netWorthEvolutionChartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: chartData.labels,
+                        datasets: [{
+                            label: 'Patrimônio Líquido',
+                            data: chartData.values,
+                            borderColor: '#4c51bf', /* indigo-700 */
+                            backgroundColor: 'rgba(76, 81, 191, 0.2)',
+                            fill: true,
+                            tension: 0.1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value, index, values) {
+                                        return formatCurrency(value);
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) { label += ': '; }
+                                        if (context.parsed.y !== null) { label += formatCurrency(context.parsed.y); }
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            } else {
+                ctx.classList.add('hidden');
+                emptyMessageEl.classList.remove('hidden');
+            }
+        }
+
+        async function getAiReportInsight() {
+            const aiSpinner = document.getElementById('ai-report-spinner');
+            const aiButtonText = document.getElementById('ai-report-button-text');
+            const aiInsightOutputEl = document.getElementById('ai-report-insight-output');
+
+            if (!currentReportData || !currentReportData.ai_summary) {
+                aiInsightOutputEl.textContent = 'Gere um relatório primeiro para obter insights da IA.';
+                return;
+            }
+
+            aiSpinner.classList.remove('hidden');
+            aiButtonText.textContent = 'Gerando Insight...';
+            aiInsightOutputEl.textContent = 'Gerando insights de IA...';
+
+            try {
+                const response = await fetch('/ai_insight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ report_data: currentReportData.ai_summary }),
+                });
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
+                }
+                const data = await response.json();
+                if (data.insight) {
+                    aiInsightOutputEl.textContent = data.insight;
+                } else if (data.error) {
+                    aiInsightOutputEl.textContent = `Erro da IA: ${data.error}`;
+                } else {
+                    aiInsightOutputEl.textContent = 'Não foi possível gerar insights da IA.';
+                }
+            } catch (error) {
+                console.error('Erro ao chamar API de IA para relatório:', error);
+                aiInsightOutputEl.textContent = 'Erro ao conectar com o serviço de IA. Verifique sua chave de API e o console.';
+            } finally {
+                aiSpinner.classList.add('hidden');
+                aiButtonText.textContent = 'Obter Insight da IA';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1028,6 +1028,136 @@ def transfer_funds_db(user_id, source_account_id, destination_account_id, amount
     flash('Transferência realizada com sucesso!', 'success')
     return True
 
+# --- Funções para Relatórios Detalhados ---
+def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transaction_type=None, category_id=None):
+    """
+    Busca dados detalhados para relatórios com base em filtros.
+    Retorna dados para gráficos e um resumo para a IA.
+    """
+    
+    # Validação de datas
+    try:
+        start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return {'error': 'Formato de data inválido.'}
+
+    # Query base para transações
+    transactions_query = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date >= start_date_str,
+        Transaction.date <= end_date_str # Usar <= para incluir o dia final
+    )
+
+    if transaction_type and transaction_type in ['income', 'expense']:
+        transactions_query = transactions_query.filter(Transaction.type == transaction_type)
+    
+    if category_id:
+        transactions_query = transactions_query.filter(Transaction.category_id == category_id)
+
+    transactions = transactions_query.all()
+
+    # 1. Dados para Gráfico de Despesas por Categoria (Pie Chart)
+    expenses_by_category = {}
+    total_expenses_in_period = 0.0
+    for t in transactions:
+        if t.type == 'expense' and t.category:
+            category_name = t.category.name
+            expenses_by_category[category_name] = expenses_by_category.get(category_name, 0) + t.amount
+            total_expenses_in_period += t.amount
+    
+    expenses_chart_data = {
+        'labels': list(expenses_by_category.keys()),
+        'values': list(expenses_by_category.values())
+    }
+
+    # 2. Dados para Gráfico de Evolução do Patrimônio Líquido (Line Chart)
+    # Isso é mais complexo, pois exige o saldo das contas ao longo do tempo.
+    # Uma abordagem simplificada é calcular o saldo líquido cumulativo a partir de um ponto inicial.
+    # Para um relatório detalhado, podemos pegar o saldo inicial de todas as contas e aplicar as transações.
+    
+    # Pega o saldo inicial de todas as contas no início do período
+    initial_balance_sum = db.session.query(db.func.sum(Account.balance)).filter(
+        Account.user_id == user_id
+    ).scalar() or 0.0 # Saldo atual de todas as contas
+
+    # Para a evolução do patrimônio, precisamos de pontos de dados ao longo do tempo.
+    # Vamos gerar um ponto por mês dentro do período selecionado.
+    net_worth_labels = []
+    net_worth_values = []
+
+    # Começa com o saldo total atual e "reverte" as transações para o passado
+    # Ou, uma abordagem mais simples: recalcular o saldo para cada ponto no tempo
+    
+    # Pegar todas as transações do usuário até a data final do relatório
+    all_user_transactions_until_end_date = Transaction.query.filter(
+        Transaction.user_id == user_id,
+        Transaction.date <= end_date_str
+    ).order_by(Transaction.date.asc()).all()
+
+    # Calcula o saldo inicial da primeira transação ou 0 se não houver transações
+    current_net_worth = 0.0
+    if all_user_transactions_until_end_date:
+        # Encontra o primeiro saldo conhecido ou assume 0 antes da primeira transação
+        first_transaction_date = datetime.datetime.strptime(all_user_transactions_until_end_date[0].date, '%Y-%m-%d').date()
+        
+        # Se o relatório começa antes da primeira transação, o saldo inicial é 0.
+        # Se o relatório começa depois da primeira transação, precisamos calcular o saldo até o start_date.
+        
+        # Calcula o saldo até o dia anterior ao start_date do relatório
+        balance_before_report_start = 0.0
+        for t in all_user_transactions_until_end_date:
+            t_date = datetime.datetime.strptime(t.date, '%Y-%m-%d').date()
+            if t_date < start_date:
+                if t.type == 'income':
+                    balance_before_report_start += t.amount
+                else:
+                    balance_before_report_start -= t.amount
+        current_net_worth = balance_before_report_start
+    
+    # Itera pelos dias/meses dentro do período do relatório
+    current_date_iter = start_date
+    while current_date_iter <= end_date:
+        net_worth_labels.append(current_date_iter.strftime('%d/%m/%Y'))
+        
+        # Adiciona o efeito das transações do dia atual
+        for t in all_user_transactions_until_end_date:
+            t_date = datetime.datetime.strptime(t.date, '%Y-%m-%d').date()
+            if t_date == current_date_iter:
+                if t.type == 'income':
+                    current_net_worth += t.amount
+                else:
+                    current_net_worth -= t.amount
+        net_worth_values.append(current_net_worth)
+        current_date_iter += datetime.timedelta(days=1) # Incrementa por dia para mais granularidade
+
+    net_worth_chart_data = {
+        'labels': net_worth_labels,
+        'values': net_worth_values
+    }
+
+
+    # 3. Resumo para IA
+    total_income_in_period = sum(t.amount for t in transactions if t.type == 'income')
+    total_expenses_in_period_for_ai = sum(t.amount for t in transactions if t.type == 'expense') # Use this for AI
+    balance_in_period = total_income_in_period - total_expenses_in_period_for_ai
+
+    ai_summary_data = {
+        'start_date': start_date_str,
+        'end_date': end_date_str,
+        'total_income': total_income_in_period,
+        'total_expenses': total_expenses_in_period_for_ai,
+        'balance': balance_in_period,
+        'expenses_by_category': expenses_by_category, # Detalhes para IA
+        'transaction_count': len(transactions)
+    }
+
+    return {
+        'expenses_by_category_chart': expenses_chart_data,
+        'net_worth_evolution_chart': net_worth_chart_data,
+        'ai_summary': ai_summary_data
+    }
+
 
 # --- ROTAS DA APLICAÇÃO ---
 
@@ -1444,7 +1574,7 @@ def delete_account_user():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# ROTA: Resumo Financeiro Mensal
+# ROTA: Resumo Financeiro Mensal (para Profile)
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -1487,57 +1617,52 @@ def get_monthly_summary():
         'transactions_details': transactions_details
     })
 
-# ROTA: Insight da IA
-@app.route('/profile/ai_insight', methods=['POST'])
+# ROTA: Insight da IA (para Profile e Relatórios)
+@app.route('/ai_insight', methods=['POST']) # Rota mais genérica para ser usada em múltiplos lugares
 @login_required
 def get_ai_insight():
     data = request.get_json()
-    monthly_summary = data.get('summary_data')
     
-    current_month_year = get_current_month_year_str()
-    budgets = Budget.query.filter_by(user_id=current_user.id, month_year=current_month_year).all()
-    goals = Goal.query.filter_by(user_id=current_user.id, status='in_progress').all()
+    # Pode receber summary_data (do perfil) ou report_data (dos relatórios)
+    summary_data = data.get('summary_data') 
+    report_data = data.get('report_data')
 
-    budgets_data = [{
-        'category_name': b.category.name,
-        'budget_amount': b.budget_amount,
-        'current_spent': b.current_spent
-    } for b in budgets]
-
-    goals_data = [{
-        'name': g.name,
-        'target_amount': g.target_amount,
-        'current_amount': g.current_amount,
-        'status': g.status
-    } for g in goals]
-
-
-    if not monthly_summary:
-        return jsonify({'error': 'Dados de resumo não fornecidos.'}), 400
-
-    prompt_parts = [
-        f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:", # Usa username para IA
-        f"Receita Total: R${monthly_summary['income']:.2f},",
-        f"Despesa Total: R${monthly_summary['expenses']:.2f},",
-        f"Saldo Mensal: R${monthly_summary['balance']:.2f}."
-    ]
-
-    if monthly_summary.get('transactions_details'):
-        limited_transactions = monthly_summary['transactions_details'][:5]
-        trans_str = ", ".join([f"{t['description']} (R${t['amount']:.2f}, {t['type']}, {t['category']})" for t in limited_transactions])
-        prompt_parts.append(f"Principais transações: {trans_str}.")
+    prompt_parts = []
     
-    if budgets_data:
-        budget_summary = "Detalhes dos orçamentos (categoria, orçado, gasto): "
-        for b in budgets_data:
-            budget_summary += f"{b['category_name']}: R${b['budget_amount']:.2f} (gasto: R${b['current_spent']:.2f}). "
-        prompt_parts.append(budget_summary)
+    if summary_data: # Insight para o resumo mensal (profile)
+        prompt_parts.extend([
+            f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:",
+            f"Receita Total: R${summary_data['income']:.2f},",
+            f"Despesa Total: R${summary_data['expenses']:.2f},",
+            f"Saldo Mensal: R${summary_data['balance']:.2f}."
+        ])
+        if summary_data.get('transactions_details'):
+            limited_transactions = summary_data['transactions_details'][:5]
+            trans_str = ", ".join([f"{t['description']} (R${t['amount']:.2f}, {t['type']}, {t['category']})" for t in limited_transactions])
+            prompt_parts.append(f"Principais transações: {trans_str}.")
 
-    if goals_data:
-        goal_summary = "Detalhes das metas (nome, alvo, atual, status): "
-        for g in goals_data:
-            goal_summary += f"'{g['name']}': R${g['target_amount']:.2f} (atual: R${g['current_amount']:.2f}, status: {g['status']}). "
-        prompt_parts.append(goal_summary)
+    elif report_data: # Insight para dados de relatório (reports)
+        start_date = report_data.get('start_date', 'N/A')
+        end_date = report_data.get('end_date', 'N/A')
+        total_income = report_data.get('total_income', 0.0)
+        total_expenses = report_data.get('total_expenses', 0.0)
+        balance = report_data.get('balance', 0.0)
+        expenses_by_category = report_data.get('expenses_by_category', {})
+        transaction_count = report_data.get('transaction_count', 0)
+
+        prompt_parts.extend([
+            f"Com base nos dados financeiros do usuário {current_user.username} para o período de {start_date} a {end_date}:",
+            f"Receita Total: R${total_income:.2f},",
+            f"Despesa Total: R${total_expenses:.2f},",
+            f"Saldo Líquido no Período: R${balance:.2f}.",
+            f"Total de {transaction_count} transações registradas."
+        ])
+        if expenses_by_category:
+            expense_cat_str = ", ".join([f"{cat}: R${val:.2f}" for cat, val in expenses_by_category.items()])
+            prompt_parts.append(f"Despesas por Categoria: {expense_cat_str}.")
+        
+    else:
+        return jsonify({'error': 'Dados de resumo ou relatório não fornecidos.'}), 400
 
     prompt_parts.append(
         f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
@@ -1912,6 +2037,35 @@ def handle_transfer_funds():
         # Se houver um erro não tratado lá, esta flash message genérica será usada.
         flash('Erro ao realizar a transferência.', 'danger')
     return redirect(url_for('accounts_page'))
+
+# --- ROTAS DE RELATÓRIOS ---
+@app.route('/reports')
+@login_required
+def reports_page():
+    """Exibe a página de relatórios."""
+    all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
+    return render_template('reports.html', all_categories=all_categories_formatted)
+
+@app.route('/get_detailed_report_data', methods=['GET'])
+@login_required
+def get_detailed_report_data():
+    """
+    Endpoint para buscar dados detalhados para relatórios com base em filtros.
+    """
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    transaction_type = request.args.get('transaction_type')
+    category_id = request.args.get('category_id', type=int)
+
+    if not start_date_str or not end_date_str:
+        return jsonify({'error': 'Datas de início e fim são obrigatórias.'}), 400
+
+    report_data = get_detailed_report_data_db(current_user.id, start_date_str, end_date_str, transaction_type, category_id)
+    
+    if 'error' in report_data:
+        return jsonify(report_data), 400
+    
+    return jsonify(report_data)
 
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
