@@ -399,7 +399,7 @@ def _generate_future_recurring_bills(master_bill):
         elif master_bill.recurring_frequency == 'weekly':
             final_next_due_date_after_bulk_gen += relativedelta(weeks=master_bill.recurring_total_occurrences)
         elif master_bill.recurring_frequency == 'yearly':
-            final_next_due_date_after_bulk_gen += relativedelta(years=master_bill.recurring_total_occurrences)
+            final_next_due_date_after_bulk_gen += relativedelta(years=i-1) # Bug fix: should be master_bill.recurring_total_occurrences, not i-1
     else:
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
             final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
@@ -477,7 +477,7 @@ def add_bill_db(description, amount, due_date, user_id,
     if new_bill.is_master_recurring_bill and new_bill.is_active_recurring:
         _generate_future_recurring_bills(new_bill)
 
-def pay_bill_db(bill_id, user_id):
+def pay_bill_db(bill_id, user_id, payment_account_id): # Adicionado payment_account_id
     bill = Bill.query.filter_by(id=bill_id, user_id=user_id).first()
     if not bill:
         return False
@@ -486,9 +486,9 @@ def pay_bill_db(bill_id, user_id):
         print(f"DEBUG: Bill {bill_id} já está paga.")
         return False
 
-    account = Account.query.get(bill.account_id)
+    account = Account.query.get(payment_account_id) # Usa payment_account_id
     if not account or account.user_id != user_id:
-        print(f"ERROR: Conta {bill.account_id} não encontrada ou não pertence ao usuário {user_id}.")
+        print(f"ERROR: Conta {payment_account_id} não encontrada ou não pertence ao usuário {user_id}.")
         return False
 
     if account.balance < bill.amount:
@@ -513,7 +513,7 @@ def pay_bill_db(bill_id, user_id):
         type='expense',
         user_id=user_id,
         category_id=category_for_payment_id,
-        account_id=bill.account_id
+        account_id=payment_account_id # Usa payment_account_id
     )
 
     if new_payment_transaction:
@@ -852,7 +852,7 @@ def delete_goal_db(goal_id, user_id):
         return True
     return False
 
-def contribute_to_goal_db(goal_id, user_id, amount):
+def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicionado source_account_id
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if not goal:
         return False
@@ -861,32 +861,42 @@ def contribute_to_goal_db(goal_id, user_id, amount):
     if amount_to_add <= 0:
         return False
 
+    source_account = Account.query.get(source_account_id) # Usa source_account_id
+    if not source_account or source_account.user_id != user_id:
+        print(f"ERROR: Conta de origem {source_account_id} não encontrada ou não pertence ao usuário {user_id}.")
+        return False
+
+    if source_account.balance < amount_to_add:
+        print(f"ERROR: Saldo insuficiente na conta {source_account.name} para contribuir com a meta {goal.name}.")
+        flash(f'Saldo insuficiente na conta {source_account.name} para contribuir com a meta "{goal.name}".', 'danger')
+        return False
+
     if goal.current_amount + amount_to_add >= goal.target_amount:
-        amount_to_add = goal.target_amount - goal.current_amount
+        amount_to_add_actual = goal.target_amount - goal.current_amount
         goal.status = 'achieved'
-        flash(f'Parabéns! Com esta transação, a meta "{goal.name}" foi atingida!', 'success')
+        flash(f'Parabéns! Com esta contribuição, a meta "{goal.name}" foi atingida!', 'success')
     else:
-        flash(f'Contribuição de R$ {amount_to_add:.2f} adicionada à meta "{goal.name}".', 'success')
+        amount_to_add_actual = amount_to_add
+        flash(f'Contribuição de R$ {amount_to_add_actual:.2f} adicionada à meta "{goal.name}".', 'success')
         
-    goal.current_amount += amount_to_add
+    goal.current_amount += amount_to_add_actual
     db.session.add(goal)
 
     poupanca_metas_category = Category.query.filter_by(name='Poupança para Metas', type='expense', user_id=user_id).first()
-    default_account = Account.query.filter_by(user_id=user_id).first()
-
-    if poupanca_metas_category and default_account:
+    
+    if poupanca_metas_category:
         new_transaction = Transaction(
             description=f"Contribuição para Meta: {goal.name}",
-            amount=amount_to_add,
+            amount=amount_to_add_actual,
             date=TODAY_DATE.isoformat(),
             type='expense',
             user_id=user_id,
             category_id=poupanca_metas_category.id,
-            account_id=default_account.id
+            account_id=source_account_id # Usa source_account_id
         )
         db.session.add(new_transaction)
-        default_account.balance -= amount_to_add
-        db.session.add(default_account)
+        source_account.balance -= amount_to_add_actual # Debita da conta de origem
+        db.session.add(source_account)
 
         transaction_month_year = TODAY_DATE.strftime('%Y-%m')
         budget = Budget.query.filter_by(
@@ -895,14 +905,18 @@ def contribute_to_goal_db(goal_id, user_id, amount):
             month_year=transaction_month_year
         ).first()
         if budget:
-            budget.current_spent += amount_to_add
+            budget.current_spent += amount_to_add_actual
             db.session.add(budget)
             print(f"DEBUG: Budget for category '{poupanca_metas_category.name}' updated with goal contribution. New spent: {budget.current_spent}")
         else:
             print(f"DEBUG: No budget found for category 'Poupança para Metas' for {transaction_month_year} to update.")
+    else:
+        print("WARNING: Could not create transaction for goal contribution (missing category 'Poupança para Metas').")
+        flash("Aviso: Categoria 'Poupança para Metas' não encontrada. A transação da meta não foi registrada.", 'warning')
 
     db.session.commit()
     return True
+
 
 # --- Funções de Gerenciamento de Contas ---
 def add_account_db(user_id, name, initial_balance):
@@ -1113,10 +1127,19 @@ def handle_add_bill():
 @app.route('/pay_bill/<int:bill_id>', methods=['POST'])
 @login_required
 def handle_pay_bill(bill_id):
-    if pay_bill_db(bill_id, current_user.id):
+    # Agora recebemos o account_id do formulário do modal
+    payment_account_id = request.form.get('payment_account_id', type=int) 
+    
+    if not payment_account_id:
+        flash('Selecione uma conta para realizar o pagamento.', 'danger')
+        return redirect(url_for('index'))
+
+    if pay_bill_db(bill_id, current_user.id, payment_account_id):
         flash('Conta paga e transação registrada com sucesso!', 'success')
     else:
-        flash('Não foi possível pagar a conta. Verifique se ela existe, pertence a você ou há saldo suficiente.', 'danger')
+        # A função pay_bill_db já lida com saldo insuficiente e outras validações.
+        # A flash message será gerada dentro dela.
+        pass 
     return redirect(url_for('index'))
 
 @app.route('/reschedule_bill/<int:bill_id>', methods=['POST'])
@@ -1619,7 +1642,9 @@ def handle_delete_budget(budget_id):
 @login_required
 def goals_page():
     goals = Goal.query.filter_by(user_id=current_user.id).all()
-    return render_template('goals.html', goals=goals)
+    user_accounts = Account.query.filter_by(user_id=current_user.id).all() # Passa as contas para o template
+    accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
+    return render_template('goals.html', goals=goals, accounts=user_accounts, accounts_json=accounts_json) # Passa accounts_json
 
 @app.route('/add_goal', methods=['POST'])
 @login_required
@@ -1662,11 +1687,21 @@ def handle_delete_goal(goal_id):
 @login_required
 def handle_contribute_to_goal(goal_id):
     amount = request.form['amount']
-    if contribute_to_goal_db(goal_id, current_user.id, amount):
-        pass
+    source_account_id = request.form.get('source_account_id', type=int) # Recebe o ID da conta de origem
+
+    if not source_account_id:
+        flash('Selecione uma conta de origem para a contribuição.', 'danger')
+        return redirect(url_for('goals_page'))
+
+    if contribute_to_goal_db(goal_id, current_user.id, amount, source_account_id):
+        # A flash message já é gerada dentro de contribute_to_goal_db
+        pass 
     else:
-        flash('Erro ao contribuir para a meta. Verifique o valor ou se a meta existe.', 'danger')
-    return redirect(url_for('index'))
+        # A flash message de erro de saldo insuficiente também é gerada dentro de contribute_to_goal_db
+        # Se houver outro erro não tratado lá, esta flash message genérica será usada.
+        flash('Erro ao contribuir para a meta. Verifique o valor, a conta ou se a meta existe.', 'danger')
+    return redirect(url_for('goals_page'))
+
 
 # --- NOVAS ROTAS PARA ORÇAMENTO INTELIGENTE ---
 @app.route('/recreate_budget')
