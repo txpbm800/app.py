@@ -392,43 +392,41 @@ def _generate_future_recurring_bills(master_bill):
 
     master_bill.recurring_installments_generated = generated_count_for_master
     
-    final_next_due_date_after_bulk_gen = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
+    # --- CORREÇÃO DA LÓGICA DE recurring_next_due_date ---
     if master_bill.recurring_total_occurrences > 0:
-        if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-            final_next_due_date_after_bulk_gen += relativedelta(months=master_bill.recurring_total_occurrences)
-        elif master_bill.recurring_frequency == 'weekly':
-            final_next_due_date_after_bulk_gen += relativedelta(weeks=master_bill.recurring_total_occurrences)
-        elif master_bill.recurring_frequency == 'yearly':
-            final_next_due_date_after_bulk_gen += relativedelta(years=i-1) # Bug fix: should be master_bill.recurring_total_occurrences, not i-1
-    else:
-        if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
-        elif master_bill.recurring_frequency == 'weekly':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(weeks=1)
-        elif master_bill.recurring_frequency == 'yearly':
-            final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1)
+        # Se houver um número fixo de ocorrências, o master bill se desativa após todas serem geradas.
+        # O next_due_date deve apontar para a próxima que deveria ser gerada.
+        next_occurrence_number = master_bill.recurring_installments_generated + 1
         
-        if final_next_due_date_after_bulk_gen <= datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date() or \
-           final_next_due_date_after_bulk_gen <= TODAY_DATE:
+        if next_occurrence_number > master_bill.recurring_total_occurrences:
+            master_bill.is_active_recurring = False
+            master_bill.recurring_next_due_date = None # Não há mais datas futuras
+        else:
+            next_due_date_for_master = datetime.datetime.strptime(master_bill.recurring_start_date, '%Y-%m-%d').date()
             if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
-                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(months=1)
+                next_due_date_for_master += relativedelta(months=next_occurrence_number - 1)
             elif master_bill.recurring_frequency == 'weekly':
-                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(weeks=1)
+                next_due_date_for_master += relativedelta(weeks=next_occurrence_number - 1)
             elif master_bill.recurring_frequency == 'yearly':
-                final_next_due_date_after_bulk_gen = TODAY_DATE + relativedelta(years=1)
-
-
-    master_bill.recurring_next_due_date = final_next_due_date_after_bulk_gen.isoformat()
-    print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' atualizado para o fim da geração em massa: {master_bill.recurring_next_due_date}")
-
-    if master_bill.recurring_total_occurrences and master_bill.recurring_installments_generated >= master_bill.recurring_total_occurrences:
-        master_bill.is_active_recurring = False
-        print(f"DEBUG: Master Bill '{master_bill.description}' desativada: todas as {master_bill.recurring_total_occurrences} ocorrências foram geradas.")
-    else:
-        print(f"DEBUG: Master Bill '{master_bill.description}' ainda ativa (indefinida ou não atingiu total).")
+                next_due_date_for_master += relativedelta(years=next_occurrence_number - 1)
+            master_bill.recurring_next_due_date = next_due_date_for_master.isoformat()
+            print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' atualizado para: {master_bill.recurring_next_due_date}")
+    else: # Indefinido (recurring_total_occurrences é 0)
+        # O próximo vencimento é simplesmente o próximo período a partir de HOJE
+        next_due_date_for_master = TODAY_DATE
+        if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
+            next_due_date_for_master += relativedelta(months=1)
+        elif master_bill.recurring_frequency == 'weekly':
+            next_due_date_for_master += relativedelta(weeks=1)
+        elif master_bill.recurring_frequency == 'yearly':
+            next_due_date_for_master += relativedelta(years=1)
+        
+        master_bill.recurring_next_due_date = next_due_date_for_master.isoformat()
+        print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' (indefinida) atualizado para: {master_bill.recurring_next_due_date}")
 
     db.session.add(master_bill)
     db.session.commit()
+    # --- FIM DA CORREÇÃO ---
 
 def process_recurring_bills_on_access(user_id):
     """Processa Bills mestras recorrentes que precisam gerar novas ocorrências."""
@@ -493,6 +491,7 @@ def pay_bill_db(bill_id, user_id, payment_account_id): # Adicionado payment_acco
 
     if account.balance < bill.amount:
         print(f"ERROR: Saldo insuficiente na conta {account.name} para a conta {bill.description}.")
+        flash(f'Saldo insuficiente na conta {account.name} para pagar a conta "{bill.description}".', 'danger')
         return False
 
     category_for_payment_id = bill.category_id
@@ -504,7 +503,9 @@ def pay_bill_db(bill_id, user_id, payment_account_id): # Adicionado payment_acco
             category_for_payment_id = default_cat.id
         else:
             print("AVISO: Nenhuma categoria de despesa padrão encontrada para o pagamento da conta.")
-            return False
+            flash("Aviso: Categoria padrão para pagamento de conta não encontrada. A transação pode não ser categorizada corretamente.", 'warning')
+            category_for_payment_id = None # Garante que seja None se não encontrar
+            
 
     new_payment_transaction = add_transaction_db(
         description=f"Pagamento: {bill.description}",
@@ -859,11 +860,13 @@ def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicio
     
     amount_to_add = float(amount)
     if amount_to_add <= 0:
+        flash('O valor da contribuição deve ser maior que zero.', 'danger')
         return False
 
     source_account = Account.query.get(source_account_id) # Usa source_account_id
     if not source_account or source_account.user_id != user_id:
         print(f"ERROR: Conta de origem {source_account_id} não encontrada ou não pertence ao usuário {user_id}.")
+        flash('Conta de origem inválida ou não pertence a você.', 'danger')
         return False
 
     if source_account.balance < amount_to_add:
@@ -966,6 +969,63 @@ def delete_account_db(account_id, user_id):
     
     db.session.delete(account)
     db.session.commit()
+    return True
+
+def transfer_funds_db(user_id, source_account_id, destination_account_id, amount):
+    """Transfere fundos entre duas contas do usuário."""
+    amount = float(amount)
+    if amount <= 0:
+        flash('O valor da transferência deve ser maior que zero.', 'danger')
+        return False
+
+    if source_account_id == destination_account_id:
+        flash('A conta de origem e a conta de destino não podem ser a mesma.', 'danger')
+        return False
+
+    source_account = Account.query.filter_by(id=source_account_id, user_id=user_id).first()
+    destination_account = Account.query.filter_by(id=destination_account_id, user_id=user_id).first()
+
+    if not source_account or not destination_account:
+        flash('Conta de origem ou destino não encontrada.', 'danger')
+        return False
+
+    if source_account.balance < amount:
+        flash(f'Saldo insuficiente na conta de origem ({source_account.name}) para realizar a transferência.', 'danger')
+        return False
+
+    # Debitar da conta de origem
+    source_account.balance -= amount
+    db.session.add(source_account)
+
+    # Creditar na conta de destino
+    destination_account.balance += amount
+    db.session.add(destination_account)
+
+    # Criar transação de despesa para a conta de origem
+    # Usamos category_id=None para transferências, pois não são despesas reais, apenas movimentação de fundos.
+    add_transaction_db(
+        description=f"Transferência para {destination_account.name}",
+        amount=amount,
+        date=TODAY_DATE.isoformat(),
+        type='expense',
+        user_id=user_id,
+        category_id=None, # Transferências não afetam categorias de despesa/receita
+        account_id=source_account_id
+    )
+
+    # Criar transação de receita para a conta de destino
+    add_transaction_db(
+        description=f"Transferência de {source_account.name}",
+        amount=amount,
+        date=TODAY_DATE.isoformat(),
+        type='income',
+        user_id=user_id,
+        category_id=None, # Transferências não afetam categorias de despesa/receita
+        account_id=destination_account_id
+    )
+
+    db.session.commit()
+    flash('Transferência realizada com sucesso!', 'success')
     return True
 
 
@@ -1117,7 +1177,8 @@ def handle_add_bill():
     recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int)
     bill_type = request.form['bill_type']
     category_id = request.form.get('bill_category_id', type=int)
-    account_id = request.form.get('bill_account_id', type=int)
+    # account_id removido do formulário, mas ainda pode ser passado como None ou padrão se necessário
+    account_id = None # Ou um ID de conta padrão se houver um conceito de conta "principal" para contas a pagar
 
     add_bill_db(description, amount, due_date, current_user.id, 
                 is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id, account_id)
@@ -1243,7 +1304,9 @@ def handle_edit_bill(bill_id):
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
     category_id = request.form.get('edit_bill_category_id', type=int)
-    account_id = request.form.get('edit_bill_account_id', type=int)
+    # account_id removido do formulário, então passamos o original ou None
+    bill = Bill.query.filter_by(id=bill_id, user_id=current_user.id).first()
+    account_id = bill.account_id if bill else None # Mantém o account_id original se não for editado via formulário
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
                       is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id, account_id):
@@ -1781,7 +1844,9 @@ def suggest_budget_with_ai():
 def accounts_page():
     """Exibe a página de gerenciamento de contas."""
     user_accounts = Account.query.filter_by(user_id=current_user.id).order_by(Account.name.asc()).all()
-    return render_template('accounts.html', accounts=user_accounts)
+    # Passa accounts_json para o template para ser usado no modal de transferência
+    accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
+    return render_template('accounts.html', accounts=user_accounts, accounts_json=accounts_json)
 
 @app.route('/add_account', methods=['POST'])
 @login_required
@@ -1831,6 +1896,22 @@ def get_account_data(account_id):
             'balance': account.balance
         })
     return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+
+@app.route('/transfer_funds', methods=['POST'])
+@login_required
+def handle_transfer_funds():
+    """Lida com a transferência de fundos entre contas."""
+    source_account_id = request.form.get('source_account_id', type=int)
+    destination_account_id = request.form.get('destination_account_id', type=int)
+    amount = request.form.get('amount', type=float)
+
+    if transfer_funds_db(current_user.id, source_account_id, destination_account_id, amount):
+        # Flash message já é gerada dentro de transfer_funds_db
+        pass
+    else:
+        # Se houver um erro não tratado lá, esta flash message genérica será usada.
+        flash('Erro ao realizar a transferência.', 'danger')
+    return redirect(url_for('accounts_page'))
 
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
