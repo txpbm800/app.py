@@ -103,7 +103,7 @@
 </head>
 <body class="p-4 sm:p-6 lg:p-8">
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8 text-center">
-        <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2> {# Exibe o nome de usuário #}
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2>
         
         <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
         <form id="profile-picture-form" action="{{ url_for('update_profile_picture') }}" method="POST" class="mb-4">
@@ -292,10 +292,11 @@
             aiButtonText.textContent = 'Gerando Insight...';
             aiInsightOutputEl.textContent = 'Gerando insights de IA...';
             try {
-                const response = await fetch('/profile/ai_insight', {
+                // ATENÇÃO: Rota alterada para a rota unificada /ai_insight
+                const response = await fetch('/ai_insight', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ summary_data: currentMonthlyData }),
+                    body: JSON.stringify({ summary_data: currentMonthlyData }), // Passa summary_data
                 });
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
