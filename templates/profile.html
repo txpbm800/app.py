@@ -103,7 +103,7 @@
 </head>
 <body class="p-4 sm:p-6 lg:p-8">
     <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-8 text-center">
-        <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.username }}!</h2>
+        <h2 class="text-3xl font-bold text-gray-900 mb-6">Olá, {{ current_user.email }}!</h2>
         
         <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
         <form id="profile-picture-form" action="{{ url_for('update_profile_picture') }}" method="POST" class="mb-4">
@@ -115,7 +115,6 @@
 
         <p class="text-gray-600 mb-8">Gerencie suas configurações de conta ou veja seu resumo financeiro.</p>
 
-        <!-- CORREÇÃO: Adicionada a classe 'flash-message' para o JS funcionar -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <div class="mb-4 max-w-xl mx-auto">
@@ -200,21 +199,16 @@
 
 
     <script>
-        // ... (todo o script existente da página de perfil) ...
-
-        // CORREÇÃO: Adicionado o script para fazer as mensagens desaparecerem
         document.addEventListener('DOMContentLoaded', () => {
-            // Lógica para mensagens flash
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
                     message.style.transition = 'opacity 1s ease-out';
                     message.style.opacity = '0';
                     message.addEventListener('transitionend', () => message.remove());
-                }, 4000); // 4 segundos
+                }, 4000);
             });
 
-            // Lógica existente para resumo, gráficos e foto de perfil
             fetchMonthlySummary();
             fetchChartDataAndRender();
             
@@ -228,7 +222,6 @@
             }
         });
 
-        // (O resto do seu script de profile.html permanece aqui sem alterações)
         function formatCurrency(value) {
             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
         }

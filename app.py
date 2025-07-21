@@ -36,7 +36,7 @@ login_manager.login_view = 'login'
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
@@ -55,7 +55,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     def __repr__(self):
-        return f"<User {self.username}>"
+        return f"<User {self.email}>"
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1287,14 +1287,6 @@ def delete_account_user():
         if current_user.check_password(confirm_password):
             user_to_delete = User.query.get(current_user.id)
             if user_to_delete:
-                # CORREÇÃO: Exclui dependências manualmente na ordem correta
-                Bill.query.filter_by(user_id=user_to_delete.id).delete()
-                Transaction.query.filter_by(user_id=user_to_delete.id).delete()
-                Budget.query.filter_by(user_id=user_to_delete.id).delete()
-                Goal.query.filter_by(user_id=user_to_delete.id).delete()
-                Category.query.filter_by(user_id=user_to_delete.id).delete()
-                Account.query.filter_by(user_id=user_to_delete.id).delete()
-                
                 logout_user()
                 db.session.delete(user_to_delete)
                 db.session.commit()
