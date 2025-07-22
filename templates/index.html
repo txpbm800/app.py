@@ -1036,9 +1036,9 @@
                 const noOptionsMessage = document.createElement('option');
                 noOptionsMessage.value = "";
                 noOptionsMessage.textContent = `Nenhuma categoria de ${transactionType === 'income' ? 'receita' : 'despesa'} disponível.`;
-                noOptionsMessage.disabled = true; 
+                // REMOVIDO: noOptionsMessage.disabled = true; // Removido para manter o select interativo
                 selectElement.appendChild(noOptionsMessage);
-                selectElement.disabled = true; // Desabilita o select inteiro
+                // REMOVIDO: selectElement.disabled = true; // Removido para manter o select interativo
                 selectElement.required = false; // Torna o campo não obrigatório se não houver opções
             } else {
                 selectElement.disabled = false; // Habilita o select
@@ -1052,8 +1052,8 @@
 
                 filteredCategories.forEach(cat => {
                     const option = document.createElement('option');
-                    option.value = cat[0];
-                    option.textContent = cat[2];
+                    option.value = cat[0]; // cat[0] é o ID da categoria
+                    option.textContent = cat[2]; // cat[2] é o nome da categoria
                     if (selectedCategoryId && cat[0] === selectedCategoryId) {
                         option.selected = true;
                     }
