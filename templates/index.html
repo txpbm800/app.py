@@ -983,7 +983,9 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Inicializa as categorias para o formulário de transação (tipo 'expense' por padrão)
             filterCategoriesByType('expense', 'category_id');
+            // Inicializa as categorias para o formulário de conta a pagar (tipo 'expense' por padrão)
             filterCategoriesByType('expense', 'bill_category_id');
             
             const flashMessages = document.querySelectorAll('.flash-message');
@@ -997,7 +999,6 @@
 
             // Garante que o campo de conta esteja populado e selecionado se houver apenas uma
             populateAccounts('account_id');
-            // populateAccounts('bill_account_id'); // Não é mais necessário aqui
             populateGoals('goal_id'); // Popula metas na carga inicial
 
             // Dispara a lógica de visibilidade da meta ao carregar a página
@@ -1022,18 +1023,36 @@
         function updateCategorySelectWithOptions(selectElementId, selectedCategoryId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>';
-            const transactionType = document.getElementById(selectElementId === 'category_id' ? 'type' : 'bill_type').value;
+            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>'; // Sempre começa com a opção padrão
             
-            allCategories.filter(cat => cat[1] === transactionType).forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat[0];
-                option.textContent = cat[2];
-                if (selectedCategoryId && cat[0] === selectedCategoryId) {
-                    option.selected = true;
-                }
-                selectElement.appendChild(option);
-            });
+            const typeSelect = document.getElementById(selectElementId === 'category_id' ? 'type' : 'bill_type');
+            // Garante que transactionType tenha um valor, mesmo que o elemento 'typeSelect' não seja encontrado
+            const transactionType = typeSelect ? typeSelect.value : 'expense'; 
+
+            const filteredCategories = allCategories.filter(cat => cat[1] === transactionType);
+            
+            // DEBUG: Loga a quantidade de categorias encontradas para o tipo
+            console.log(`Populating ${selectElementId} with categories of type: ${transactionType}. Found ${filteredCategories.length} categories.`);
+
+            if (filteredCategories.length === 0) {
+                const noOptionsMessage = document.createElement('option');
+                noOptionsMessage.value = "";
+                noOptionsMessage.textContent = `Nenhuma categoria de ${transactionType === 'income' ? 'receita' : 'despesa'} disponível.`;
+                noOptionsMessage.disabled = true; // Torna a opção não selecionável
+                selectElement.appendChild(noOptionsMessage);
+                selectElement.disabled = true; // Desabilita o select inteiro se não houver opções reais
+            } else {
+                selectElement.disabled = false; // Habilita o select se houver opções
+                filteredCategories.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat[0];
+                    option.textContent = cat[2];
+                    if (selectedCategoryId && cat[0] === selectedCategoryId) {
+                        option.selected = true;
+                    }
+                    selectElement.appendChild(option);
+                });
+            }
         }
 
         // Modifica filterCategoriesByType para usar a nova função de atualização de dropdown
