@@ -356,7 +356,7 @@
                 </div>
 
                 <div class="rounded-lg shadow-md bg-white card-shadow">
-                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['transaction-arrow'])">
+                    <button type="button" class="w-full text-left p-6 flex items-center justify-between focus:outline-none" onclick="toggleAccordion('bill-form-content', 'bill-arrow', ['transaction-form-content'], ['bill-arrow'])">
                         <h2 class="text-2xl font-bold text-gray-800">Nova Conta a Pagar</h2>
                         <svg id="bill-arrow" class="arrow-icon w-6 h-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 12 15 18 9"></polyline>
@@ -1023,26 +1023,33 @@
         function updateCategorySelectWithOptions(selectElementId, selectedCategoryId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione a Categoria</option>'; // Sempre começa com a opção padrão
+            selectElement.innerHTML = ''; // Limpa todas as opções existentes
             
             const typeSelect = document.getElementById(selectElementId === 'category_id' ? 'type' : 'bill_type');
-            // Garante que transactionType tenha um valor, mesmo que o elemento 'typeSelect' não seja encontrado
             const transactionType = typeSelect ? typeSelect.value : 'expense'; 
 
             const filteredCategories = allCategories.filter(cat => cat[1] === transactionType);
             
-            // DEBUG: Loga a quantidade de categorias encontradas para o tipo
             console.log(`Populating ${selectElementId} with categories of type: ${transactionType}. Found ${filteredCategories.length} categories.`);
 
             if (filteredCategories.length === 0) {
                 const noOptionsMessage = document.createElement('option');
                 noOptionsMessage.value = "";
                 noOptionsMessage.textContent = `Nenhuma categoria de ${transactionType === 'income' ? 'receita' : 'despesa'} disponível.`;
-                noOptionsMessage.disabled = true; // Torna a opção não selecionável
+                noOptionsMessage.disabled = true; 
                 selectElement.appendChild(noOptionsMessage);
-                selectElement.disabled = true; // Desabilita o select inteiro se não houver opções reais
+                selectElement.disabled = true; // Desabilita o select inteiro
+                selectElement.required = false; // Torna o campo não obrigatório se não houver opções
             } else {
-                selectElement.disabled = false; // Habilita o select se houver opções
+                selectElement.disabled = false; // Habilita o select
+                selectElement.required = true; // Torna o campo obrigatório novamente
+                
+                // Adiciona a opção padrão "Selecione a Categoria"
+                const defaultOption = document.createElement('option');
+                defaultOption.value = "";
+                defaultOption.textContent = "Selecione a Categoria";
+                selectElement.appendChild(defaultOption);
+
                 filteredCategories.forEach(cat => {
                     const option = document.createElement('option');
                     option.value = cat[0];
@@ -1131,9 +1138,14 @@
             // Atualiza as categorias antes de verificar a seleção
             filterCategoriesByType(document.getElementById(typeSelectId).value, categorySelectId);
 
-            const selectedCategoryOption = categorySelect.options[categorySelect.selectedIndex];
+            // Verifica se a categoria selecionada (após a atualização) é "Poupança para Metas"
+            // É importante pegar a opção selecionada *após* a atualização do dropdown
+            const currentSelectedCategoryValue = categorySelect.value;
+            const isPoupancaParaMetas = allCategories.some(cat => 
+                cat[0] == currentSelectedCategoryValue && cat[2].toLowerCase().includes('poupança para metas')
+            );
 
-            if (selectedCategoryOption && selectedCategoryOption.text.toLowerCase().includes('poupança para metas')) {
+            if (isPoupancaParaMetas) {
                 goalContainer.classList.remove('hidden');
                 goalSelect.setAttribute('required', 'required'); // Torna a meta obrigatória
             } else {
@@ -1176,9 +1188,14 @@
                     const editCategorySelect = document.getElementById('edit_category_id');
                     const editGoalContainer = document.getElementById('edit-goal-field-container');
                     const editGoalSelect = document.getElementById('edit_goal_id');
-                    const selectedEditCategoryOption = editCategorySelect.options[editCategorySelect.selectedIndex];
+                    
+                    // Verifica se a categoria selecionada é "Poupança para Metas" no modal de edição
+                    const selectedEditCategoryValue = editCategorySelect.value;
+                    const isEditPoupancaParaMetas = allCategories.some(cat => 
+                        cat[0] == selectedEditCategoryValue && cat[2].toLowerCase().includes('poupança para metas')
+                    );
 
-                    if (selectedEditCategoryOption && selectedEditCategoryOption.text.toLowerCase().includes('poupança para metas')) {
+                    if (isEditPoupancaParaMetas) {
                         editGoalContainer.classList.remove('hidden');
                         editGoalSelect.setAttribute('required', 'required');
                     } else {
