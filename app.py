@@ -7,7 +7,12 @@ import os
 from dateutil.relativedelta import relativedelta # Para cálculo de datas recorrentes
 import calendar # Para obter o número de dias no mês
 import json
-import google.generativeai as genai 
+import google.generativeai as genai
+import random # Adicionado para gerar códigos
+import string # Adicionado para gerar códigos
+import smtplib # Adicionado para envio de email
+import ssl # Adicionado para segurança SSL no email
+from email.mime.text import MIMEText # Adicionado para formatar o email
 
 app = Flask(__name__)
 
@@ -32,15 +37,26 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# --- Configuração de E-mail para Recuperação de Senha ---
+EMAIL_USERNAME = os.getenv('EMAIL_USERNAME')
+EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
+EMAIL_SERVER = os.getenv('EMAIL_SERVER', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+
+
 # --- Definição dos Modelos do Banco de Dados (ORM) ---
 
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False) # Novo campo para nome de usuário
+    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
     profile_picture_url = db.Column(db.String(255), nullable=True, default='https://placehold.co/100x100/aabbcc/ffffff?text=PF')
     
+    # Campos para recuperação de senha
+    recovery_code = db.Column(db.String(6), nullable=True)
+    recovery_code_expires_at = db.Column(db.DateTime, nullable=True)
+
     transactions = db.relationship('Transaction', backref='user', lazy=True, cascade='all, delete-orphan')
     bills = db.relationship('Bill', backref='user', lazy=True, cascade='all, delete-orphan')
     budgets = db.relationship('Budget', backref='user_budget_owner', lazy=True, cascade='all, delete-orphan')
@@ -487,6 +503,7 @@ def pay_bill_db(bill_id, user_id, payment_account_id): # Adicionado payment_acco
     account = Account.query.get(payment_account_id) # Usa payment_account_id
     if not account or account.user_id != user_id:
         print(f"ERROR: Conta {payment_account_id} não encontrada ou não pertence ao usuário {user_id}.")
+        flash(f'Saldo insuficiente na conta {account.name} para pagar a conta "{bill.description}".', 'danger')
         return False
 
     if account.balance < bill.amount:
@@ -1159,6 +1176,41 @@ def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transacti
     }
 
 
+# --- Funções de Email ---
+def generate_recovery_code(length=6):
+    """Gera um código alfanumérico aleatório."""
+    characters = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(characters) for i in range(length))
+
+def send_recovery_email(recipient_email, recovery_code):
+    """Envia o código de recuperação para o e-mail do usuário."""
+    if not EMAIL_USERNAME or not EMAIL_PASSWORD:
+        print("ERROR: Credenciais de email não configuradas. Não é possível enviar email de recuperação.")
+        return False
+
+    sender_email = EMAIL_USERNAME
+    sender_password = EMAIL_PASSWORD
+
+    message = MIMEText(
+        f"Seu código de recuperação de senha é: {recovery_code}\n"
+        "Este código é válido por 10 minutos. Se você não solicitou esta redefinição, por favor, ignore este e-mail."
+    )
+    message["Subject"] = "Código de Recuperação de Senha - Gestão Financeira Pessoal"
+    message["From"] = sender_email
+    message["To"] = recipient_email
+
+    try:
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, recipient_email, message.as_string())
+        print(f"DEBUG: Email de recuperação enviado para {recipient_email}")
+        return True
+    except Exception as e:
+        print(f"ERROR: Falha ao enviar email de recuperação para {recipient_email}: {e}")
+        return False
+
+
 # --- ROTAS DA APLICAÇÃO ---
 
 @app.route('/')
@@ -1476,23 +1528,23 @@ def register():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        username = request.form['username'] # Captura o nome de usuário
+        username = request.form['username']
         email = request.form['email']
         password = request.form['password']
 
-        if len(password) < 8: # Validação do tamanho mínimo da senha no backend
+        if len(password) < 8:
             flash('A senha deve ter no mínimo 8 caracteres.', 'danger')
             return redirect(url_for('register'))
 
         existing_user_email = User.query.filter_by(email=email).first()
-        existing_user_username = User.query.filter_by(username=username).first() # Verifica se o nome de usuário já existe
+        existing_user_username = User.query.filter_by(username=username).first()
 
         if existing_user_email:
             flash('Este e-mail já está em uso. Por favor, escolha outro.', 'danger')
-        elif existing_user_username: # Mensagem de erro para nome de usuário duplicado
+        elif existing_user_username:
             flash('Este nome de usuário já está em uso. Por favor, escolha outro.', 'danger')
         else:
-            new_user = User(email=email, username=username) # Passa o username para o construtor do User
+            new_user = User(email=email, username=username)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
@@ -1509,16 +1561,16 @@ def login():
         return redirect(url_for('index'))
 
     if request.method == 'POST':
-        identifier = request.form['identifier'] # Pode ser email ou username
+        identifier = request.form['identifier']
         password = request.form['password']
 
-        user = User.query.filter((User.email == identifier) | (User.username == identifier)).first() # Busca por email ou username
+        user = User.query.filter((User.email == identifier) | (User.username == identifier)).first()
         if user and user.check_password(password):
             login_user(user)
             flash('Login realizado com sucesso!', 'success')
             return redirect(url_for('index'))
         else:
-            flash('E-mail/Nome de usuário ou senha incorretos.', 'danger') # Mensagem de erro atualizada
+            flash('E-mail/Nome de usuário ou senha incorretos.', 'danger')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -1543,7 +1595,7 @@ def change_password():
 
         if not current_user.check_password(old_password):
             flash('Senha antiga incorreta.', 'danger')
-        elif len(new_password) < 8: # Validação do tamanho mínimo da nova senha
+        elif len(new_password) < 8:
             flash('A nova senha deve ter no mínimo 8 caracteres.', 'danger')
         elif new_password != confirm_new_password:
             flash('A nova senha e a confirmação não coincidem.', 'danger')
@@ -1573,6 +1625,69 @@ def delete_account_user():
         else:
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
+
+# ROTA: Solicitar Código de Recuperação de Senha
+@app.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password_request():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        email = request.form['email']
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            recovery_code = generate_recovery_code()
+            user.recovery_code = recovery_code
+            user.recovery_code_expires_at = datetime.datetime.now() + datetime.timedelta(minutes=10) # Código válido por 10 minutos
+            db.session.commit()
+
+            if send_recovery_email(user.email, recovery_code):
+                flash('Um código de recuperação foi enviado para o seu e-mail.', 'success')
+                return redirect(url_for('forgot_password_request', code_sent='true', email=email))
+            else:
+                flash('Não foi possível enviar o código de recuperação. Verifique suas configurações de e-mail.', 'danger')
+        else:
+            flash('E-mail não encontrado.', 'danger')
+        
+    return render_template('forgot_password.html')
+
+# ROTA: Verificar Código e Redefinir Senha
+@app.route('/reset_password_verify', methods=['POST'])
+def reset_password_verify():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    email = request.form['email']
+    code = request.form['code']
+    new_password = request.form['new_password']
+    confirm_new_password = request.form['confirm_new_password']
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        flash('E-mail não encontrado.', 'danger')
+    elif user.recovery_code is None or user.recovery_code_expires_at is None:
+        flash('Não há solicitação de recuperação de senha ativa para este e-mail. Solicite um novo código.', 'danger')
+    elif user.recovery_code != code.upper(): # Converta para maiúsculas para comparar
+        flash('Código de recuperação incorreto.', 'danger')
+    elif datetime.datetime.now() > user.recovery_code_expires_at:
+        flash('O código de recuperação expirou. Solicite um novo código.', 'danger')
+    elif len(new_password) < 8:
+        flash('A nova senha deve ter no mínimo 8 caracteres.', 'danger')
+    elif new_password != confirm_new_password:
+        flash('A nova senha e a confirmação não coincidem.', 'danger')
+    else:
+        user.set_password(new_password)
+        user.recovery_code = None
+        user.recovery_code_expires_at = None
+        db.session.commit()
+        flash('Sua senha foi redefinida com sucesso! Faça login.', 'success')
+        return redirect(url_for('login'))
+        
+    # Se houver erro, renderiza a página de recuperação novamente com a seção de reset visível
+    return render_template('forgot_password.html', code_sent='true', email=email)
+
 
 # ROTA: Resumo Financeiro Mensal (para Profile)
 @app.route('/profile/monthly_summary', methods=['GET'])
@@ -1618,7 +1733,7 @@ def get_monthly_summary():
     })
 
 # ROTA: Insight da IA (para Profile e Relatórios)
-@app.route('/ai_insight', methods=['POST']) # Rota mais genérica para ser usada em múltiplos lugares
+@app.route('/ai_insight', methods=['POST'])
 @login_required
 def get_ai_insight():
     data = request.get_json()
@@ -1629,7 +1744,7 @@ def get_ai_insight():
 
     prompt_parts = []
     
-    if summary_data: # Insight para o resumo mensal (profile)
+    if summary_data:
         prompt_parts.extend([
             f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:",
             f"Receita Total: R${summary_data['income']:.2f},",
@@ -1641,7 +1756,7 @@ def get_ai_insight():
             trans_str = ", ".join([f"{t['description']} (R${t['amount']:.2f}, {t['type']}, {t['category']})" for t in limited_transactions])
             prompt_parts.append(f"Principais transações: {trans_str}.")
 
-    elif report_data: # Insight para dados de relatório (reports)
+    elif report_data:
         start_date = report_data.get('start_date', 'N/A')
         end_date = report_data.get('end_date', 'N/A')
         total_income = report_data.get('total_income', 0.0)
@@ -1737,9 +1852,9 @@ def get_chart_data():
 
     current_year_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
+        Transaction.type == 'expense', # Apenas despesas para este gráfico
         Transaction.date >= start_year_str,
-        Transaction.date < end_year_str,
-        Transaction.type == 'expense'
+        Transaction.date < end_year_str
     ).all()
 
     for transaction in current_year_transactions:
@@ -1875,18 +1990,15 @@ def handle_delete_goal(goal_id):
 @login_required
 def handle_contribute_to_goal(goal_id):
     amount = request.form['amount']
-    source_account_id = request.form.get('source_account_id', type=int) # Recebe o ID da conta de origem
+    source_account_id = request.form.get('source_account_id', type=int)
 
     if not source_account_id:
         flash('Selecione uma conta de origem para a contribuição.', 'danger')
         return redirect(url_for('goals_page'))
 
     if contribute_to_goal_db(goal_id, current_user.id, amount, source_account_id):
-        # A flash message já é gerada dentro de contribute_to_goal_db
         pass 
     else:
-        # A flash message de erro de saldo insuficiente também é gerada dentro de contribute_to_goal_db
-        # Se houver outro erro não tratado lá, esta flash message genérica será usada.
         flash('Erro ao contribuir para a meta. Verifique o valor, a conta ou se a meta existe.', 'danger')
     return redirect(url_for('goals_page'))
 
@@ -1969,7 +2081,6 @@ def suggest_budget_with_ai():
 def accounts_page():
     """Exibe a página de gerenciamento de contas."""
     user_accounts = Account.query.filter_by(user_id=current_user.id).order_by(Account.name.asc()).all()
-    # Passa accounts_json para o template para ser usado no modal de transferência
     accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
     return render_template('accounts.html', accounts=user_accounts, accounts_json=accounts_json)
 
@@ -2031,10 +2142,8 @@ def handle_transfer_funds():
     amount = request.form.get('amount', type=float)
 
     if transfer_funds_db(current_user.id, source_account_id, destination_account_id, amount):
-        # Flash message já é gerada dentro de transfer_funds_db
         pass
     else:
-        # Se houver um erro não tratado lá, esta flash message genérica será usada.
         flash('Erro ao realizar a transferência.', 'danger')
     return redirect(url_for('accounts_page'))
 
@@ -2076,4 +2185,3 @@ with app.app_context():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
