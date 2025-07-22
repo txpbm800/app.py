@@ -8,11 +8,12 @@ from dateutil.relativedelta import relativedelta # Para cálculo de datas recorr
 import calendar # Para obter o número de dias no mês
 import json
 import google.generativeai as genai
-import random # Adicionado para gerar códigos
-import string # Adicionado para gerar códigos
-import smtplib # Adicionado para envio de email
-import ssl # Adicionado para segurança SSL no email
-from email.mime.text import MIMEText # Adicionado para formatar o email
+import random
+import string
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from flask_migrate import Migrate # Importar Flask-Migrate
 
 app = Flask(__name__)
 
@@ -32,7 +33,12 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'finance.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+# --- CORREÇÃO AQUI: Inicialize db e migrate sem 'app' imediatamente ---
+db = SQLAlchemy()
+migrate = Migrate() # Inicialize Migrate sem app e db ainda
+# --- FIM DA CORREÇÃO ---
+
+
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -2178,9 +2184,12 @@ def get_detailed_report_data():
 
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
+# --- CORREÇÃO AQUI: Associar db e migrate ao app após a inicialização do app ---
 with app.app_context():
-    db.create_all()
-    print(f"DEBUG: Caminho final do banco de dados: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    db.init_app(app) # Associar SQLAlchemy ao app
+    migrate.init_app(app, db) # Associar Flask-Migrate ao app e db
+    db.create_all() # Cria as tabelas se não existirem (para SQLite local ou primeira vez)
+# --- FIM DA CORREÇÃO ---
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
