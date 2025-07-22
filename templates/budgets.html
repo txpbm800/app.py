@@ -5,18 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Orçamentos - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link para o Font Awesome via CDN para os ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
         .progress-bar-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden; }
         .progress-bar { height: 1.5rem; border-radius: 9999px; text-align: center; color: white; font-weight: bold; transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out; }
-        .category-icon { /* Estilo para o ícone */
+        /* Estilo para o ícone da categoria */
+        .category-icon-fa {
             width: 20px;
             height: 20px;
-            display: inline-block; /* Para alinhar com o texto */
-            vertical-align: middle; /* Para alinhar verticalmente */
-            margin-right: 8px; /* Espaçamento à direita */
+            display: inline-flex; /* Usar flex para centralizar o ícone */
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            margin-right: 8px;
             color: #6b7280; /* Cor padrão cinza */
+            font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
         }
     </style>
 </head>
@@ -87,7 +93,8 @@
                         <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-lg text-gray-800 truncate flex items-center">
-                                    <span class="category-icon" data-category-name="{{ budget.category.name }}"></span> {# Ícone da categoria #}
+                                    {# Ícone da categoria com a nova classe e lógica #}
+                                    <i class="category-icon-fa" data-category-name="{{ budget.category.name }}"></i>
                                     {{ budget.category.name }}
                                 </h3>
                                 <p class="text-sm text-gray-600">Orçado: R$ {{ "%.2f"|format(budget.budget_amount) }}</p>
@@ -155,6 +162,285 @@
 
 
     <script>
+        // Mapeamento de palavras-chave para ícones Font Awesome
+        const keywordToIconMap = {
+            'salário': 'fa-solid fa-money-bill-wave',
+            'freelance': 'fa-solid fa-briefcase',
+            'outras receitas': 'fa-solid fa-plus-circle',
+            'alimentação': 'fa-solid fa-utensils',
+            'transporte': 'fa-solid fa-car',
+            'lazer': 'fa-solid fa-gamepad',
+            'moradia': 'fa-solid fa-home',
+            'saúde': 'fa-solid fa-heartbeat',
+            'educação': 'fa-solid fa-graduation-cap',
+            'contas fixas': 'fa-solid fa-receipt',
+            'outras despesas': 'fa-solid fa-minus-circle',
+            'poupança para metas': 'fa-solid fa-piggy-bank',
+            'compras': 'fa-solid fa-shopping-cart',
+            'esportes': 'fa-solid fa-futbol',
+            'casa': 'fa-solid fa-house',
+            'carro': 'fa-solid fa-car',
+            'internet': 'fa-solid fa-wifi',
+            'energia': 'fa-solid fa-bolt',
+            'água': 'fa-solid fa-tint',
+            'aluguel': 'fa-solid fa-house-user',
+            'serviços': 'fa-solid fa-concierge-bell',
+            'doação': 'fa-solid fa-hand-holding-heart',
+            'presente': 'fa-solid fa-gift',
+            'reembolso': 'fa-solid fa-undo',
+            'multa': 'fa-solid fa-exclamation-triangle',
+            'imposto': 'fa-solid fa-file-invoice-dollar',
+            'supermercado': 'fa-solid fa-shopping-basket',
+            'restaurante': 'fa-solid fa-utensils',
+            'farmácia': 'fa-solid fa-pills',
+            'combustível': 'fa-solid fa-gas-pump',
+            'academia': 'fa-solid fa-dumbbell',
+            'consultório': 'fa-solid fa-stethoscope',
+            'banco': 'fa-solid fa-university',
+            'transferência': 'fa-solid fa-exchange-alt',
+            'saque': 'fa-solid fa-money-bill-alt',
+            'depósito': 'fa-solid fa-piggy-bank',
+            'renda': 'fa-solid fa-sack-dollar',
+            'despesa': 'fa-solid fa-receipt',
+            'fatura': 'fa-solid fa-file-alt',
+            'assinatura': 'fa-solid fa-sync-alt',
+            'manutenção': 'fa-solid fa-tools',
+            'reparos': 'fa-solid fa-wrench',
+            'pet': 'fa-solid fa-paw',
+            'crianças': 'fa-solid fa-child',
+            'beleza': 'fa-solid fa-cut',
+            'roupas': 'fa-solid fa-tshirt',
+            'eletrônicos': 'fa-solid fa-plug',
+            'hospedagem': 'fa-solid fa-hotel',
+            'passagem': 'fa-solid fa-ticket-alt',
+            'frete': 'fa-solid fa-shipping-fast',
+            'delivery': 'fa-solid fa-motorcycle',
+            'café': 'fa-solid fa-coffee',
+            'bar': 'fa-solid fa-cocktail',
+            'cinema': 'fa-solid fa-ticket-alt',
+            'concerto': 'fa-solid fa-microphone-alt',
+            'museu': 'fa-solid fa-museum',
+            'parque': 'fa-solid fa-tree',
+            'seguro': 'fa-solid fa-car-crash',
+            'empréstimo': 'fa-solid fa-hand-holding-usd',
+            'juros': 'fa-solid fa-percent',
+            'cripto': 'fa-brands fa-bitcoin',
+            'ações': 'fa-solid fa-chart-area',
+            'crédito': 'fa-solid fa-credit-card',
+            'débito': 'fa-solid fa-money-bill-wave',
+            'pix': 'fa-solid fa-qrcode',
+            'boleto': 'fa-solid fa-barcode',
+            'online': 'fa-solid fa-globe',
+            'app': 'fa-solid fa-mobile-alt',
+            'hardware': 'fa-solid fa-desktop',
+            'software': 'fa-solid fa-code',
+            'consultoria': 'fa-solid fa-user-tie',
+            'marketing': 'fa-solid fa-bullhorn',
+            'vendas': 'fa-solid fa-cash-register',
+            'produção': 'fa-solid fa-industry',
+            'logística': 'fa-solid fa-truck',
+            'recursos humanos': 'fa-solid fa-users',
+            'jurídico': 'fa-solid fa-gavel',
+            'contabilidade': 'fa-solid fa-calculator',
+            'auditoria': 'fa-solid fa-clipboard-check',
+            'pesquisa': 'fa-solid fa-search',
+            'desenvolvimento': 'fa-solid fa-cogs',
+            'design': 'fa-solid fa-paint-brush',
+            'mídia': 'fa-solid fa-camera-retro',
+            'publicidade': 'fa-solid fa-ad',
+            'eventos': 'fa-solid fa-calendar-alt',
+            'treinamento': 'fa-solid fa-chalkboard-teacher',
+            'freelance': 'fa-solid fa-user-edit',
+            'startup': 'fa-solid fa-rocket',
+            'e-commerce': 'fa-solid fa-store',
+            'blog': 'fa-solid fa-blog',
+            'podcast': 'fa-solid fa-podcast',
+            'newsletter': 'fa-solid fa-envelope-open-text',
+            'webinar': 'fa-solid fa-video',
+            'curso': 'fa-solid fa-book-reader',
+            'workshop': 'fa-solid fa-users-cog',
+            'conferência': 'fa-solid fa-comments',
+            'seminário': 'fa-solid fa-microphone',
+            'diploma': 'fa-solid fa-award',
+            'certificação': 'fa-solid fa-certificate',
+            'idiomas': 'fa-solid fa-language',
+            'música': 'fa-solid fa-music',
+            'filme': 'fa-solid fa-film',
+            'série': 'fa-solid fa-tv',
+            'teatro': 'fa-solid fa-mask',
+            'arte': 'fa-solid fa-palette',
+            'fotografia': 'fa-solid fa-camera',
+            'dança': 'fa-solid fa-shoe-prints',
+            'show': 'fa-solid fa-ticket-alt',
+            'festival': 'fa-solid fa-fire',
+            'parque de diversões': 'fa-solid fa-roller-coaster',
+            'zoológico': 'fa-solid fa-paw',
+            'aquário': 'fa-solid fa-fish',
+            'natureza': 'fa-solid fa-leaf',
+            'praia': 'fa-solid fa-umbrella-beach',
+            'montanha': 'fa-solid fa-mountain',
+            'trilha': 'fa-solid fa-hiking',
+            'acampamento': 'fa-solid fa-campground',
+            'pesca': 'fa-solid fa-fish',
+            'esqui': 'fa-solid fa-skiing',
+            'snowboard': 'fa-solid fa-snowboarding',
+            'ciclismo': 'fa-solid fa-biking',
+            'natação': 'fa-solid fa-swimmer',
+            'basquete': 'fa-solid fa-basketball-ball',
+            'futebol': 'fa-solid fa-futbol',
+            'vôlei': 'fa-solid fa-volleyball-ball',
+            'tênis': 'fa-solid fa-tennis-ball',
+            'golfe': 'fa-solid fa-golf-ball',
+            'boxe': 'fa-solid fa-boxing-glove',
+            'yoga': 'fa-solid fa-om',
+            'meditação': 'fa-solid fa-hand-holding-heart',
+            'massagem': 'fa-solid fa-spa',
+            'terapia': 'fa-solid fa-brain',
+            'psicologia': 'fa-solid fa-brain',
+            'dentista': 'fa-solid fa-tooth',
+            'oftalmologista': 'fa-solid fa-eye',
+            'pediatra': 'fa-solid fa-baby',
+            'veterinário': 'fa-solid fa-cat',
+            'ambulância': 'fa-solid fa-ambulance',
+            'emergência': 'fa-solid fa-exclamation-circle',
+            'remédio': 'fa-solid fa-pills',
+            'vacina': 'fa-solid fa-syringe',
+            'hospital': 'fa-solid fa-hospital',
+            'clínica': 'fa-solid fa-clinic-medical',
+            'laboratório': 'fa-solid fa-microscope',
+            'exame': 'fa-solid fa-file-medical-alt',
+            'cirurgia': 'fa-solid fa-scalpel',
+            'dieta': 'fa-solid fa-apple-alt',
+            'nutrição': 'fa-solid fa-carrot',
+            'exercício': 'fa-solid fa-dumbbell',
+            'fitness': 'fa-solid fa-running',
+            'bem-estar': 'fa-solid fa-spa',
+            'mente': 'fa-solid fa-brain',
+            'corpo': 'fa-solid fa-male',
+            'espiritualidade': 'fa-solid fa-praying-hands',
+            'religião': 'fa-solid fa-church',
+            'caridade': 'fa-solid fa-hand-holding-heart',
+            'voluntariado': 'fa-solid fa-hands-helping',
+            'comunidade': 'fa-solid fa-people-carry',
+            'família': 'fa-solid fa-users',
+            'amigos': 'fa-solid fa-user-friends',
+            'relacionamento': 'fa-solid fa-heart',
+            'casamento': 'fa-solid fa-ring',
+            'aniversário': 'fa-solid fa-birthday-cake',
+            'festa': 'fa-solid fa-glass-cheers',
+            'feriado': 'fa-solid fa-holly-berry',
+            'natal': 'fa-solid fa-tree',
+            'páscoa': 'fa-solid fa-egg',
+            'halloween': 'fa-solid fa-ghost',
+            'carnaval': 'fa-solid fa-mask',
+            'ano novo': 'fa-solid fa-champagne-glasses',
+            'política': 'fa-solid fa-landmark',
+            'governo': 'fa-solid fa-building',
+            'lei': 'fa-solid fa-balance-scale',
+            'justiça': 'fa-solid fa-gavel',
+            'crime': 'fa-solid fa-mask',
+            'polícia': 'fa-solid fa-handcuffs',
+            'prisão': 'fa-solid fa-prison',
+            'militar': 'fa-solid fa-helmet-battle',
+            'guerra': 'fa-solid fa-bomb',
+            'paz': 'fa-solid fa-peace',
+            'direitos humanos': 'fa-solid fa-hand-holding-heart',
+            'meio ambiente': 'fa-solid fa-leaf',
+            'sustentabilidade': 'fa-solid fa-recycle',
+            'clima': 'fa-solid fa-cloud-sun',
+            'desastre': 'fa-solid fa-house-damage',
+            'socorro': 'fa-solid fa-hands-helping',
+            'notícias': 'fa-solid fa-newspaper',
+            'jornalismo': 'fa-solid fa-microphone-alt',
+            'reportagem': 'fa-solid fa-camera-retro',
+            'entrevista': 'fa-solid fa-comments',
+            'documentário': 'fa-solid fa-video',
+            'história': 'fa-solid fa-scroll',
+            'arqueologia': 'fa-solid fa-gopuram',
+            'ciência': 'fa-solid fa-atom',
+            'física': 'fa-solid fa-atom',
+            'química': 'fa-solid fa-flask',
+            'biologia': 'fa-solid fa-dna',
+            'matemática': 'fa-solid fa-calculator',
+            'estatística': 'fa-solid fa-chart-pie',
+            'programação': 'fa-solid fa-code',
+            'engenharia': 'fa-solid fa-hard-hat',
+            'arquitetura': 'fa-solid fa-building',
+            'design gráfico': 'fa-solid fa-paint-brush',
+            'web design': 'fa-solid fa-globe',
+            'desenvolvimento web': 'fa-solid fa-laptop-code',
+            'aplicativos': 'fa-solid fa-mobile-alt',
+            'inteligência artificial': 'fa-solid fa-robot',
+            'machine learning': 'fa-solid fa-brain',
+            'big data': 'fa-solid fa-database',
+            'nuvem': 'fa-solid fa-cloud',
+            'segurança cibernética': 'fa-solid fa-user-secret',
+            'criptografia': 'fa-solid fa-key',
+            'redes': 'fa-solid fa-network-wired',
+            'servidores': 'fa-solid fa-server',
+            'firewall': 'fa-solid fa-fire-extinguisher',
+            'vírus': 'fa-solid fa-bug',
+            'malware': 'fa-solid fa-bug',
+            'phishing': 'fa-solid fa-fish',
+            'spam': 'fa-solid fa-envelope-open-text',
+            'backup': 'fa-solid fa-save',
+            'recuperação': 'fa-solid fa-undo',
+            'desastre': 'fa-solid fa-house-damage',
+            'continuidade de negócios': 'fa-solid fa-sync-alt',
+            'auditoria de segurança': 'fa-solid fa-clipboard-check',
+            'política de segurança': 'fa-solid fa-file-contract',
+            'conformidade': 'fa-solid fa-check-double',
+            'governança': 'fa-solid fa-sitemap',
+            'gestão de risco': 'fa-solid fa-chart-line',
+            'monitoramento': 'fa-solid fa-eye',
+            'alerta': 'fa-solid fa-bell',
+            'incidente': 'fa-solid fa-exclamation-circle',
+            'resposta a incidentes': 'fa-solid fa-headset',
+            'investigação': 'fa-solid fa-search',
+            'forense': 'fa-solid fa-microscope',
+            'perícia': 'fa-solid fa-search-dollar',
+            'ciberataque': 'fa-solid fa-skull-crossbones',
+            'ameaça': 'fa-solid fa-user-secret',
+            'vulnerabilidade': 'fa-solid fa-exclamation-triangle',
+            'patch': 'fa-solid fa-wrench',
+            'atualização': 'fa-solid fa-sync-alt',
+            'rede': 'fa-solid fa-network-wired',
+            'servidor': 'fa-solid fa-server',
+            'nuvem': 'fa-solid fa-cloud',
+            'virtualização': 'fa-solid fa-vr-cardboard',
+            'container': 'fa-solid fa-box',
+            'devops': 'fa-solid fa-cogs',
+            'automação': 'fa-solid fa-robot',
+            'integração contínua': 'fa-solid fa-sync-alt',
+            'entrega contínua': 'fa-solid fa-truck-loading',
+            'infraestrutura como código': 'fa-solid fa-code',
+            'monitoramento': 'fa-solid fa-eye',
+            'logs': 'fa-solid fa-file-alt',
+            'métricas': 'fa-solid fa-chart-bar',
+            'alertas': 'fa-solid fa-bell',
+            'dashboards': 'fa-solid fa-chart-line',
+            'relatórios': 'fa-solid fa-file-alt',
+            'auditoria': 'fa-solid fa-clipboard-check',
+            'conformidade': 'fa-solid fa-check-double',
+            'governança': 'fa-solid fa-sitemap',
+            'gestão de risco': 'fa-solid fa-chart-line',
+            // Adicione mais palavras-chave e ícones aqui
+        };
+
+        // Ícone padrão caso nenhuma palavra-chave seja encontrada
+        const defaultIcon = 'fa-solid fa-question-circle';
+
+        // Função para obter o ícone com base no texto (nome ou descrição)
+        function getIconForText(text) {
+            const lowerText = text.toLowerCase();
+            for (const keyword in keywordToIconMap) {
+                if (lowerText.includes(keyword)) {
+                    return keywordToIconMap[keyword];
+                }
+            }
+            return defaultIcon;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
@@ -169,31 +455,11 @@
             renderCategoryIconsInLists();
         });
 
-        // Função para mapear nomes de categoria para SVGs de ícones Lucide
-        function getCategoryIconSvg(categoryName) {
-            const icons = {
-                'Salário': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-wallet"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h14a2 2 0 0 1 0 4H5a2 2 0 0 0 0 4h14v3a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3"/><path d="M20 12h-6"/></svg>',
-                'Freelance': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-briefcase"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><path d="M2 7h20v4H2z"/></svg>',
-                'Outras Receitas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>',
-                'Alimentação': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-utensils"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 21v-5"/><path d="M17 11V2c0-1.1-.9-2-2-2h-4a2 2 0 0 0-2 2v9"/><path d="M15 21v-5"/></svg>',
-                'Transporte': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-car"><path d="M19 17H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 0 0 1-2 2z"/><circle cx="7" cy="13" r="1"/><circle cx="17" cy="13" r="1"/></svg>',
-                'Lazer': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gamepad"><path d="M6 12H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2z"/><path d="M18 12h2a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2z"/><path d="M12 18V6"/><path d="M22 12h-4"/><path d="M6 12H2"/><path d="M12 22v-4"/></svg>',
-                'Moradia': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-home"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
-                'Saúde': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-heart-pulse"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M3.2 12.8H6V20"/><path d="M12 20v-7.5H14L17 20"/></svg>',
-                'Educação': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>',
-                'Contas Fixas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-receipt"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2h-18z"/><path d="M8 7h8"/><path d="M8 12h8"/><path d="M8 17h8"/></svg>',
-                'Outras Despesas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus-circle"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/></svg>',
-                'Poupança para Metas': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-piggy-bank"><path d="M16 2H8a4 4 0 0 0-4 4v12a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4z"/><path d="M12 16a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>',
-                'Sem Categoria': '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>'
-            };
-            return icons[categoryName] || icons['Sem Categoria']; // Retorna o ícone mapeado ou um ícone padrão
-        }
-
         // Função para renderizar os ícones nas listas de orçamentos
         function renderCategoryIconsInLists() {
-            document.querySelectorAll('.category-icon').forEach(element => {
+            document.querySelectorAll('.category-icon-fa').forEach(element => {
                 const categoryName = element.dataset.categoryName;
-                element.innerHTML = getCategoryIconSvg(categoryName);
+                element.className = `category-icon-fa ${getIconForText(categoryName)}`;
             });
         }
 
