@@ -24,16 +24,92 @@
             color: #6b7280; /* Cor padrão cinza */
             font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
         }
+        /* Estilos para o menu lateral (sidebar) - Copiado do index.html */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px; /* Esconde o menu inicialmente */
+            width: 280px;
+            height: 100%;
+            background-color: white;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            z-index: 2000;
+            transition: left 0.3s ease-in-out;
+            padding-top: 4rem; /* Espaço para o cabeçalho */
+            overflow-y: auto; /* Adiciona scroll se o conteúdo for muito longo */
+        }
+        .sidebar.active {
+            left: 0; /* Mostra o menu */
+        }
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .sidebar-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Meus Orçamentos</h1>
+            <div class="flex items-center">
+                {% if current_user.is_authenticated %}
+                    <button type="button" onclick="toggleSidebar()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4 p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-8 w-8">
+                            <line x1="4" x2="20" y1="12" y2="12"/>
+                            <line x1="4" x2="20" y1="6" y2="6"/>
+                            <line x1="4" x2="20" y1="18" y2="18"/>
+                        </svg>
+                    </button>
+                {% endif %}
+                <h1 class="text-4xl font-bold text-gray-900">Meus Orçamentos</h1>
+            </div>
             <nav>
-                <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a>
+                {# Removido: <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a> #}
             </nav>
         </header>
+
+        <!-- Sidebar Menu -->
+        <div id="sidebar" class="sidebar">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
+                <nav class="space-y-3">
+                    <a href="{{ url_for('index') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Dashboard
+                    </a>
+                    <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Meu Perfil
+                    </a>
+                    <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Meus Orçamentos
+                    </a>
+                    <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Minhas Metas
+                    </a>
+                    <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Minhas Contas
+                    </a>
+                    <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Relatórios
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                        Sair
+                    </a>
+                </nav>
+            </div>
+        </div>
+        <!-- Overlay para fechar o sidebar ao clicar fora -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -473,6 +549,14 @@
 
         function closeEditBudgetModal() {
             document.getElementById('edit-budget-modal').classList.add('hidden');
+        }
+
+        // Funções para o novo menu lateral (sidebar) - Copiado do index.html
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
         }
     </script>
 </body>
