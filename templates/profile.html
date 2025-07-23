@@ -6,7 +6,6 @@
     <title>Perfil - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -154,7 +153,6 @@
             {# Removido: Botões de navegação direta #}
         </header>
 
-        <!-- Sidebar Menu -->
         <div id="sidebar" class="sidebar">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
@@ -183,7 +181,6 @@
                 </nav>
             </div>
         </div>
-        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
         
         <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
@@ -222,7 +219,7 @@
                 <div class="p-3 bg-blue-50 rounded-lg">Saldo: <br><span id="monthly-balance" class="font-bold text-blue-700 text-lg">R$ 0,00</span></div>
             </div>
 
-            <button onclick="getAiInsight()" class="w-full max-w-sm mx-auto bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
+            <button onclick="getAiInsight()" class="w-full max-w-sm mx-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded-md transition-colors flex items-center justify-center space-x-2">
                 <span id="ai-spinner" class="hidden loading-spinner"></span>
                 <span id="ai-button-text">Obter Insight da IA</span>
             </button>
