@@ -49,6 +49,13 @@ EMAIL_PASSWORD = os.getenv('EMAIL_PASSWORD')
 EMAIL_SERVER = os.getenv('EMAIL_SERVER', 'smtp.gmail.com')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 
+# --- DEBUG: Imprimir valores das variáveis de ambiente de e-mail ---
+print(f"DEBUG APP START: EMAIL_USERNAME: {'SET' if EMAIL_USERNAME else 'NOT SET'}")
+print(f"DEBUG APP START: EMAIL_PASSWORD: {'SET' if EMAIL_PASSWORD else 'NOT SET'}")
+print(f"DEBUG APP START: EMAIL_SERVER: {EMAIL_SERVER}")
+print(f"DEBUG APP START: EMAIL_PORT: {EMAIL_PORT}")
+# --- FIM DEBUG ---
+
 
 # --- Definição dos Modelos do Banco de Dados (ORM) ---
 
@@ -765,7 +772,7 @@ def generate_text_with_gemini(prompt_text):
         response = model.generate_content(prompt_text)
         return response.text
     except Exception as e:
-        print(f"Erro ao chamar Gemini API: {e}")
+        print(f"ERROR: Erro ao chamar Gemini API: {e}")
         return "Não foi possível gerar uma sugestão/resumo no momento. Verifique sua chave de API e conexão."
 
 # --- NOVAS FUNÇÕES PARA ORÇAMENTOS E METAS (DB operations) ---
@@ -894,7 +901,7 @@ def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicio
 
     if source_account.balance < amount_to_add:
         print(f"ERROR: Saldo insuficiente na conta {source_account.name} para contribuir com a meta {goal.name}.")
-        flash(f'Saldo insuficiente na conta {source_account.name} para contribuir com a meta "{goal.name}".', 'danger')
+        flash(f'Saldo insuficiente na conta {source_account.name} para pagar a conta "{goal.name}".', 'danger')
         return False
 
     if goal.current_amount + amount_to_add >= goal.target_amount:
@@ -1191,11 +1198,13 @@ def generate_recovery_code(length=6):
 def send_recovery_email(recipient_email, recovery_code):
     """Envia o código de recuperação para o e-mail do usuário."""
     if not EMAIL_USERNAME or not EMAIL_PASSWORD:
-        print("ERROR: Credenciais de email não configuradas. Não é possível enviar email de recuperação.")
+        print("ERROR: send_recovery_email - Credenciais de email (EMAIL_USERNAME ou EMAIL_PASSWORD) não configuradas. Verifique as variáveis de ambiente.")
         return False
 
     sender_email = EMAIL_USERNAME
     sender_password = EMAIL_PASSWORD
+    smtp_server = EMAIL_SERVER
+    smtp_port = EMAIL_PORT
 
     message = MIMEText(
         f"Seu código de recuperação de senha é: {recovery_code}\n"
@@ -1206,36 +1215,30 @@ def send_recovery_email(recipient_email, recovery_code):
     message["To"] = recipient_email
 
     try:
-        print(f"DEBUG: Tentando conectar a {EMAIL_SERVER}:{EMAIL_PORT} com usuário {sender_email}")
+        print(f"DEBUG: send_recovery_email - Tentando conectar a {smtp_server}:{smtp_port} com usuário {sender_email}")
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server: # Mudei para SMTP_SSL para a porta 465, que é mais comum para SSL
-            # Se a porta for 587, use smtplib.SMTP e server.starttls()
-            # Se a porta for 587, o código deve ser:
-            # with smtplib.SMTP(EMAIL_SERVER, EMAIL_PORT) as server:
-            #     server.starttls(context=context)
-            #     server.login(sender_email, sender_password)
-            #     server.sendmail(sender_email, recipient_email, message.as_string())
-            # Se a porta for 465, use smtplib.SMTP_SSL:
-            # with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server:
-            #     server.login(sender_email, sender_password)
-            #     server.sendmail(sender_email, recipient_email, message.as_string())
-
+        
+        # --- CORREÇÃO: Usar smtplib.SMTP com starttls() para a porta 587 ---
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls(context=context) # Inicia a criptografia TLS
             server.login(sender_email, sender_password)
-            print(f"DEBUG: Login SMTP bem-sucedido para {sender_email}")
+            print(f"DEBUG: send_recovery_email - Login SMTP bem-sucedido para {sender_email}")
             server.sendmail(sender_email, recipient_email, message.as_string())
-        print(f"DEBUG: Email de recuperação enviado para {recipient_email}")
+        # --- FIM CORREÇÃO ---
+
+        print(f"DEBUG: send_recovery_email - Email de recuperação enviado para {recipient_email}")
         return True
     except smtplib.SMTPAuthenticationError as auth_err:
-        print(f"ERROR: SMTPAuthenticationError - Falha de autenticação. Verifique usuário/senha de app: {auth_err}")
+        print(f"ERROR: send_recovery_email - SMTPAuthenticationError: Falha de autenticação. Verifique o EMAIL_USERNAME e a SENHA DE APLICAÇÃO (App Password) no Render. Erro: {auth_err}")
         return False
     except smtplib.SMTPServerDisconnected as disconnect_err:
-        print(f"ERROR: SMTPServerDisconnected - Servidor desconectado inesperadamente: {disconnect_err}")
+        print(f"ERROR: send_recovery_email - SMTPServerDisconnected: Servidor desconectado inesperadamente. Verifique EMAIL_SERVER e EMAIL_PORT. Erro: {disconnect_err}")
         return False
     except smtplib.SMTPException as smtp_err:
-        print(f"ERROR: SMTPException - Erro geral SMTP: {smtp_err}")
+        print(f"ERROR: send_recovery_email - SMTPException: Erro geral SMTP. Pode ser problema de conexão, firewall ou servidor SMTP. Erro: {smtp_err}")
         return False
     except Exception as e:
-        print(f"ERROR: Erro inesperado ao enviar email: {type(e).__name__} - {e}")
+        print(f"ERROR: send_recovery_email - Erro inesperado ao enviar email: {type(e).__name__} - {e}")
         return False
 
 
@@ -2098,7 +2101,7 @@ def suggest_budget_with_ai():
         
         flash('Orçamento sugerido pela IA foi criado! Revise e ajuste se necessário.', 'success')
     except Exception as e:
-        print(f"Erro ao processar sugestão da IA: {e}")
+        print(f"ERROR: Erro ao processar sugestão da IA: {e}")
         flash('Não foi possível gerar uma sugestão da IA no momento. Por favor, tente novamente mais tarde.', 'danger')
 
     return redirect(url_for('budgets_page'))
