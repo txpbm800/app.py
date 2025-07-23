@@ -38,64 +38,81 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
-        /* Oculta o antigo dropdown de usuário */
-        .user-menu-dropdown {
-            display: none !important;
+        /* Estilos para o menu lateral (sidebar) */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -280px; /* Esconde o menu inicialmente */
+            width: 280px;
+            height: 100%;
+            background-color: white;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            z-index: 2000;
+            transition: left 0.3s ease-in-out;
+            padding-top: 4rem; /* Espaço para o cabeçalho */
+            overflow-y: auto; /* Adiciona scroll se o conteúdo for muito longo */
         }
-
-        /* Estilos para o novo menu lateral (side menu) */
-        .side-menu-overlay {
+        .sidebar.active {
+            left: 0; /* Mostra o menu */
+        }
+        .sidebar-overlay {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
+            width: 100%;
+            height: 100%;
             background-color: rgba(0,0,0,0.5);
-            z-index: 1099;
+            z-index: 1999;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
         }
-        .side-menu-overlay.active {
+        .sidebar-overlay.active {
             opacity: 1;
             visibility: visible;
         }
-
-        .side-menu {
+        .modal {
             position: fixed;
+            z-index: 1050;
+            left: 0;
             top: 0;
-            left: 0; /* Começa da esquerda */
-            bottom: 0;
-            width: 280px; /* Largura do menu lateral */
-            background-color: #fefefe; /* Fundo branco */
-            z-index: 1100; /* Maior que o overlay */
-            transform: translateX(-100%); /* Inicialmente escondido para a esquerda */
-            transition: transform 0.3s ease-out;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
             display: flex;
-            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
         }
-        .side-menu.active {
-            transform: translateX(0); /* Desliza para dentro */
+        .modal.active {
+            visibility: visible;
+            opacity: 1;
         }
-
-        .close-side-menu-button {
+        .modal-content {
+            background-color: #fefefe;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+        .close-button {
             position: absolute;
             top: 1rem;
             right: 1.5rem;
-            font-size: 2rem; /* Maior para facilitar o toque */
+            font-size: 1.5rem;
             font-weight: bold;
             cursor: pointer;
             color: #aaa;
-            background: none;
-            border: none;
-            padding: 0;
-            line-height: 1;
         }
-        .close-side-menu-button:hover {
+        .close-button:hover {
             color: #333;
         }
-
         .list-scroll-area { 
             max-height: 300px;
             overflow-y: auto;
@@ -136,51 +153,17 @@
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
-    <!-- Overlay do Menu Lateral -->
-    <div id="side-menu-overlay" class="side-menu-overlay"></div>
-    
-    <!-- Menu de Navegação Lateral -->
-    <div id="side-menu" class="side-menu">
-        <button type="button" onclick="closeSideMenu()" class="close-side-menu-button">
-            &times;
-        </button>
-        <div class="p-6">
-            <h3 class="text-xl font-bold text-gray-900 mb-6">Navegação</h3>
-            <nav class="space-y-3">
-                <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                    Meu Perfil
-                </a>
-                <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                    Meus Orçamentos
-                </a>
-                <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                    Minhas Metas
-                </a>
-                <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                    Minhas Contas
-                </a>
-                <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                    Relatórios
-                </a>
-                {# Removido "Redefinir Senha" e "Apagar Conta" conforme solicitado #}
-                <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 rounded-md border-t border-gray-200 mt-4 pt-4">
-                    Sair
-                </a>
-            </nav>
-        </div>
-    </div>
-
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
             <div class="flex items-center">
                 {% if current_user.is_authenticated %}
-                    <button type="button" onclick="openSideMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4">
+                    <button type="button" onclick="toggleSidebar()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                     </button>
                 {% endif %}
                 <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
             </div>
-            <nav>
+            <nav class="relative">
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700">Olá, {{ current_user.username }}!</span>
                 {% else %}
@@ -189,6 +172,35 @@
                 {% endif %}
             </nav>
         </header>
+
+        <!-- Sidebar Menu -->
+        <div id="sidebar" class="sidebar">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
+                <nav class="space-y-3">
+                    <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Meu Perfil
+                    </a>
+                    <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Meus Orçamentos
+                    </a>
+                    <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Minhas Metas
+                    </a>
+                    <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Minhas Contas
+                    </a>
+                    <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        Relatórios
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                        Sair
+                    </a>
+                </nav>
+            </div>
+        </div>
+        <!-- Overlay para fechar o sidebar ao clicar fora -->
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         <div id="flash-messages-container" class="mb-6">
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -472,11 +484,8 @@
                     <div class="list-scroll-area">
                         <div class="space-y-4">
                             {% if not bills %}
-                                {# Ícone de check sem o círculo, maior e centralizado #}
-                                <div class="text-center py-8 flex flex-col items-center justify-center w-full">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check text-green-500 mb-3">
-                                        <polyline points="20 6 9 17 4 12"/>
-                                    </svg>
+                                <div class="text-center py-8 flex flex-col items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
                                     <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
                                 </div>
                             {% else %}
@@ -574,7 +583,7 @@
                                             + R$ {{ "%.2f"|format(transaction.amount) }}
                                         </span>
                                         <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -606,7 +615,7 @@
                                             - R$ {{ "%.2f"|format(transaction.amount) }}
                                         </span>
                                         <button type="button" onclick="openEditModal('transaction', {{ transaction.id }})" class="text-gray-400 hover:text-blue-600">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.00 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                                         </button>
                                     </div>
                                 </div>
@@ -619,7 +628,7 @@
     </div>
 
     {# Modal de Edição de Transação/Conta #}
-    <div id="edit-modal" class="modal hidden"> {# Adicionado 'hidden' #}
+    <div id="edit-modal" class="modal">
         <div class="modal-content">
             <span class="close-button" onclick="closeEditModal()">&times;</span>
             <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
@@ -683,7 +692,7 @@
     </div>
 
     {# NOVO MODAL: Confirmar Pagamento de Conta #}
-    <div id="pay-bill-modal" class="modal hidden"> {# Adicionado 'hidden' #}
+    <div id="pay-bill-modal" class="modal">
         <div class="modal-content">
             <span class="close-button" onclick="closePayBillModal()">&times;</span>
             <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Confirmar Pagamento</h3>
@@ -1076,7 +1085,6 @@
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
             selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
-            console.log(`DEBUG: populateAccounts - allAccounts:`, allAccounts); // Debugging accounts data
             allAccounts.forEach(account => {
                 const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
                 if (selectedAccountId && account.id === selectedAccountId) {
@@ -1120,32 +1128,15 @@
             arrow.classList.toggle('rotated');
         }
 
-        // Funções para o novo menu lateral
-        function openSideMenu() {
-            document.getElementById('side-menu').classList.add('active');
-            document.getElementById('side-menu-overlay').classList.add('active');
+        // Funções para o novo menu lateral (sidebar)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
         }
 
-        function closeSideMenu() {
-            document.getElementById('side-menu').classList.remove('active');
-            document.getElementById('side-menu-overlay').classList.remove('active');
-        }
-
-        // Event listener para fechar o menu lateral ao clicar no overlay
-        document.getElementById('side-menu-overlay').addEventListener('click', () => {
-            closeSideMenu();
-        });
-
-        // Função para fechar TODOS os modais abertos
-        function closeAllModals() {
-            console.log("DEBUG: Fechando todos os modais.");
-            document.getElementById('edit-modal').classList.remove('active');
-            document.getElementById('edit-modal').classList.add('hidden'); // Garante que o modal de edição esteja hidden
-            document.getElementById('pay-bill-modal').classList.remove('active');
-            document.getElementById('pay-bill-modal').classList.add('hidden'); // Garante que o modal de pagamento esteja hidden
-            // Adicione aqui qualquer outro modal que possa estar aberto
-        }
-
+        // Nova função para controlar a visibilidade do campo de meta
         function updateGoalFieldVisibility(categorySelectId, goalContainerId, goalSelectId) {
             const categorySelect = document.getElementById(categorySelectId);
             const goalContainer = document.getElementById(goalContainerId);
@@ -1172,9 +1163,7 @@
         const editModalTitle = document.getElementById('edit-modal-title');
 
         async function openEditModal(type, id) {
-            console.log(`DEBUG: Abrindo modal de edição para tipo: ${type}, ID: ${id}`);
-            closeAllModals(); // Garante que todos os outros modais estejam fechados
-
+            editModal.classList.add('active');
             editTransactionForm.classList.add('hidden');
             editBillForm.classList.add('hidden');
 
@@ -1183,7 +1172,6 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Falha ao buscar dados');
                 const data = await response.json();
-                console.log("DEBUG: Dados recebidos para edição:", data);
 
                 if (type === 'transaction') {
                     editModalTitle.textContent = 'Editar Transação';
@@ -1212,8 +1200,6 @@
                     editBillForm.action = `/edit_bill/${id}`;
                     editBillForm.classList.remove('hidden');
                 }
-                editModal.classList.remove('hidden'); // Remove hidden antes de adicionar active para transição
-                editModal.classList.add('active'); // Ativa o modal após preencher os dados
             } catch (error) {
                 console.error('Erro ao abrir modal de edição:', error);
                 // Usar um modal customizado ou flash message em vez de alert
@@ -1223,9 +1209,7 @@
         }
 
         function closeEditModal() {
-            console.log("DEBUG: Fechando modal de edição.");
             editModal.classList.remove('active');
-            editModal.classList.add('hidden'); // Adiciona hidden para ocultar completamente
         }
 
         window.onclick = function(event) {
@@ -1270,9 +1254,6 @@
         const paymentAccountSelect = document.getElementById('payment_account_id');
 
         function openPayBillModal(billId, description, amount) {
-            console.log(`DEBUG: Abrindo modal de pagamento para Bill ID: ${billId}`);
-            closeAllModals(); // Garante que todos os outros modais estejam fechados
-
             payBillIdInput.value = billId;
             payBillDescription.textContent = description;
             payBillAmountDisplay.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
@@ -1281,14 +1262,11 @@
             // Popula o dropdown de contas no modal de pagamento
             populateAccounts(paymentAccountSelect.id); // Reutiliza a função populateAccounts
             
-            payBillModal.classList.remove('hidden'); // Remove hidden antes de adicionar active para transição
             payBillModal.classList.add('active');
         }
 
         function closePayBillModal() {
-            console.log("DEBUG: Fechando modal de pagamento.");
             payBillModal.classList.remove('active');
-            payBillModal.classList.add('hidden'); // Adiciona hidden para ocultar completamente
             paymentAccountSelect.value = ''; // Limpa a seleção da conta
         }
 
