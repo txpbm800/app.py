@@ -523,10 +523,22 @@
                 link.classList.add('text-gray-800'); // Garante a cor padrão
 
                 // Adiciona destaque se o href do link corresponder ao caminho atual
-                // Usa startsWith para lidar com rotas como /profile/monthly_summary
-                if (currentPath.startsWith(link.getAttribute('href'))) {
-                    link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
-                    link.classList.remove('text-gray-800');
+                // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
+                if (link.getAttribute('href') === '{{ url_for("index") }}') {
+                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
+                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
+                        link.classList.remove('text-gray-800');
+                    }
+                } else if (currentPath.startsWith(link.getAttribute('href'))) {
+                    // Para outras páginas, usa startsWith, mas com uma verificação mais rigorosa
+                    // para evitar que /profile/monthly_summary destaque apenas /profile
+                    // Verifica se o caminho do link é um prefixo do caminho atual E
+                    // que o próximo caractere após o prefixo seja '/' ou o final da string
+                    const linkHref = link.getAttribute('href');
+                    if (currentPath === linkHref || (currentPath.startsWith(linkHref) && currentPath.charAt(linkHref.length) === '/')) {
+                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
+                        link.classList.remove('text-gray-800');
+                    }
                 }
             });
         }
