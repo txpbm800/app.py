@@ -619,7 +619,7 @@
     </div>
 
     {# Modal de Edição de Transação/Conta #}
-    <div id="edit-modal" class="modal">
+    <div id="edit-modal" class="modal hidden"> {# Adicionado 'hidden' #}
         <div class="modal-content">
             <span class="close-button" onclick="closeEditModal()">&times;</span>
             <h3 id="edit-modal-title" class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Item</h3>
@@ -683,7 +683,7 @@
     </div>
 
     {# NOVO MODAL: Confirmar Pagamento de Conta #}
-    <div id="pay-bill-modal" class="modal">
+    <div id="pay-bill-modal" class="modal hidden"> {# Adicionado 'hidden' #}
         <div class="modal-content">
             <span class="close-button" onclick="closePayBillModal()">&times;</span>
             <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Confirmar Pagamento</h3>
@@ -1140,7 +1140,9 @@
         function closeAllModals() {
             console.log("DEBUG: Fechando todos os modais.");
             document.getElementById('edit-modal').classList.remove('active');
+            document.getElementById('edit-modal').classList.add('hidden'); // Garante que o modal de edição esteja hidden
             document.getElementById('pay-bill-modal').classList.remove('active');
+            document.getElementById('pay-bill-modal').classList.add('hidden'); // Garante que o modal de pagamento esteja hidden
             // Adicione aqui qualquer outro modal que possa estar aberto
         }
 
@@ -1210,6 +1212,7 @@
                     editBillForm.action = `/edit_bill/${id}`;
                     editBillForm.classList.remove('hidden');
                 }
+                editModal.classList.remove('hidden'); // Remove hidden antes de adicionar active para transição
                 editModal.classList.add('active'); // Ativa o modal após preencher os dados
             } catch (error) {
                 console.error('Erro ao abrir modal de edição:', error);
@@ -1222,6 +1225,7 @@
         function closeEditModal() {
             console.log("DEBUG: Fechando modal de edição.");
             editModal.classList.remove('active');
+            editModal.classList.add('hidden'); // Adiciona hidden para ocultar completamente
         }
 
         window.onclick = function(event) {
@@ -1277,12 +1281,14 @@
             // Popula o dropdown de contas no modal de pagamento
             populateAccounts(paymentAccountSelect.id); // Reutiliza a função populateAccounts
             
+            payBillModal.classList.remove('hidden'); // Remove hidden antes de adicionar active para transição
             payBillModal.classList.add('active');
         }
 
         function closePayBillModal() {
             console.log("DEBUG: Fechando modal de pagamento.");
             payBillModal.classList.remove('active');
+            payBillModal.classList.add('hidden'); // Adiciona hidden para ocultar completamente
             paymentAccountSelect.value = ''; // Limpa a seleção da conta
         }
 
