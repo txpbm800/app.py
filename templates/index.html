@@ -38,68 +38,64 @@
         .arrow-icon.rotated {
             transform: rotate(180deg);
         }
+        /* Oculta o antigo dropdown de usuário */
         .user-menu-dropdown {
-            position: absolute;
-            right: 0;
-            top: 100%;
-            background-color: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            z-index: 1000;
-            min-width: 180px;
-            overflow: hidden;
-            transform: translateY(10px);
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease-out, transform 0.2s ease-out, visibility 0.2s ease-out;
+            display: none !important;
         }
-        .user-menu-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .modal {
+
+        /* Estilos para o novo menu lateral (side menu) */
+        .side-menu-overlay {
             position: fixed;
-            z-index: 1050;
-            left: 0;
             top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 1rem;
-            visibility: hidden;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1099;
             opacity: 0;
-            transition: visibility 0.3s, opacity 0.3s;
+            visibility: hidden;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
         }
-        .modal.active {
-            visibility: visible;
+        .side-menu-overlay.active {
             opacity: 1;
+            visibility: visible;
         }
-        .modal-content {
-            background-color: #fefefe;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 500px;
-            position: relative;
+
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: 0; /* Começa da esquerda */
+            bottom: 0;
+            width: 280px; /* Largura do menu lateral */
+            background-color: #fefefe; /* Fundo branco */
+            z-index: 1100; /* Maior que o overlay */
+            transform: translateX(-100%); /* Inicialmente escondido para a esquerda */
+            transition: transform 0.3s ease-out;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
         }
-        .close-button {
+        .side-menu.active {
+            transform: translateX(0); /* Desliza para dentro */
+        }
+
+        .close-side-menu-button {
             position: absolute;
             top: 1rem;
             right: 1.5rem;
-            font-size: 1.5rem;
+            font-size: 2rem; /* Maior para facilitar o toque */
             font-weight: bold;
             cursor: pointer;
             color: #aaa;
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1;
         }
-        .close-button:hover {
+        .close-side-menu-button:hover {
             color: #333;
         }
+
         .list-scroll-area { 
             max-height: 300px;
             overflow-y: auto;
@@ -140,44 +136,53 @@
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <!-- Overlay do Menu Lateral -->
+    <div id="side-menu-overlay" class="side-menu-overlay"></div>
+    
+    <!-- Menu de Navegação Lateral -->
+    <div id="side-menu" class="side-menu">
+        <button type="button" onclick="closeSideMenu()" class="close-side-menu-button">
+            &times;
+        </button>
+        <div class="p-6">
+            <h3 class="text-xl font-bold text-gray-900 mb-6">Navegação</h3>
+            <nav class="space-y-3">
+                <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    Meu Perfil
+                </a>
+                <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    Meus Orçamentos
+                </a>
+                <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    Minhas Metas
+                </a>
+                <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    Minhas Contas
+                </a>
+                <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    Relatórios
+                </a>
+                {# Removido "Redefinir Senha" e "Apagar Conta" conforme solicitado #}
+                <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 rounded-md border-t border-gray-200 mt-4 pt-4">
+                    Sair
+                </a>
+            </nav>
+        </div>
+    </div>
+
     <div class="max-w-7xl mx-auto">
         <header class="flex justify-between items-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
-            <nav class="relative">
+            <div class="flex items-center">
                 {% if current_user.is_authenticated %}
-                    <span class="text-gray-700 mr-4">Olá, {{ current_user.username }}!</span>
-                    
-                    <button type="button" onclick="toggleUserMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 ml-2">
+                    <button type="button" onclick="openSideMenu()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-6 w-6"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
                     </button>
-
-                    <div id="user-menu" class="user-menu-dropdown">
-                        <a href="{{ url_for('profile') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Meu Perfil
-                        </a>
-                        <a href="{{ url_for('budgets_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Meus Orçamentos
-                        </a>
-                        <a href="{{ url_for('goals_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Minhas Metas
-                        </a>
-                        <a href="{{ url_for('accounts_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Minhas Contas
-                        </a>
-                        <a href="{{ url_for('reports_page') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Relatórios
-                        </a>
-                        <a href="{{ url_for('change_password') }}" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">
-                            Redefinir Senha
-                        </a>
-                        <a href="{{ url_for('delete_account_user') }}" class="block px-4 py-2 text-red-600 hover:bg-red-50">
-                            Apagar Conta
-                        </a>
-                        <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200">
-                            Sair
-                        </a>
-                    </div>
-
+                {% endif %}
+                <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
+            </div>
+            <nav>
+                {% if current_user.is_authenticated %}
+                    <span class="text-gray-700">Olá, {{ current_user.username }}!</span>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Login</a>
                     <a href="{{ url_for('register') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Registrar</a>
@@ -467,7 +472,7 @@
                     <div class="list-scroll-area">
                         <div class="space-y-4">
                             {% if not bills %}
-                                {# CORREÇÃO: Ícone de check sem o círculo, maior e centralizado #}
+                                {# Ícone de check sem o círculo, maior e centralizado #}
                                 <div class="text-center py-8 flex flex-col items-center justify-center w-full">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check text-green-500 mb-3">
                                         <polyline points="20 6 9 17 4 12"/>
@@ -1114,19 +1119,38 @@
             arrow.classList.toggle('rotated');
         }
 
-        function toggleUserMenu() {
-            document.getElementById('user-menu').classList.toggle('active');
+        // Funções para o novo menu lateral
+        function openSideMenu() {
+            document.getElementById('side-menu').classList.add('active');
+            document.getElementById('side-menu-overlay').classList.add('active');
         }
 
-        document.addEventListener('click', (event) => {
-            const userMenu = document.getElementById('user-menu');
-            const menuButton = document.querySelector('header nav button');
-            if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
-                userMenu.classList.remove('active');
-            }
+        function closeSideMenu() {
+            document.getElementById('side-menu').classList.remove('active');
+            document.getElementById('side-menu-overlay').classList.remove('active');
+        }
+
+        // Event listener para fechar o menu lateral ao clicar no overlay
+        document.getElementById('side-menu-overlay').addEventListener('click', () => {
+            closeSideMenu();
         });
 
-        // Nova função para controlar a visibilidade do campo de meta
+        // Ocultar o antigo toggleUserMenu, já que o botão agora chama openSideMenu diretamente
+        // function toggleUserMenu() {
+        //     // Esta função não é mais necessária se o botão de menu chamar openSideMenu diretamente
+        // }
+
+
+        // Removido o antigo event listener para o dropdown de usuário
+        // document.addEventListener('click', (event) => {
+        //     const userMenu = document.getElementById('user-menu');
+        //     const menuButton = document.querySelector('header nav button');
+        //     if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
+        //         userMenu.classList.remove('active');
+        //     }
+        // });
+
+
         function updateGoalFieldVisibility(categorySelectId, goalContainerId, goalSelectId) {
             const categorySelect = document.getElementById(categorySelectId);
             const goalContainer = document.getElementById(goalContainerId);
