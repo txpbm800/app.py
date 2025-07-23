@@ -1206,14 +1206,36 @@ def send_recovery_email(recipient_email, recovery_code):
     message["To"] = recipient_email
 
     try:
+        print(f"DEBUG: Tentando conectar a {EMAIL_SERVER}:{EMAIL_PORT} com usuário {sender_email}")
         context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server:
+        with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server: # Mudei para SMTP_SSL para a porta 465, que é mais comum para SSL
+            # Se a porta for 587, use smtplib.SMTP e server.starttls()
+            # Se a porta for 587, o código deve ser:
+            # with smtplib.SMTP(EMAIL_SERVER, EMAIL_PORT) as server:
+            #     server.starttls(context=context)
+            #     server.login(sender_email, sender_password)
+            #     server.sendmail(sender_email, recipient_email, message.as_string())
+            # Se a porta for 465, use smtplib.SMTP_SSL:
+            # with smtplib.SMTP_SSL(EMAIL_SERVER, EMAIL_PORT, context=context) as server:
+            #     server.login(sender_email, sender_password)
+            #     server.sendmail(sender_email, recipient_email, message.as_string())
+
             server.login(sender_email, sender_password)
+            print(f"DEBUG: Login SMTP bem-sucedido para {sender_email}")
             server.sendmail(sender_email, recipient_email, message.as_string())
         print(f"DEBUG: Email de recuperação enviado para {recipient_email}")
         return True
+    except smtplib.SMTPAuthenticationError as auth_err:
+        print(f"ERROR: SMTPAuthenticationError - Falha de autenticação. Verifique usuário/senha de app: {auth_err}")
+        return False
+    except smtplib.SMTPServerDisconnected as disconnect_err:
+        print(f"ERROR: SMTPServerDisconnected - Servidor desconectado inesperadamente: {disconnect_err}")
+        return False
+    except smtplib.SMTPException as smtp_err:
+        print(f"ERROR: SMTPException - Erro geral SMTP: {smtp_err}")
+        return False
     except Exception as e:
-        print(f"ERROR: Falha ao enviar email de recuperação para {recipient_email}: {e}")
+        print(f"ERROR: Erro inesperado ao enviar email: {type(e).__name__} - {e}")
         return False
 
 
