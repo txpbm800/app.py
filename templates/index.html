@@ -1076,6 +1076,7 @@
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
             selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
+            console.log(`DEBUG: populateAccounts - allAccounts:`, allAccounts); // Debugging accounts data
             allAccounts.forEach(account => {
                 const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
                 if (selectedAccountId && account.id === selectedAccountId) {
@@ -1135,21 +1136,13 @@
             closeSideMenu();
         });
 
-        // Ocultar o antigo toggleUserMenu, já que o botão agora chama openSideMenu diretamente
-        // function toggleUserMenu() {
-        //     // Esta função não é mais necessária se o botão de menu chamar openSideMenu diretamente
-        // }
-
-
-        // Removido o antigo event listener para o dropdown de usuário
-        // document.addEventListener('click', (event) => {
-        //     const userMenu = document.getElementById('user-menu');
-        //     const menuButton = document.querySelector('header nav button');
-        //     if (userMenu && userMenu.classList.contains('active') && !userMenu.contains(event.target) && (!menuButton || !menuButton.contains(event.target))) {
-        //         userMenu.classList.remove('active');
-        //     }
-        // });
-
+        // Função para fechar TODOS os modais abertos
+        function closeAllModals() {
+            console.log("DEBUG: Fechando todos os modais.");
+            document.getElementById('edit-modal').classList.remove('active');
+            document.getElementById('pay-bill-modal').classList.remove('active');
+            // Adicione aqui qualquer outro modal que possa estar aberto
+        }
 
         function updateGoalFieldVisibility(categorySelectId, goalContainerId, goalSelectId) {
             const categorySelect = document.getElementById(categorySelectId);
@@ -1177,7 +1170,9 @@
         const editModalTitle = document.getElementById('edit-modal-title');
 
         async function openEditModal(type, id) {
-            editModal.classList.add('active');
+            console.log(`DEBUG: Abrindo modal de edição para tipo: ${type}, ID: ${id}`);
+            closeAllModals(); // Garante que todos os outros modais estejam fechados
+
             editTransactionForm.classList.add('hidden');
             editBillForm.classList.add('hidden');
 
@@ -1186,6 +1181,7 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('Falha ao buscar dados');
                 const data = await response.json();
+                console.log("DEBUG: Dados recebidos para edição:", data);
 
                 if (type === 'transaction') {
                     editModalTitle.textContent = 'Editar Transação';
@@ -1214,6 +1210,7 @@
                     editBillForm.action = `/edit_bill/${id}`;
                     editBillForm.classList.remove('hidden');
                 }
+                editModal.classList.add('active'); // Ativa o modal após preencher os dados
             } catch (error) {
                 console.error('Erro ao abrir modal de edição:', error);
                 // Usar um modal customizado ou flash message em vez de alert
@@ -1223,6 +1220,7 @@
         }
 
         function closeEditModal() {
+            console.log("DEBUG: Fechando modal de edição.");
             editModal.classList.remove('active');
         }
 
@@ -1268,6 +1266,9 @@
         const paymentAccountSelect = document.getElementById('payment_account_id');
 
         function openPayBillModal(billId, description, amount) {
+            console.log(`DEBUG: Abrindo modal de pagamento para Bill ID: ${billId}`);
+            closeAllModals(); // Garante que todos os outros modais estejam fechados
+
             payBillIdInput.value = billId;
             payBillDescription.textContent = description;
             payBillAmountDisplay.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
@@ -1280,6 +1281,7 @@
         }
 
         function closePayBillModal() {
+            console.log("DEBUG: Fechando modal de pagamento.");
             payBillModal.classList.remove('active');
             paymentAccountSelect.value = ''; // Limpa a seleção da conta
         }
