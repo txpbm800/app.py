@@ -61,8 +61,17 @@
         .text-gray-900 { color: var(--text-color-light); }
         html.dark .text-gray-900 { color: var(--text-color-dark); }
 
-        .text-gray-700 { color: var(--sidebar-text-light); }
+        .text-gray-800 { color: #1f2937; } /* Tailwind gray-800 */
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; } /* Tailwind gray-700 */
         html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; } /* Tailwind gray-600 */
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
+        html.dark .text-gray-500 { color: #A7B6D8; }
 
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { border-color: var(--input-border-dark); }
@@ -186,9 +195,6 @@
             visibility: visible;
         }
         /* Ajustes de cores para elementos no modo escuro */
-        html.dark .text-gray-800 { color: var(--text-color-dark); }
-        html.dark .text-gray-600 { color: #A7B6D8; }
-        html.dark .text-gray-500 { color: #A7B6D8; }
         html.dark .p-4.bg-gray-100 { background-color: #2D3A54; }
         html.dark .border-gray-200 { border-color: #374762; }
 
@@ -327,6 +333,7 @@
         </div>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>
@@ -443,8 +450,8 @@
                 // Limpa gráficos e insights em caso de erro
                 if (expensesByCategoryChartInstance) expensesByCategoryChartInstance.destroy();
                 if (netWorthEvolutionChartInstance) netWorthEvolutionChartInstance.destroy();
-                document.getElementById('expensesByCategoryEmpty').classList.remove('hidden');
-                document.getElementById('netWorthEvolutionEmpty').classList.remove('hidden');
+                document.getElementById('expensesByCategoryEmpty').classList.add('hidden');
+                document.getElementById('netWorthEvolutionEmpty').classList.add('hidden');
                 document.getElementById('ai-report-insight-output').textContent = 'Não foi possível gerar o relatório. Verifique os filtros e o console para detalhes.';
             }
         }

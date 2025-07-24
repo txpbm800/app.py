@@ -61,8 +61,17 @@
         .text-gray-900 { color: var(--text-color-light); }
         html.dark .text-gray-900 { color: var(--text-color-dark); }
 
-        .text-gray-700 { color: var(--sidebar-text-light); }
+        .text-gray-800 { color: #1f2937; } /* Tailwind gray-800 */
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; } /* Tailwind gray-700 */
         html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; } /* Tailwind gray-600 */
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
+        html.dark .text-gray-500 { color: #A7B6D8; }
 
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { border-color: var(--input-border-dark); }
@@ -162,7 +171,7 @@
             background-color: #374762; /* Cor do hover no modo escuro */
         }
         html.dark .month-selector span {
-            color: #E0E7FF;
+            color: var(--text-color-dark);
         }
         .chart-container {
             position: relative;
@@ -225,7 +234,7 @@
             color: #aaa;
         }
         html.dark .close-button-chart {
-            color: #E0E7FF;
+            color: var(--text-color-dark);
         }
         .close-button-chart:hover {
             color: #333;
@@ -272,9 +281,6 @@
         html.dark .text-blue-700 { color: #A7B6D8; }
         html.dark .bg-gray-100 { background-color: #2D3A54; }
         html.dark .border-gray-200 { border-color: #374762; }
-        html.dark .text-gray-800 { color: var(--text-color-dark); }
-        html.dark .text-gray-600 { color: #A7B6D8; }
-        html.dark .text-gray-500 { color: #A7B6D8; }
 
     </style>
 </head>
@@ -415,6 +421,7 @@
         </div>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>

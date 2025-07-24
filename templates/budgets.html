@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Orçamentos - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -60,8 +61,17 @@
         .text-gray-900 { color: var(--text-color-light); }
         html.dark .text-gray-900 { color: var(--text-color-dark); }
 
-        .text-gray-700 { color: var(--sidebar-text-light); }
+        .text-gray-800 { color: #1f2937; } /* Tailwind gray-800 */
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; } /* Tailwind gray-700 */
         html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; } /* Tailwind gray-600 */
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
+        html.dark .text-gray-500 { color: #A7B6D8; }
 
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { border-color: var(--input-border-dark); }
@@ -135,7 +145,7 @@
             font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
         }
         html.dark .category-icon-fa {
-            color: #A7B6D8; /* Cor para ícone no modo escuro */
+            color: var(--text-color-dark); /* Cor para ícone no modo escuro */
         }
         /* Ajustes para as cores dos cards de orçamento */
         .bg-gray-50 { background-color: #f9fafb; } /* Tailwind gray-50 */
@@ -165,6 +175,7 @@
             </nav>
         </header>
 
+        <!-- Sidebar Menu -->
         <div id="sidebar" class="sidebar">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
@@ -193,6 +204,7 @@
                 </nav>
             </div>
         </div>
+        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -236,6 +248,7 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-6">
+            <!-- FUNCIONALIDADE: Navegação de Mês -->
             <div class="flex justify-between items-center mb-4">
                 <a href="{{ url_for('budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
                     <span class="text-gray-800"> &lt; Mês Anterior</span>
@@ -286,6 +299,7 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Orçamento -->
     <div id="edit-budget-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -322,6 +336,7 @@
         </div>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>
@@ -637,7 +652,6 @@
                 }
             });
 
-            // Código para remover as mensagens flash
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
@@ -647,30 +661,67 @@
                 }, 4000);
             });
 
-            // Renderiza os ícones nas listas de orçamentos
-            renderCategoryIconsInLists();
             highlightCurrentPage(); // Chamada para destacar a página atual
         });
 
-        // Função para renderizar os ícones nas listas de orçamentos
-        function renderCategoryIconsInLists() {
-            document.querySelectorAll('.category-icon-fa').forEach(element => {
-                const categoryName = element.dataset.categoryName;
-                element.className = `category-icon-fa ${getIconForText(categoryName)}`;
+        function openContributeModal(id, name) {
+            document.getElementById('contribute_goal_id').value = id;
+            document.getElementById('contribute_goal_name').textContent = name;
+            document.getElementById('contribute_form').action = `/contribute_to_goal/${id}`;
+            
+            // Popula o dropdown de contas no modal de contribuição
+            populateAccounts('source_account_id'); // Reutiliza a função populateAccounts
+            
+            document.getElementById('contribute-modal').classList.add('active');
+        }
+
+        function closeContributeModal() {
+            document.getElementById('contribute-modal').classList.remove('active');
+            document.getElementById('contribute_amount').value = ''; // Clear input
+            document.getElementById('source_account_id').value = ''; // Limpa a seleção da conta
+        }
+
+        function openEditGoalModal(id, name, targetAmount, currentAmount, dueDate, status) {
+            document.getElementById('edit_goal_id').value = id;
+            document.getElementById('edit_goal_name_display').textContent = name;
+            document.getElementById('edit_goal_name').value = name;
+            document.getElementById('edit_goal_target_amount').value = targetAmount;
+            document.getElementById('edit_goal_current_amount').value = currentAmount;
+            document.getElementById('edit_goal_due_date').value = dueDate;
+            document.getElementById('edit_goal_status').value = status;
+            document.getElementById('edit_goal_form').action = `/edit_goal/${id}`;
+            document.getElementById('edit-goal-modal').classList.remove('hidden');
+        }
+
+        function closeEditGoalModal() {
+            document.getElementById('edit-goal-modal').classList.add('hidden');
+        }
+
+        // Reutiliza a função populateAccounts do index.html
+        function populateAccounts(selectElementId, selectedAccountId = null) {
+            const selectElement = document.getElementById(selectElementId);
+            if (!selectElement) return;
+            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
+            allAccounts.forEach(account => {
+                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
+                if (selectedAccountId && account.id === selectedAccountId) {
+                    option.selected = true;
+                }
+                selectElement.add(option);
             });
+            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
+            if (!selectedAccountId && allAccounts.length === 1) {
+                selectElement.value = allAccounts[0].id;
+            }
         }
 
-        function openEditBudgetModal(id, categoryName, budgetAmount) {
-            document.getElementById('edit_budget_id').value = id;
-            document.getElementById('edit_budget_category_name').textContent = categoryName;
-            document.getElementById('edit_budget_amount').value = budgetAmount;
-            document.getElementById('edit_budget_form').action = `/edit_budget/${id}`;
-            document.getElementById('edit-budget-modal').classList.remove('hidden');
-        }
-
-        function closeEditBudgetModal() {
-            document.getElementById('edit-budget-modal').classList.add('hidden');
-        }
+        // Adiciona o fechamento do modal de contribuição ao clicar fora
+        const contributeModal = document.getElementById('contribute-modal');
+        window.addEventListener('click', (event) => {
+            if (event.target == contributeModal) {
+                closeContributeModal();
+            }
+        });
 
         // Funções para o novo menu lateral (sidebar)
         function toggleSidebar() {

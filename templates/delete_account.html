@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Apagar Conta - Gestão Financeira Pessoal</title>
+    <!-- Inclui Tailwind CSS via CDN para estilização rápida -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -63,8 +64,17 @@
         .text-gray-900 { color: var(--text-color-light); }
         html.dark .text-gray-900 { color: var(--text-color-dark); }
 
-        .text-gray-700 { color: var(--sidebar-text-light); }
+        .text-gray-800 { color: #1f2937; } /* Tailwind gray-800 */
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; } /* Tailwind gray-700 */
         html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; } /* Tailwind gray-600 */
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
+        html.dark .text-gray-500 { color: #A7B6D8; }
 
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { border-color: var(--input-border-dark); }
@@ -142,6 +152,7 @@
             {% endif %}
         {% endwith %}
 
+        <!-- CORREÇÃO: Ação do formulário corrigida de 'delete_account' para 'delete_account_user' -->
         <form method="POST" action="{{ url_for('delete_account_user') }}" class="space-y-6">
             <div>
                 <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirme sua Senha para Continuar</label>
@@ -158,6 +169,7 @@
         </p>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>

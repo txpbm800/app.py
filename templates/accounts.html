@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minhas Contas - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -60,8 +61,17 @@
         .text-gray-900 { color: var(--text-color-light); }
         html.dark .text-gray-900 { color: var(--text-color-dark); }
 
-        .text-gray-700 { color: var(--sidebar-text-light); }
+        .text-gray-800 { color: #1f2937; } /* Tailwind gray-800 */
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; } /* Tailwind gray-700 */
         html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; } /* Tailwind gray-600 */
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
+        html.dark .text-gray-500 { color: #A7B6D8; }
 
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { border-color: var(--input-border-dark); }
@@ -161,7 +171,7 @@
             color: #aaa;
         }
         html.dark .close-button {
-            color: #E0E7FF; /* Cor para o botão fechar no modo escuro */
+            color: var(--text-color-dark); /* Cor para o botão fechar no modo escuro */
         }
         .close-button:hover {
             color: #333;
@@ -199,6 +209,12 @@
             opacity: 1;
             visibility: visible;
         }
+        /* Ajustes para as cores dos cards de conta */
+        .bg-gray-50 { background-color: #f9fafb; } /* Tailwind gray-50 */
+        html.dark .bg-gray-50 { background-color: #2D3A54; } /* Um tom mais escuro para o card no dark mode */
+
+        .border-gray-200 { border-color: #e5e7eb; }
+        html.dark .border-gray-200 { border-color: #374762; } /* Borda mais escura no dark mode */
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -223,6 +239,7 @@
             </nav>
         </header>
 
+        <!-- Sidebar Menu -->
         <div id="sidebar" class="sidebar">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
@@ -251,6 +268,7 @@
                 </nav>
             </div>
         </div>
+        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -365,6 +383,7 @@
         </div>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>
@@ -407,7 +426,7 @@
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.transition = 'opacity 1.5s ease-out'; /* Aumentado para 1.5s */
                     message.style.opacity = '0';
                     message.addEventListener('transitionend', () => message.remove());
                 }, 4000);
