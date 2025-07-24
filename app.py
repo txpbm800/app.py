@@ -2268,7 +2268,7 @@ def export_report(format):
                 goal_name
             ])
         
-        # Adicionar resumo de despesas por categoria
+               # Adicionar resumo de despesas por categoria
         if report_data['expenses_by_category_chart']['labels']:
             sheet.append([]) # Linha em branco para separação
             sheet.append(["Despesas por Categoria"])
@@ -2293,13 +2293,13 @@ def export_report(format):
         pdf.add_page()
         pdf.set_font("Arial", size = 12)
 
-        pdf.cell(200, 10, txt = f"Relatório Financeiro de {start_date_str} a {end_date_str}", ln = True, align = 'C')
+        pdf.cell(200, 10, text = f"Relatório Financeiro de {start_date_str} a {end_date_str}", new_x="LMARGIN", new_y="NEXT", align = 'C')
         pdf.ln(10)
 
         # Detalhes das Transações
         if filtered_transactions:
             pdf.set_font("Arial", size = 10, style='B')
-            pdf.cell(0, 10, txt="Transações Detalhadas:", ln=True)
+            pdf.cell(0, 10, text="Transações Detalhadas:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", size = 8)
             
             # Cabeçalho da tabela
@@ -2323,31 +2323,32 @@ def export_report(format):
                 pdf.cell(col_widths[5], 7, account_name, 1)
                 pdf.ln()
         else:
-            pdf.cell(0, 10, txt="Nenhuma transação encontrada para os filtros selecionados.", ln=True)
+            pdf.cell(0, 10, text="Nenhuma transação encontrada para os filtros selecionados.", new_x="LMARGIN", new_y="NEXT")
         
         pdf.ln(10)
 
         # Resumo de Despesas por Categoria
         if report_data['expenses_by_category_chart']['labels']:
             pdf.set_font("Arial", size = 10, style='B')
-            pdf.cell(0, 10, txt="Despesas por Categoria:", ln=True)
+            pdf.cell(0, 10, text="Despesas por Categoria:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", size = 8)
             for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
                 value = report_data['expenses_by_category_chart']['values'][i]
-                pdf.cell(0, 7, txt=f"{label}: R$ {value:.2f}", ln=True)
+                pdf.cell(0, 7, text=f"{label}: R$ {value:.2f}", new_x="LMARGIN", new_y="NEXT")
         
         pdf.ln(10)
 
         # Evolução do Patrimônio Líquido
         if report_data['net_worth_evolution_chart']['labels']:
             pdf.set_font("Arial", size = 10, style='B')
-            pdf.cell(0, 10, txt="Evolução do Patrimônio Líquido:", ln=True)
+            pdf.cell(0, 10, text="Evolução do Patrimônio Líquido:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", size = 8)
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
                 value = report_data['net_worth_evolution_chart']['values'][i]
-                pdf.cell(0, 7, txt=f"{label}: R$ {value:.2f}", ln=True)
+                pdf.cell(0, 7, text=f"{label}: R$ {value:.2f}", new_x="LMARGIN", new_y="NEXT")
 
-        return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), download_name="relatorio_financeiro.pdf", as_attachment=True, mimetype='application/pdf')
+        # Correção aqui: remove .encode('latin-1')
+        return send_file(io.BytesIO(pdf.output(dest='S')), download_name="relatorio_financeiro.pdf", as_attachment=True, mimetype='application/pdf')
 
     else:
         flash('Formato de exportação inválido.', 'danger')
