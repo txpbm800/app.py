@@ -710,7 +710,7 @@
                 selectElement.add(option);
             });
             // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
-            if (!selectedAccountId && allAccounts.length === 1) {
+            if (allAccounts.length === 1) {
                 selectElement.value = allAccounts[0].id;
             }
         }
