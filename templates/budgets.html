@@ -1,16 +1,126 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Orçamentos - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        
+        /* Variáveis CSS para modo claro */
+        :root {
+            --bg-color-light: #f7fafc; /* Tailwind gray-50 */
+            --text-color-light: #1a202c; /* Tailwind gray-900 */
+            --card-bg-light: #ffffff;
+            --border-color-light: #e2e8f0; /* Tailwind gray-200 */
+            --input-border-light: #cbd5e0; /* Tailwind gray-300 */
+            --input-focus-ring-light: #8b5cf6; /* Tailwind purple-500 for forms */
+            --header-bg-light: #ffffff;
+            --sidebar-bg-light: #ffffff;
+            --sidebar-text-light: #4a5568; /* Tailwind gray-700 */
+            --sidebar-hover-bg-light: #edf2f7; /* Tailwind gray-100 */
+            --sidebar-active-bg-light: #e2e8f0; /* Tailwind gray-200 */
+            --sidebar-active-text-light: #6b46c1; /* Tailwind purple-700 */
+        }
+
+        /* Variáveis CSS para modo escuro (tom azulado) */
+        html.dark {
+            --bg-color-dark: #1A263F; /* Um azul escuro suave */
+            --text-color-dark: #E0E7FF; /* Texto claro azulado */
+            --card-bg-dark: #232E47; /* Um pouco mais claro que o fundo */
+            --border-color-dark: #374762; /* Borda mais escura */
+            --input-border-dark: #4A5C7E; /* Borda de input escura */
+            --input-focus-ring-dark: #7b68ee; /* Um azul/roxo para foco */
+            --header-bg-dark: #232E47;
+            --sidebar-bg-dark: #232E47;
+            --sidebar-text-dark: #A7B6D8; /* Texto claro azulado */
+            --sidebar-hover-bg-dark: #2D3A54; /* Hover mais escuro */
+            --sidebar-active-bg-dark: #374762; /* Ativo mais escuro */
+            --sidebar-active-text-dark: #C5D4F5; /* Ativo mais claro */
+        }
+
+        /* Aplica as variáveis globalmente */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color-light);
+            color: var(--text-color-light);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        html.dark body {
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
+        }
+        
+        /* Aplica as variáveis aos elementos */
+        .bg-white { background-color: var(--card-bg-light); }
+        html.dark .bg-white { background-color: var(--card-bg-dark); }
+
+        .text-gray-900 { color: var(--text-color-light); }
+        html.dark .text-gray-900 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: var(--sidebar-text-light); }
+        html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .border-gray-300 { border-color: var(--input-border-light); }
+        html.dark .border-gray-300 { border-color: var(--input-border-dark); }
+
+        .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
+        html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }
+
+        .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        html.dark .shadow-md { box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.15); }
+
+        /* Modificações específicas para sidebar */
+        .sidebar { background-color: var(--sidebar-bg-light); }
+        html.dark .sidebar { background-color: var(--sidebar-bg-dark); }
+
+        .sidebar a { color: var(--sidebar-text-light); }
+        html.dark .sidebar a { color: var(--sidebar-text-dark); }
+
+        .sidebar a:hover { background-color: var(--sidebar-hover-bg-light); }
+        html.dark .sidebar a:hover { background-color: var(--sidebar-hover-bg-dark); }
+
+        .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-light); }
+        html.dark .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-dark); }
+
+        .sidebar a.text-purple-700 { color: var(--sidebar-active-text-light); }
+        html.dark .sidebar a.text-purple-700 { color: var(--sidebar-active-text-dark); }
+
+        /* Estilos para o botão de modo */
+        .dark-mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #6366f1; /* purple-500 */
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            z-index: 1000;
+        }
+        .dark-mode-toggle:hover {
+            background-color: #4f46e5; /* purple-600 */
+            transform: translateY(-2px);
+        }
+        html.dark .dark-mode-toggle {
+            background-color: #4A5C7E; /* Um azul mais escuro para o botão no modo escuro */
+        }
+        html.dark .dark-mode-toggle:hover {
+            background-color: #374762; /* Um azul ainda mais escuro para o hover */
+        }
+
         .progress-bar-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden; }
+        html.dark .progress-bar-container { background-color: #4A5C7E; } /* Dark mode progress bar container */
+
         .progress-bar { height: 1.5rem; border-radius: 9999px; text-align: center; color: white; font-weight: bold; transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out; }
         /* Estilo para o ícone da categoria */
         .category-icon-fa {
@@ -24,39 +134,15 @@
             color: #6b7280; /* Cor padrão cinza */
             font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
         }
-        /* Estilos para o menu lateral (sidebar) */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: -280px; /* Esconde o menu inicialmente */
-            width: 280px;
-            height: 100%;
-            background-color: white;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-            z-index: 2000;
-            transition: left 0.3s ease-in-out;
-            padding-top: 4rem; /* Espaço para o cabeçalho */
-            overflow-y: auto; /* Adiciona scroll se o conteúdo for muito longo */
+        html.dark .category-icon-fa {
+            color: #A7B6D8; /* Cor para ícone no modo escuro */
         }
-        .sidebar.active {
-            left: 0; /* Mostra o menu */
-        }
-        .sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-        .sidebar-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
+        /* Ajustes para as cores dos cards de orçamento */
+        .bg-gray-50 { background-color: #f9fafb; } /* Tailwind gray-50 */
+        html.dark .bg-gray-50 { background-color: #2D3A54; } /* Um tom mais escuro para o card no dark mode */
+
+        .border-gray-200 { border-color: #e5e7eb; }
+        html.dark .border-gray-200 { border-color: #374762; } /* Borda mais escura no dark mode */
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -79,7 +165,6 @@
             </nav>
         </header>
 
-        <!-- Sidebar Menu -->
         <div id="sidebar" class="sidebar">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
@@ -108,7 +193,6 @@
                 </nav>
             </div>
         </div>
-        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -152,11 +236,14 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-6">
-            <!-- FUNCIONALIDADE: Navegação de Mês -->
             <div class="flex justify-between items-center mb-4">
-                <a href="{{ url_for('budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">&lt; Mês Anterior</a>
+                <a href="{{ url_for('budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
+                    <span class="text-gray-800"> &lt; Mês Anterior</span>
+                </a>
                 <h2 class="text-2xl font-bold text-gray-800 text-center">Orçamentos de {{ current_month_year }}</h2>
-                <a href="{{ url_for('budgets_page', month_year=next_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">Próximo Mês &gt;</a>
+                <a href="{{ url_for('budgets_page', month_year=next_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
+                    <span class="text-gray-800">Próximo Mês &gt;</span>
+                </a>
             </div>
             
             {% if not budgets %}
@@ -199,7 +286,6 @@
         </div>
     </div>
 
-    <!-- Modal de Edição de Orçamento -->
     <div id="edit-budget-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -236,6 +322,9 @@
         </div>
     </div>
 
+    <button id="darkModeToggle" class="dark-mode-toggle">
+        <i class="fas fa-sun" id="darkModeIcon"></i>
+    </button>
 
     <script>
         // Mapeamento de palavras-chave para ícones Font Awesome
@@ -518,10 +607,41 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            const htmlElement = document.documentElement;
+            const toggleButton = document.getElementById('darkModeToggle');
+            const icon = document.getElementById('darkModeIcon');
+
+            // Verifica a preferência do usuário ou o que está salvo no localStorage
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlElement.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            toggleButton.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+
+            // Código para remover as mensagens flash
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.transition = 'opacity 1.5s ease-out'; /* Aumentado para 1.5s */
                     message.style.opacity = '0';
                     message.addEventListener('transitionend', () => message.remove());
                 }, 4000);

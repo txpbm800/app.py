@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +9,116 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        /* Variáveis CSS para modo claro */
+        :root {
+            --bg-color-light: #f7fafc; /* Tailwind gray-50 */
+            --text-color-light: #1a202c; /* Tailwind gray-900 */
+            --card-bg-light: #ffffff;
+            --border-color-light: #e2e8f0; /* Tailwind gray-200 */
+            --input-border-light: #cbd5e0; /* Tailwind gray-300 */
+            --input-focus-ring-light: #8b5cf6; /* Tailwind purple-500 for forms */
+            --header-bg-light: #ffffff;
+            --sidebar-bg-light: #ffffff;
+            --sidebar-text-light: #4a5568; /* Tailwind gray-700 */
+            --sidebar-hover-bg-light: #edf2f7; /* Tailwind gray-100 */
+            --sidebar-active-bg-light: #e2e8f0; /* Tailwind gray-200 */
+            --sidebar-active-text-light: #6b46c1; /* Tailwind purple-700 */
+        }
+
+        /* Variáveis CSS para modo escuro (tom azulado) */
+        html.dark {
+            --bg-color-dark: #1A263F; /* Um azul escuro suave */
+            --text-color-dark: #E0E7FF; /* Texto claro azulado */
+            --card-bg-dark: #232E47; /* Um pouco mais claro que o fundo */
+            --border-color-dark: #374762; /* Borda mais escura */
+            --input-border-dark: #4A5C7E; /* Borda de input escura */
+            --input-focus-ring-dark: #7b68ee; /* Um azul/roxo para foco */
+            --header-bg-dark: #232E47;
+            --sidebar-bg-dark: #232E47;
+            --sidebar-text-dark: #A7B6D8; /* Texto claro azulado */
+            --sidebar-hover-bg-dark: #2D3A54; /* Hover mais escuro */
+            --sidebar-active-bg-dark: #374762; /* Ativo mais escuro */
+            --sidebar-active-text-dark: #C5D4F5; /* Ativo mais claro */
+        }
+
+        /* Aplica as variáveis globalmente */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f7fafc;
+            background-color: var(--bg-color-light);
+            color: var(--text-color-light);
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
+        html.dark body {
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
+        }
+        
+        /* Aplica as variáveis aos elementos */
+        .bg-white { background-color: var(--card-bg-light); }
+        html.dark .bg-white { background-color: var(--card-bg-dark); }
+
+        .text-gray-900 { color: var(--text-color-light); }
+        html.dark .text-gray-900 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: var(--sidebar-text-light); }
+        html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .border-gray-300 { border-color: var(--input-border-light); }
+        html.dark .border-gray-300 { border-color: var(--input-border-dark); }
+
+        .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
+        html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }
+
+        .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        html.dark .shadow-md { box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.15); }
+
+        /* Modificações específicas para sidebar */
+        .sidebar { background-color: var(--sidebar-bg-light); }
+        html.dark .sidebar { background-color: var(--sidebar-bg-dark); }
+
+        .sidebar a { color: var(--sidebar-text-light); }
+        html.dark .sidebar a { color: var(--sidebar-text-dark); }
+
+        .sidebar a:hover { background-color: var(--sidebar-hover-bg-light); }
+        html.dark .sidebar a:hover { background-color: var(--sidebar-hover-bg-dark); }
+
+        .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-light); }
+        html.dark .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-dark); }
+
+        .sidebar a.text-purple-700 { color: var(--sidebar-active-text-light); }
+        html.dark .sidebar a.text-purple-700 { color: var(--sidebar-active-text-dark); }
+
+        /* Estilos para o botão de modo */
+        .dark-mode-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #6366f1; /* purple-500 */
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            z-index: 1000;
+        }
+        .dark-mode-toggle:hover {
+            background-color: #4f46e5; /* purple-600 */
+            transform: translateY(-2px);
+        }
+        html.dark .dark-mode-toggle {
+            background-color: #4A5C7E; /* Um azul mais escuro para o botão no modo escuro */
+        }
+        html.dark .dark-mode-toggle:hover {
+            background-color: #374762; /* Um azul ainda mais escuro para o hover */
+        }
+        
         .card-shadow {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
@@ -32,6 +138,11 @@
             height: 24px;
             animation: spin 1s linear infinite;
         }
+        html.dark .loading-spinner {
+            border-color: rgba(255, 255, 255, 0.1);
+            border-left-color: #C5D4F5;
+        }
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -42,6 +153,16 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 1.5rem;
+        }
+        html.dark .month-selector button {
+            background-color: #4A5C7E; /* Cor do botão no modo escuro */
+            color: #E0E7FF;
+        }
+        html.dark .month-selector button:hover {
+            background-color: #374762; /* Cor do hover no modo escuro */
+        }
+        html.dark .month-selector span {
+            color: #E0E7FF;
         }
         .chart-container {
             position: relative;
@@ -56,6 +177,9 @@
             color: #a0aec0; /* gray-400 */
             font-size: 1.125rem; /* text-lg */
             text-align: center;
+        }
+        html.dark .chart-empty-message {
+            color: #A7B6D8;
         }
         .modal {
             position: fixed;
@@ -88,6 +212,9 @@
             position: relative;
             height: 80%;
         }
+        html.dark .modal-content-chart {
+            background-color: var(--card-bg-dark); /* Adicionado para modal */
+        }
         .close-button-chart {
             position: absolute;
             top: 1rem;
@@ -96,6 +223,9 @@
             font-weight: bold;
             cursor: pointer;
             color: #aaa;
+        }
+        html.dark .close-button-chart {
+            color: #E0E7FF;
         }
         .close-button-chart:hover {
             color: #333;
@@ -133,6 +263,19 @@
             opacity: 1;
             visibility: visible;
         }
+        /* Ajustes para cores no modo escuro */
+        html.dark .bg-green-50 { background-color: #2D3A54; }
+        html.dark .text-green-700 { color: #9AE6B4; }
+        html.dark .bg-red-50 { background-color: #2D3A54; }
+        html.dark .text-red-700 { color: #FFB3B3; }
+        html.dark .bg-blue-50 { background-color: #2D3A54; }
+        html.dark .text-blue-700 { color: #A7B6D8; }
+        html.dark .bg-gray-100 { background-color: #2D3A54; }
+        html.dark .border-gray-200 { border-color: #374762; }
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+        html.dark .text-gray-600 { color: #A7B6D8; }
+        html.dark .text-gray-500 { color: #A7B6D8; }
+
     </style>
 </head>
 <body class="p-4 sm:p-6 lg:p-8">
@@ -272,13 +415,46 @@
         </div>
     </div>
 
+    <button id="darkModeToggle" class="dark-mode-toggle">
+        <i class="fas fa-sun" id="darkModeIcon"></i>
+    </button>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const htmlElement = document.documentElement;
+            const toggleButton = document.getElementById('darkModeToggle');
+            const icon = document.getElementById('darkModeIcon');
+
+            // Verifica a preferência do usuário ou o que está salvo no localStorage
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlElement.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            toggleButton.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.transition = 'opacity 1s ease-out';
+                    message.style.transition = 'opacity 1.5s ease-out'; /* Aumentado para 1.5s */
                     message.style.opacity = '0';
                     message.addEventListener('transitionend', () => message.remove());
                 }, 4000);
@@ -427,11 +603,93 @@
                     ctx.classList.remove('hidden');
                     let chartConfig = {};
                     if (chartType === 'bar') {
-                        chartConfig = { type: 'bar', data: { labels: chartData.labels, datasets: [{ label: 'Receitas', data: chartData.income, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }, { label: 'Despesas', data: chartData.expenses, backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { tooltip: { callbacks: { label: function(context) { return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw); } } } } } };
+                        chartConfig = { 
+                            type: 'bar', 
+                            data: { 
+                                labels: chartData.labels, 
+                                datasets: [
+                                    { label: 'Receitas', data: chartData.income, backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }, 
+                                    { label: 'Despesas', data: chartData.expenses, backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1 }
+                                ] 
+                            }, 
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false, 
+                                scales: { 
+                                    y: { 
+                                        beginAtZero: true,
+                                        ticks: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-color-dark'), // Cor do texto dos ticks
+                                            callback: function(value) { return formatCurrency(value); }
+                                        },
+                                        grid: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--border-color-dark') // Cor das linhas de grade
+                                        }
+                                    },
+                                    x: {
+                                        ticks: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-color-dark'), // Cor do texto dos ticks
+                                        },
+                                        grid: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--border-color-dark') // Cor das linhas de grade
+                                        }
+                                    }
+                                }, 
+                                plugins: { 
+                                    legend: {
+                                        labels: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-color-dark') // Cor do texto da legenda
+                                        }
+                                    },
+                                    tooltip: { 
+                                        callbacks: { 
+                                            label: function(context) { 
+                                                return context.dataset.label + ': ' + new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.raw); 
+                                            } 
+                                        } 
+                                    } 
+                                } 
+                            } 
+                        };
                     } else if (chartType === 'doughnut') {
                         const backgroundColors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9933', '#C9CBCE', '#A1C349', '#FFD700', '#FF8C00', '#00CED1'];
                         const borderColors = backgroundColors.map(color => color.replace('0.6', '1'));
-                        chartConfig = { type: 'doughnut', data: { labels: chartData.labels, datasets: [{ data: chartData.values, backgroundColor: backgroundColors.slice(0, chartData.labels.length), borderColor: borderColors.slice(0, chartData.labels.length), borderWidth: 1 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } if (context.parsed !== null) { label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed); } return label; } } } } } };
+                        chartConfig = { 
+                            type: 'doughnut', 
+                            data: { 
+                                labels: chartData.labels, 
+                                datasets: [
+                                    { 
+                                        data: chartData.values, 
+                                        backgroundColor: backgroundColors.slice(0, chartData.labels.length), 
+                                        borderColor: borderColors.slice(0, chartData.labels.length), 
+                                        borderWidth: 1 
+                                    }
+                                ] 
+                            }, 
+                            options: { 
+                                responsive: true, 
+                                maintainAspectRatio: false, 
+                                plugins: { 
+                                    legend: { 
+                                        position: 'top',
+                                        labels: {
+                                            color: getComputedStyle(document.documentElement).getPropertyValue('--text-color-dark') // Cor do texto da legenda
+                                        } 
+                                    }, 
+                                    tooltip: { 
+                                        callbacks: { 
+                                            label: function(context) { 
+                                                let label = context.label || ''; 
+                                                if (label) { label += ': '; } 
+                                                if (context.parsed !== null) { label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed); } 
+                                                return label; 
+                                            } 
+                                        } 
+                                    } 
+                                } 
+                            } 
+                        };
                     }
                     const newChartInstance = new Chart(ctx.getContext('2d'), chartConfig);
                     if (canvasId === 'monthlyOverviewChart') monthlyOverviewChartInstance = newChartInstance;
