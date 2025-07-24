@@ -2203,7 +2203,7 @@ def get_detailed_report_data():
     category_id = request.args.get('category_id', type=int)
 
     if not start_date_str or not end_date_str:
-        return jsonify({'error': 'Datas de início e fim são obrigatórias.'}), 400
+        return jsonify({'error': 'Datas de início e fim são obrigató.'}), 400
 
     report_data = get_detailed_report_data_db(current_user.id, start_date_str, end_date_str, transaction_type, category_id)
     
@@ -2263,8 +2263,7 @@ def export_report(format):
             cell = sheet.cell(row=1, column=col_idx)
             cell.font = header_font
             cell.fill = header_fill
-
-       # Dados das transações
+        # Dados das transações
         for row_idx, t in enumerate(filtered_transactions, start=2): # Começa da linha 2
             category_name = t.category.name if t.category else "N/A"
             account_name = t.account.name if t.account else "N/A"
@@ -2301,7 +2300,9 @@ def export_report(format):
             sheet.append([]) # Linha em branco para separação
             sheet.append(["Despesas por Categoria"])
             for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
-                sheet.append([label, report_data['expenses_by_category_chart']['values'][i]])
+                value = report_data['expenses_by_category_chart']['values'][i]
+                sheet.append([label, value])
+                # A célula de valor está na coluna 2 da linha recém-adicionada
                 sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
 
         # Adicionar evolução do patrimônio líquido
@@ -2310,8 +2311,12 @@ def export_report(format):
             sheet.append(["Evolução do Patrimônio Líquido"])
             sheet.append(["Data", "Patrimônio Líquido"])
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
-                sheet.append([label, report_data['net_worth_evolution_chart']['values'][i]])
-                sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
+                value = report_data['net_worth_evolution_chart']['values'][i]
+                # Filtrar valores: apenas se o valor for > 0.01 ou < 0.00
+                if value > 0.01 or value < 0.00:
+                    sheet.append([label, value])
+                    # A célula de valor está na coluna 2 da linha recém-adicionada
+                    sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
 
         workbook.save(output)
         output.seek(0)
@@ -2385,7 +2390,9 @@ def export_report(format):
             pdf.set_font("Arial", size = 8)
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
                 value = report_data['net_worth_evolution_chart']['values'][i]
-                pdf.cell(0, 7, text=f"{label}: R$ {value:.2f}", new_x="LMARGIN", new_y="NEXT")
+                # Filtrar valores: apenas se o valor for > 0.01 ou < 0.00
+                if value > 0.01 or value < 0.00:
+                    pdf.cell(0, 7, text=f"{label}: R$ {value:.2f}", new_x="LMARGIN", new_y="NEXT")
 
         # Correção aqui: remove .encode('latin-1')
         return send_file(io.BytesIO(pdf.output(dest='S')), download_name="relatorio_financeiro.pdf", as_attachment=True, mimetype='application/pdf')
@@ -2406,3 +2413,4 @@ with app.app_context():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+           
