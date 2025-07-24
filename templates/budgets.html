@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Orçamentos - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -208,6 +209,7 @@
             </nav>
         </header>
 
+        <!-- Sidebar Menu -->
         <div id="sidebar" class="sidebar">
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
@@ -236,6 +238,7 @@
                 </nav>
             </div>
         </div>
+        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -279,6 +282,7 @@
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-6">
+            <!-- FUNCIONALIDADE: Navegação de Mês -->
             <div class="flex justify-between items-center mb-4">
                 <a href="{{ url_for('budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
                     <span class="text-gray-800"> &lt; Mês Anterior</span>
@@ -329,6 +333,7 @@
         </div>
     </div>
 
+    <!-- Modal de Edição de Orçamento -->
     <div id="edit-budget-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
         <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
@@ -365,6 +370,7 @@
         </div>
     </div>
 
+    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>
@@ -649,6 +655,14 @@
             return defaultIcon;
         }
 
+        // Função para renderizar os ícones nas listas de orçamentos
+        function renderCategoryIconsInLists() {
+            document.querySelectorAll('.category-icon-fa').forEach(element => {
+                const categoryName = element.dataset.categoryName;
+                element.className = `category-icon-fa ${getIconForText(categoryName)}`;
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const htmlElement = document.documentElement;
             const toggleButton = document.getElementById('darkModeToggle');
@@ -690,6 +704,7 @@
             });
 
             highlightCurrentPage(); // Chamada para destacar a página atual
+            renderCategoryIconsInLists(); // Chamada para renderizar os ícones dos orçamentos
         });
 
         function openContributeModal(id, name) {
