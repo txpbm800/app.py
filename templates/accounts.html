@@ -73,8 +73,13 @@
         .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
         html.dark .text-gray-500 { color: #A7B6D8; }
 
+        /* Ajuste para inputs e selects no modo escuro */
         .border-gray-300 { border-color: var(--input-border-light); }
-        html.dark .border-gray-300 { border-color: var(--input-border-dark); }
+        html.dark .border-gray-300 { 
+            border-color: var(--input-border-dark); 
+            background-color: var(--card-bg-dark); /* Fundo do input */
+            color: var(--text-color-dark); /* Cor do texto digitado */
+        }
 
         .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
         html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }

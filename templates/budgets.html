@@ -73,8 +73,13 @@
         .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
         html.dark .text-gray-500 { color: #A7B6D8; }
 
+        /* Ajuste para inputs e selects no modo escuro */
         .border-gray-300 { border-color: var(--input-border-light); }
-        html.dark .border-gray-300 { border-color: var(--input-border-dark); }
+        html.dark .border-gray-300 { 
+            border-color: var(--input-border-dark); 
+            background-color: var(--card-bg-dark); /* Fundo do input */
+            color: var(--text-color-dark); /* Cor do texto digitado */
+        }
 
         .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
         html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }
@@ -186,6 +191,55 @@
         .sidebar-overlay.active {
             opacity: 1;
             visibility: visible;
+        }
+        /* Estilos para modais pop-up */
+        .modal {
+            position: fixed;
+            z-index: 1050;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center; /* Garante centralização vertical */
+            padding: 1rem;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+        .modal.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+        html.dark .modal-content {
+            background-color: var(--card-bg-dark); /* Adicionado para modal */
+        }
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+        html.dark .close-button {
+            color: var(--text-color-dark); /* Cor para o botão fechar no modo escuro */
+        }
+        .close-button:hover {
+            color: #333;
         }
     </style>
 </head>
@@ -333,39 +387,30 @@
         </div>
     </div>
 
-    <!-- Modal de Edição de Orçamento -->
-    <div id="edit-budget-modal" class="fixed z-10 inset-0 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
-            <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <div class="sm:flex sm:items-start">
-                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                Editar Orçamento para <span id="edit_budget_category_name"></span>
-                            </h3>
-                            <div class="mt-2">
-                                <form id="edit_budget_form" method="POST" class="space-y-4">
-                                    <input type="hidden" id="edit_budget_id" name="budget_id">
-                                    <div>
-                                        <label for="edit_budget_amount" class="block text-sm font-medium text-gray-700">Novo Valor Orçado</label>
-                                        <input type="number" step="0.01" id="edit_budget_amount" name="budget_amount" required
-                                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                                    </div>
-                                    <div class="flex justify-end gap-3">
-                                        <button type="button" onclick="closeEditBudgetModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                                            Cancelar
-                                        </button>
-                                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
-                                            Salvar Alterações
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+    <!-- Modal de Edição de Orçamento (agora como pop-up) -->
+    <div id="edit-budget-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditBudgetModal()">&times;</span>
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+                Editar Orçamento para <span id="edit_budget_category_name"></span>
+            </h3>
+            <div class="mt-2">
+                <form id="edit_budget_form" method="POST" class="space-y-4">
+                    <input type="hidden" id="edit_budget_id" name="budget_id">
+                    <div>
+                        <label for="edit_budget_amount" class="block text-sm font-medium text-gray-700">Novo Valor Orçado</label>
+                        <input type="number" step="0.01" id="edit_budget_amount" name="budget_amount" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </div>
-                </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeEditBudgetModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -707,62 +752,29 @@
             renderCategoryIconsInLists(); // Chamada para renderizar os ícones dos orçamentos
         });
 
-        function openContributeModal(id, name) {
-            document.getElementById('contribute_goal_id').value = id;
-            document.getElementById('contribute_goal_name').textContent = name;
-            document.getElementById('contribute_form').action = `/contribute_to_goal/${id}`;
-            
-            // Popula o dropdown de contas no modal de contribuição
-            populateAccounts('source_account_id'); // Reutiliza a função populateAccounts
-            
-            document.getElementById('contribute-modal').classList.add('active');
+        // Funções para o modal de edição de orçamento
+        const editBudgetModal = document.getElementById('edit-budget-modal');
+        const editBudgetForm = document.getElementById('edit_budget_form');
+
+        function openEditBudgetModal(id, categoryName, budgetAmount) {
+            document.getElementById('edit_budget_id').value = id;
+            document.getElementById('edit_budget_category_name').textContent = categoryName;
+            document.getElementById('edit_budget_amount').value = budgetAmount;
+            editBudgetForm.action = `/edit_budget/${id}`;
+            editBudgetModal.classList.add('active');
         }
 
-        function closeContributeModal() {
-            document.getElementById('contribute-modal').classList.remove('active');
-            document.getElementById('contribute_amount').value = ''; // Clear input
-            document.getElementById('source_account_id').value = ''; // Limpa a seleção da conta
+        function closeEditBudgetModal() {
+            editBudgetModal.classList.remove('active');
         }
 
-        function openEditGoalModal(id, name, targetAmount, currentAmount, dueDate, status) {
-            document.getElementById('edit_goal_id').value = id;
-            document.getElementById('edit_goal_name_display').textContent = name;
-            document.getElementById('edit_goal_name').value = name;
-            document.getElementById('edit_goal_target_amount').value = targetAmount;
-            document.getElementById('edit_goal_current_amount').value = currentAmount;
-            document.getElementById('edit_goal_due_date').value = dueDate;
-            document.getElementById('edit_goal_status').value = status;
-            document.getElementById('edit_goal_form').action = `/edit_goal/${id}`;
-            document.getElementById('edit-goal-modal').classList.remove('hidden');
-        }
+        // Fecha o modal de edição de orçamento ao clicar fora
+        window.addEventListener('click', (event) => {
+            if (event.target == editBudgetModal) {
+                closeEditBudgetModal();
+            }
+        });
 
-        function closeEditGoalModal() {
-            document.getElementById('edit-goal-modal').classList.add('hidden');
-        }
-
-        // Reutiliza a função populateAccounts do index.html
-        function populateAccounts(selectElementId, selectedAccountId = null) {
-            // This function is dependent on 'allAccounts' being defined, which is not in budgets.html
-            // For budgets.html, this function is likely not needed, or needs 'allAccounts' to be passed from the backend.
-            // Since the original budgets.html does not use this, I will keep it as is, but note the dependency.
-            const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
-            // This part requires 'allAccounts' data, which is not available in budgets.html directly from the template.
-            // Assuming allAccounts will be populated by the Flask backend for this page if needed.
-            // For now, it will remain empty if 'allAccounts' is not set.
-            // Example: allAccounts.forEach(account => { ... });
-        }
-
-        // Adiciona o fechamento do modal de contribuição ao clicar fora
-        const contributeModal = document.getElementById('contribute-modal');
-        if (contributeModal) { // Check if modal exists to avoid errors on pages without it
-            window.addEventListener('click', (event) => {
-                if (event.target == contributeModal) {
-                    closeContributeModal();
-                }
-            });
-        }
 
         // Funções para o novo menu lateral (sidebar)
         function toggleSidebar() {

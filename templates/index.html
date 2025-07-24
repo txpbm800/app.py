@@ -73,8 +73,13 @@
         .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
         html.dark .text-gray-500 { color: #A7B6D8; }
 
+        /* Ajuste para inputs e selects no modo escuro */
         .border-gray-300 { border-color: var(--input-border-light); }
-        html.dark .border-gray-300 { border-color: var(--input-border-dark); }
+        html.dark .border-gray-300 { 
+            border-color: var(--input-border-dark); 
+            background-color: var(--card-bg-dark); /* Fundo do input */
+            color: var(--text-color-dark); /* Cor do texto digitado */
+        }
 
         .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
         html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }
@@ -232,6 +237,7 @@
             opacity: 1;
             visibility: visible;
         }
+        /* Estilos para modais pop-up */
         .modal {
             position: fixed;
             z-index: 1050;
@@ -735,7 +741,7 @@
             </div>
         </div>
 
-        <div class="rounded-lg shadow-md bg-white p-6 card-shadow my-6">
+        <div class="rounded-lg shadow-md bg-white p-6 my-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Filtrar Transações</h2>
             <form id="transactions-filter-form" action="{{ url_for('index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <input type="hidden" name="bill_status" value="{{ request.args.get('bill_status', 'pending') }}">
@@ -763,7 +769,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+            <div class="rounded-lg shadow-md bg-white p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                 <div class="list-scroll-area">
                     <div class="space-y-3">
@@ -795,7 +801,7 @@
                 </div>
             </div>
 
-            <div class="rounded-lg shadow-md bg-white p-6 card-shadow">
+            <div class="rounded-lg shadow-md bg-white p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                 <div class="list-scroll-area">
                     <div class="space-y-3">
