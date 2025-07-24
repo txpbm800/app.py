@@ -351,6 +351,16 @@
 
         .bg-yellow-100 { background-color: #fefce8; }
         html.dark .bg-yellow-100 { background-color: #2D3A54; }
+
+        /* Estilo para o ícone de check na seção "Contas a Pagar" */
+        .bill-check-icon {
+            /* Remove o círculo e centraliza */
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.0rem; /* Aumenta o tamanho do ícone */
+            color: #22c55e; /* Tailwind green-500 */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -693,7 +703,8 @@
                         <div class="space-y-4">
                             {% if not bills %}
                                 <div class="text-center py-8 flex flex-col items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-check-circle text-green-500 mb-3"><path d="M22 11.08V12a10 10 0 1 1-5.93-8.1"/><path d="m3 12.08 2 2 4-4"/></svg>
+                                    {# Ícone de check atualizado #}
+                                    <i class="fas fa-check bill-check-icon mb-3"></i>
                                     <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
                                 </div>
                             {% else %}
