@@ -16,6 +16,8 @@ from email.mime.text import MIMEText
 from flask_migrate import Migrate # Importar Flask-Migrate
 import io # Para lidar com arquivos em memória
 from openpyxl import Workbook # Para exportar para Excel
+from openpyxl.styles import Font, PatternFill # Para estilos no Excel
+from openpyxl.styles.numbers import FORMAT_CURRENCY_USD_SIMPLE # Para formato de moeda no Excel
 from fpdf import FPDF # Para exportar para PDF
 
 app = Flask(__name__)
@@ -2251,14 +2253,23 @@ def export_report(format):
         sheet.title = "Relatorio Financeiro"
 
         # Cabeçalho
-        sheet.append(["Descrição", "Valor", "Data", "Tipo", "Categoria", "Conta", "Meta"])
+        headers = ["Descrição", "Valor", "Data", "Tipo", "Categoria", "Conta", "Meta"]
+        sheet.append(headers)
 
-        # Dados das transações
-        for t in filtered_transactions:
+        # Estilo para o cabeçalho
+        header_font = Font(bold=True)
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid") # Light gray
+        for col_idx in range(1, len(headers) + 1):
+            cell = sheet.cell(row=1, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+
+       # Dados das transações
+        for row_idx, t in enumerate(filtered_transactions, start=2): # Começa da linha 2
             category_name = t.category.name if t.category else "N/A"
             account_name = t.account.name if t.account else "N/A"
             goal_name = t.goal.name if t.goal else "N/A"
-            sheet.append([
+            row_data = [
                 t.description,
                 t.amount,
                 t.date,
@@ -2266,14 +2277,32 @@ def export_report(format):
                 category_name,
                 account_name,
                 goal_name
-            ])
+            ]
+            sheet.append(row_data)
+
+            # Aplicar formato de moeda à coluna 'Valor' (coluna B)
+            sheet.cell(row=row_idx, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
+
+        # Auto-ajustar largura das colunas
+        for column in sheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter # Get the column name (e.g. 'A')
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2)
+            sheet.column_dimensions[column_letter].width = adjusted_width
         
-               # Adicionar resumo de despesas por categoria
+        # Adicionar resumo de despesas por categoria
         if report_data['expenses_by_category_chart']['labels']:
             sheet.append([]) # Linha em branco para separação
             sheet.append(["Despesas por Categoria"])
             for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
                 sheet.append([label, report_data['expenses_by_category_chart']['values'][i]])
+                sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
 
         # Adicionar evolução do patrimônio líquido
         if report_data['net_worth_evolution_chart']['labels']:
@@ -2282,6 +2311,7 @@ def export_report(format):
             sheet.append(["Data", "Patrimônio Líquido"])
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
                 sheet.append([label, report_data['net_worth_evolution_chart']['values'][i]])
+                sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
 
         workbook.save(output)
         output.seek(0)
@@ -2303,7 +2333,8 @@ def export_report(format):
             pdf.set_font("Arial", size = 8)
             
             # Cabeçalho da tabela
-            col_widths = [30, 20, 20, 20, 40, 30] # Ajuste as larguras conforme necessário
+            # Ajuste as larguras conforme necessário. Aumentado a largura da descrição.
+            col_widths = [60, 20, 20, 20, 40, 30] 
             pdf.cell(col_widths[0], 7, "Descrição", 1)
             pdf.cell(col_widths[1], 7, "Valor", 1)
             pdf.cell(col_widths[2], 7, "Data", 1)
@@ -2315,7 +2346,16 @@ def export_report(format):
             for t in filtered_transactions:
                 category_name = t.category.name if t.category else "N/A"
                 account_name = t.account.name if t.account else "N/A"
-                pdf.cell(col_widths[0], 7, t.description, 1)
+                # Usar multi_cell para descrições longas
+                # pdf.multi_cell(col_widths[0], 7, t.description, 1) # Isso faria a linha quebrar
+                
+                # Para evitar quebra de linha e manter a célula na mesma linha,
+                # vamos truncar a descrição se for muito longa e garantir que não haja quebras de linha
+                description_display = t.description.replace('\n', ' ').replace('\r', ' ')
+                if len(description_display) > 35: # Limite aproximado para a largura da célula
+                    description_display = description_display[:32] + "..."
+
+                pdf.cell(col_widths[0], 7, description_display, 1)
                 pdf.cell(col_widths[1], 7, f"R$ {t.amount:.2f}", 1)
                 pdf.cell(col_widths[2], 7, t.date, 1)
                 pdf.cell(col_widths[3], 7, "Receita" if t.type == "income" else "Despesa", 1)
