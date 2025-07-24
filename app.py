@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,6 +14,9 @@ import smtplib
 import ssl
 from email.mime.text import MIMEText
 from flask_migrate import Migrate # Importar Flask-Migrate
+import io # Para lidar com arquivos em memória
+from openpyxl import Workbook # Para exportar para Excel
+from fpdf import FPDF # Para exportar para PDF
 
 app = Flask(__name__)
 
@@ -1213,7 +1216,7 @@ def send_recovery_email(recipient_email, recovery_code):
     message["Subject"] = "Código de Recuperação de Senha - Gestão Financeira Pessoal"
     message["From"] = sender_email
     message["To"] = recipient_email
-
+    
     try:
         print(f"DEBUG: send_recovery_email - Tentando conectar a {smtp_server}:{smtp_port} com usuário {sender_email}")
         context = ssl.create_default_context()
@@ -2206,6 +2209,149 @@ def get_detailed_report_data():
         return jsonify(report_data), 400
     
     return jsonify(report_data)
+
+@app.route('/export_report/<format>', methods=['GET'])
+@login_required
+def export_report(format):
+    """
+    Exporta os dados do relatório para Excel ou PDF com base nos filtros.
+    """
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+    transaction_type = request.args.get('transaction_type')
+    category_id = request.args.get('category_id', type=int)
+
+    if not start_date_str or not end_date_str:
+        flash('Datas de início e fim são obrigatórias para exportação.', 'danger')
+        return redirect(url_for('reports_page'))
+
+    # Reutilize a função que busca os dados do relatório
+    report_data = get_detailed_report_data_db(current_user.id, start_date_str, end_date_str, transaction_type, category_id)
+
+    if 'error' in report_data:
+        flash(f"Erro ao gerar dados para exportação: {report_data['error']}", 'danger')
+        return redirect(url_for('reports_page'))
+
+    transactions_query = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.date >= start_date_str,
+        Transaction.date <= end_date_str
+    )
+    if transaction_type and transaction_type in ['income', 'expense']:
+        transactions_query = transactions_query.filter(Transaction.type == transaction_type)
+    if category_id:
+        transactions_query = transactions_query.filter(Transaction.category_id == category_id)
+    
+    filtered_transactions = transactions_query.order_by(Transaction.date.asc()).all()
+
+    if format == 'excel':
+        output = io.BytesIO()
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = "Relatorio Financeiro"
+
+        # Cabeçalho
+        sheet.append(["Descrição", "Valor", "Data", "Tipo", "Categoria", "Conta", "Meta"])
+
+        # Dados das transações
+        for t in filtered_transactions:
+            category_name = t.category.name if t.category else "N/A"
+            account_name = t.account.name if t.account else "N/A"
+            goal_name = t.goal.name if t.goal else "N/A"
+            sheet.append([
+                t.description,
+                t.amount,
+                t.date,
+                "Receita" if t.type == "income" else "Despesa",
+                category_name,
+                account_name,
+                goal_name
+            ])
+        
+        # Adicionar resumo de despesas por categoria
+        if report_data['expenses_by_category_chart']['labels']:
+            sheet.append([]) # Linha em branco para separação
+            sheet.append(["Despesas por Categoria"])
+            for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
+                sheet.append([label, report_data['expenses_by_category_chart']['values'][i]])
+
+        # Adicionar evolução do patrimônio líquido
+        if report_data['net_worth_evolution_chart']['labels']:
+            sheet.append([]) # Linha em branco para separação
+            sheet.append(["Evolução do Patrimônio Líquido"])
+            sheet.append(["Data", "Patrimônio Líquido"])
+            for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
+                sheet.append([label, report_data['net_worth_evolution_chart']['values'][i]])
+
+        workbook.save(output)
+        output.seek(0)
+        return send_file(output, download_name="relatorio_financeiro.xlsx", as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    elif format == 'pdf':
+        # Configuração do PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size = 12)
+
+        pdf.cell(200, 10, txt = f"Relatório Financeiro de {start_date_str} a {end_date_str}", ln = True, align = 'C')
+        pdf.ln(10)
+
+        # Detalhes das Transações
+        if filtered_transactions:
+            pdf.set_font("Arial", size = 10, style='B')
+            pdf.cell(0, 10, txt="Transações Detalhadas:", ln=True)
+            pdf.set_font("Arial", size = 8)
+            
+            # Cabeçalho da tabela
+            col_widths = [30, 20, 20, 20, 40, 30] # Ajuste as larguras conforme necessário
+            pdf.cell(col_widths[0], 7, "Descrição", 1)
+            pdf.cell(col_widths[1], 7, "Valor", 1)
+            pdf.cell(col_widths[2], 7, "Data", 1)
+            pdf.cell(col_widths[3], 7, "Tipo", 1)
+            pdf.cell(col_widths[4], 7, "Categoria", 1)
+            pdf.cell(col_widths[5], 7, "Conta", 1)
+            pdf.ln()
+
+            for t in filtered_transactions:
+                category_name = t.category.name if t.category else "N/A"
+                account_name = t.account.name if t.account else "N/A"
+                pdf.cell(col_widths[0], 7, t.description, 1)
+                pdf.cell(col_widths[1], 7, f"R$ {t.amount:.2f}", 1)
+                pdf.cell(col_widths[2], 7, t.date, 1)
+                pdf.cell(col_widths[3], 7, "Receita" if t.type == "income" else "Despesa", 1)
+                pdf.cell(col_widths[4], 7, category_name, 1)
+                pdf.cell(col_widths[5], 7, account_name, 1)
+                pdf.ln()
+        else:
+            pdf.cell(0, 10, txt="Nenhuma transação encontrada para os filtros selecionados.", ln=True)
+        
+        pdf.ln(10)
+
+        # Resumo de Despesas por Categoria
+        if report_data['expenses_by_category_chart']['labels']:
+            pdf.set_font("Arial", size = 10, style='B')
+            pdf.cell(0, 10, txt="Despesas por Categoria:", ln=True)
+            pdf.set_font("Arial", size = 8)
+            for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
+                value = report_data['expenses_by_category_chart']['values'][i]
+                pdf.cell(0, 7, txt=f"{label}: R$ {value:.2f}", ln=True)
+        
+        pdf.ln(10)
+
+        # Evolução do Patrimônio Líquido
+        if report_data['net_worth_evolution_chart']['labels']:
+            pdf.set_font("Arial", size = 10, style='B')
+            pdf.cell(0, 10, txt="Evolução do Patrimônio Líquido:", ln=True)
+            pdf.set_font("Arial", size = 8)
+            for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
+                value = report_data['net_worth_evolution_chart']['values'][i]
+                pdf.cell(0, 7, txt=f"{label}: R$ {value:.2f}", ln=True)
+
+        return send_file(io.BytesIO(pdf.output(dest='S').encode('latin-1')), download_name="relatorio_financeiro.pdf", as_attachment=True, mimetype='application/pdf')
+
+    else:
+        flash('Formato de exportação inválido.', 'danger')
+        return redirect(url_for('reports_page'))
 
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---

@@ -308,6 +308,13 @@
                     <button type="button" onclick="fetchReportDataAndRenderCharts()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                         Gerar Relatório
                     </button>
+                    <!-- NOVOS BOTÕES AQUI -->
+                    <button type="button" onclick="exportReport('excel')" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                        Exportar para Excel
+                    </button>
+                    <button type="button" onclick="exportReport('pdf')" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                        Exportar para PDF
+                    </button>
                 </div>
             </form>
         </div>
@@ -674,6 +681,25 @@
                     }
                 }
             });
+        }
+
+        // Função para exportar o relatório (Excel ou PDF)
+        function exportReport(format) {
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            const transactionType = document.getElementById('transaction_type').value;
+            const categoryId = document.getElementById('category_id').value;
+
+            if (!startDate || !endDate) {
+                alert('Por favor, selecione as datas de início e fim para exportar.');
+                return;
+            }
+
+            let url = `/export_report/${format}?start_date=${startDate}&end_date=${endDate}`;
+            if (transactionType) url += `&transaction_type=${transactionType}`;
+            if (categoryId) url += `&category_id=${categoryId}`;
+
+            window.location.href = url; // Redireciona para a rota de exportação
         }
     </script>
 </body>
