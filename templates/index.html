@@ -361,6 +361,19 @@
             font-size: 2.0rem; /* Aumenta o tamanho do ícone */
             color: #22c55e; /* Tailwind green-500 */
         }
+
+        /* Estilos para arrastar e soltar */
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed #6366f1; /* purple-500 */
+        }
+        .drag-over {
+            background-color: #e0e7ff; /* blue-100 */
+            border: 2px dashed #4f46e5; /* indigo-600 */
+        }
+        html.dark .drag-over {
+            background-color: #374762; /* Darker blue for drag-over */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -768,17 +781,17 @@
                     </select>
                 </div>
                 <div>
-                    <label for="start_date" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
-                    <input type="date" name="start_date" id="start_date" value="{{ current_start_date or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label for="start_date_filter" class="block text-sm font-medium text-gray-700 mb-1">Data Início</label>
+                    <input type="date" name="start_date" id="start_date_filter" value="{{ current_start_date or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <div>
-                    <label for="end_date" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
-                    <input type="date" name="end_date" id="end_date" value="{{ current_end_date or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <label for="end_date_filter" class="block text-sm font-medium text-gray-700 mb-1">Data Fim</label>
+                    <input type="date" name="end_date" id="end_date_filter" value="{{ current_end_date or '' }}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <div class="flex gap-2">
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Filtrar</button>
                     <!-- Botão Limpar: Adicionado dark:bg-gray-700 e dark:text-gray-200 para modo escuro -->
-                    <a href="{{ url_for('index') }}" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">Limpar</a>
+                    <button type="button" onclick="clearTransactionFilters()" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">Limpar</button>
                 </div>
             </form>
         </div>
@@ -787,12 +800,12 @@
             <div class="rounded-lg shadow-md bg-white p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Receitas</h2>
                 <div class="list-scroll-area">
-                    <div class="space-y-3">
+                    <div id="income-transactions-list" class="space-y-3 transaction-list-container">
                         {% if not income_transactions %}
                             <p class="text-gray-500 text-center py-4 text-md">Nenhuma receita encontrada</p>
                         {% else %}
                             {% for transaction in income_transactions %}
-                                <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100">
+                                <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 draggable-transaction-item" draggable="true" data-transaction-id="{{ transaction.id }}">
                                     <div class="flex items-center space-x-3">
                                         {# Ícone da categoria com a nova classe e lógica #}
                                         <i class="category-icon-fa" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}" data-description="{{ transaction.description }}"></i>
@@ -819,12 +832,12 @@
             <div class="rounded-lg shadow-md bg-white p-6">
                 <h2 class="text-2xl font-bold text-gray-800 mb-4">Minhas Despesas</h2>
                 <div class="list-scroll-area">
-                    <div class="space-y-3">
+                    <div id="expense-transactions-list" class="space-y-3 transaction-list-container">
                         {% if not expense_transactions %}
                             <p class="text-gray-500 text-center py-4 text-md">Nenhuma despesa encontrada</p>
                         {% else %}
                             {% for transaction in expense_transactions %}
-                                <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100">
+                                <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 draggable-transaction-item" draggable="true" data-transaction-id="{{ transaction.id }}">
                                     <div class="flex items-center space-x-3">
                                         {# Ícone da categoria com a nova classe e lógica #}
                                         <i class="category-icon-fa" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}" data-description="{{ transaction.description }}"></i>
@@ -1282,6 +1295,13 @@
             // Renderiza os ícones nas listas de transações
             renderCategoryIconsInLists();
             highlightCurrentPage(); // Chamada para destacar a página atual
+
+            // Lógica para filtros persistentes
+            loadTransactionFilters();
+
+            // Lógica para arrastar e soltar transações
+            setupDragAndDrop('income-transactions-list', '.draggable-transaction-item');
+            setupDragAndDrop('expense-transactions-list', '.draggable-transaction-item');
         });
 
         // Função para renderizar os ícones nas listas de transações
@@ -1576,6 +1596,127 @@
                     }
                 }
             });
+        }
+
+        // --- Lógica para Filtros Persistentes (Transações) ---
+        const transactionFilterForm = document.getElementById('transactions-filter-form');
+        const transactionTypeFilter = document.getElementById('transaction_type');
+        const startDateFilter = document.getElementById('start_date_filter');
+        const endDateFilter = document.getElementById('end_date_filter');
+        // Adicione aqui outros campos de filtro se houver (ex: category_filter)
+
+        function saveTransactionFilters() {
+            const filters = {
+                transactionType: transactionTypeFilter.value,
+                startDate: startDateFilter.value,
+                endDate: endDateFilter.value,
+                // Adicione outros filtros aqui
+            };
+            localStorage.setItem('transactionFilters', JSON.stringify(filters));
+        }
+
+        function loadTransactionFilters() {
+            const savedFilters = localStorage.getItem('transactionFilters');
+            if (savedFilters) {
+                const filters = JSON.parse(savedFilters);
+                transactionTypeFilter.value = filters.transactionType || '';
+                startDateFilter.value = filters.startDate || '';
+                endDateFilter.value = filters.endDate || '';
+                // Aplique outros filtros aqui
+            }
+        }
+
+        function clearTransactionFilters() {
+            localStorage.removeItem('transactionFilters');
+            // Redireciona para a URL base para limpar todos os parâmetros de filtro da URL
+            window.location.href = "{{ url_for('index') }}"; 
+        }
+
+        // Salva os filtros antes de enviar o formulário
+        transactionFilterForm.addEventListener('submit', saveTransactionFilters);
+
+        // --- Lógica para Arrastar e Soltar (Drag and Drop) para Transações ---
+        let draggedItem = null;
+
+        function setupDragAndDrop(containerId, itemSelector) {
+            const listContainer = document.getElementById(containerId);
+            if (!listContainer) return;
+
+            listContainer.addEventListener('dragstart', (e) => {
+                if (e.target.matches(itemSelector)) {
+                    draggedItem = e.target;
+                    setTimeout(() => {
+                        draggedItem.classList.add('dragging');
+                    }, 0);
+                    e.dataTransfer.setData('text/plain', draggedItem.dataset.transactionId); // Pode ser útil para identificar o item
+                }
+            });
+
+            listContainer.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Permite o drop
+                const afterElement = getDragAfterElement(listContainer, e.clientY, itemSelector);
+                const currentDraggable = document.querySelector('.dragging');
+                if (currentDraggable) {
+                    if (afterElement == null) {
+                        listContainer.appendChild(currentDraggable);
+                    } else {
+                        listContainer.insertBefore(currentDraggable, afterElement);
+                    }
+                }
+                // Adicionar feedback visual para o elemento sobre o qual está arrastando
+                const hoveredItem = e.target.closest(itemSelector);
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+                if (hoveredItem && hoveredItem !== draggedItem) {
+                    hoveredItem.classList.add('drag-over');
+                }
+            });
+
+            listContainer.addEventListener('dragleave', (e) => {
+                // Remover feedback visual quando o item sai de cima de outro
+                const hoveredItem = e.target.closest(itemSelector);
+                if (hoveredItem) {
+                    hoveredItem.classList.remove('drag-over');
+                }
+            });
+
+            listContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+                // Remover feedback visual de todos os itens
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+                // Aqui você enviaria a nova ordem para o backend se necessário
+                // console.log('Nova ordem de IDs:', Array.from(listContainer.children).map(item => item.dataset.transactionId));
+            });
+
+            listContainer.addEventListener('dragend', () => {
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                }
+                draggedItem = null;
+                // Remover feedback visual de todos os itens
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+            });
+        }
+
+        function getDragAfterElement(container, y, itemSelector) {
+            const draggableElements = [...container.querySelectorAll(itemSelector + ':not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
     </script>
 </body>

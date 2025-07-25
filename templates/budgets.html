@@ -241,6 +241,18 @@
         .close-button:hover {
             color: #333;
         }
+        /* Estilos para arrastar e soltar */
+        .dragging {
+            opacity: 0.5;
+            border: 2px dashed #6366f1; /* purple-500 */
+        }
+        .drag-over {
+            background-color: #e0e7ff; /* blue-100 */
+            border: 2px dashed #4f46e5; /* indigo-600 */
+        }
+        html.dark .drag-over {
+            background-color: #374762; /* Darker blue for drag-over */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -350,11 +362,11 @@
             {% if not budgets %}
                 <p class="text-gray-500 text-center py-4 text-md">Nenhum orçamento definido para este mês.</p>
             {% else %}
-                <div class="space-y-4">
+                <div id="budget-list-container" class="space-y-4">
                     {% for budget in budgets %}
                         {% set percentage_spent = (budget.current_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0 %}
                         {% set bar_color = 'bg-green-500' if percentage_spent <= 75 else ('bg-orange-500' if percentage_spent <= 100 else 'bg-red-500') %}
-                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 draggable-budget-item" draggable="true" data-budget-id="{{ budget.id }}">
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-lg text-gray-800 truncate flex items-center">
                                     {# Ícone da categoria com a nova classe e lógica #}
@@ -750,6 +762,9 @@
 
             highlightCurrentPage(); // Chamada para destacar a página atual
             renderCategoryIconsInLists(); // Chamada para renderizar os ícones dos orçamentos
+
+            // Lógica para arrastar e soltar orçamentos
+            setupDragAndDrop('budget-list-container', '.draggable-budget-item');
         });
 
         // Funções para o modal de edição de orçamento
@@ -825,6 +840,90 @@
                     }
                 }
             });
+        }
+
+        // --- Lógica para Arrastar e Soltar (Drag and Drop) para Orçamentos ---
+        let draggedItem = null;
+
+        function setupDragAndDrop(containerId, itemSelector) {
+            const listContainer = document.getElementById(containerId);
+            if (!listContainer) return;
+
+            listContainer.addEventListener('dragstart', (e) => {
+                if (e.target.matches(itemSelector)) {
+                    draggedItem = e.target;
+                    setTimeout(() => {
+                        draggedItem.classList.add('dragging');
+                    }, 0);
+                    e.dataTransfer.setData('text/plain', draggedItem.dataset.budgetId); // Pode ser útil para identificar o item
+                }
+            });
+
+            listContainer.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Permite o drop
+                const afterElement = getDragAfterElement(listContainer, e.clientY, itemSelector);
+                const currentDraggable = document.querySelector('.dragging');
+                if (currentDraggable) {
+                    if (afterElement == null) {
+                        listContainer.appendChild(currentDraggable);
+                    } else {
+                        listContainer.insertBefore(currentDraggable, afterElement);
+                    }
+                }
+                // Adicionar feedback visual para o elemento sobre o qual está arrastando
+                const hoveredItem = e.target.closest(itemSelector);
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+                if (hoveredItem && hoveredItem !== draggedItem) {
+                    hoveredItem.classList.add('drag-over');
+                }
+            });
+
+            listContainer.addEventListener('dragleave', (e) => {
+                // Remover feedback visual quando o item sai de cima de outro
+                const hoveredItem = e.target.closest(itemSelector);
+                if (hoveredItem) {
+                    hoveredItem.classList.remove('drag-over');
+                }
+            });
+
+            listContainer.addEventListener('drop', (e) => {
+                e.preventDefault();
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+                // Remover feedback visual de todos os itens
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+                // Aqui você enviaria a nova ordem para o backend se necessário
+                // console.log('Nova ordem de IDs:', Array.from(listContainer.children).map(item => item.dataset.budgetId));
+            });
+
+            listContainer.addEventListener('dragend', () => {
+                if (draggedItem) {
+                    draggedItem.classList.remove('dragging');
+                }
+                draggedItem = null;
+                // Remover feedback visual de todos os itens
+                listContainer.querySelectorAll(itemSelector).forEach(item => {
+                    item.classList.remove('drag-over');
+                });
+            });
+        }
+
+        function getDragAfterElement(container, y, itemSelector) {
+            const draggableElements = [...container.querySelectorAll(itemSelector + ':not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
     </script>
 </body>
