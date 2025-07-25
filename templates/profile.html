@@ -311,25 +311,25 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
                 <nav class="space-y-3">
-                    <a href="{{ url_for('main.index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-home mr-3"></i> Dashboard
                     </a>
-                    <a href="{{ url_for('auth.profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-user-circle mr-3"></i> Meu Perfil
                     </a>
-                    <a href="{{ url_for('budget.budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos
                     </a>
-                    <a href="{{ url_for('goal.goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-bullseye mr-3"></i> Minhas Metas
                     </a>
-                    <a href="{{ url_for('account.accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-wallet mr-3"></i> Minhas Contas
                     </a>
-                    <a href="{{ url_for('report.reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-line mr-3"></i> Relatórios
                     </a>
-                    <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
                         <i class="fas fa-sign-out-alt mr-3"></i> Sair
                     </a>
                 </nav>
@@ -338,7 +338,7 @@
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
         
         <img id="profile-picture" src="{{ current_user.profile_picture_url or 'https://placehold.co/100x100/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="profile-pic">
-        <form id="profile-picture-form" action="{{ url_for('auth.update_profile_picture') }}" method="POST" class="mb-4">
+        <form id="profile-picture-form" action="{{ url_for('update_profile_picture') }}" method="POST" class="mb-4">
             <input type="url" id="profile_picture_url_input" name="profile_picture_url" placeholder="URL da Foto de Perfil" class="w-full max-w-sm mx-auto px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
             <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">
                 Atualizar Foto
@@ -404,10 +404,10 @@
         </div>
 
         <div class="space-y-4 mt-8 border-t pt-8 max-w-sm mx-auto">
-            <a href="{{ url_for('auth.change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+            <a href="{{ url_for('change_password') }}" class="block w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Redefinir Senha
             </a>
-            <a href="{{ url_for('auth.delete_account_user') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
+            <a href="{{ url_for('delete_account_user') }}" class="block w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-md transition-colors">
                 Apagar Conta
             </a>
         </div>
@@ -558,7 +558,7 @@
             aiInsightOutputEl.textContent = 'Gerando insights de IA...';
             try {
                 // ATENÇÃO: Rota alterada para a rota unificada /ai_insight
-                const response = await fetch('{{ url_for("auth.get_ai_insight") }}', { 
+                const response = await fetch('/ai_insight', { 
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ summary_data: currentMonthlyData }), // Passa summary_data
@@ -585,7 +585,7 @@
 
         async function fetchChartData() {
             try {
-                const response = await fetch('{{ url_for("auth.get_chart_data") }}');
+                const response = await fetch('/get_chart_data');
                 if (!response.ok) {
                     throw new Error(`Erro HTTP: ${response.status} - ${response.statusText}`);
                 }
@@ -791,8 +791,8 @@
 
                 // Adiciona destaque se o href do link corresponder ao caminho atual
                 // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
-                if (link.getAttribute('href') === '{{ url_for("main.index") }}') {
-                    if (currentPath === '/' || currentPath === '{{ url_for("main.index") }}') {
+                if (link.getAttribute('href') === '{{ url_for("index") }}') {
+                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
                         link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
                         link.classList.remove('text-gray-800');
                     }

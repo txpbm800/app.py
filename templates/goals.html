@@ -251,25 +251,25 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
                 <nav class="space-y-3">
-                    <a href="{{ url_for('main.index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-home mr-3"></i> Dashboard
                     </a>
-                    <a href="{{ url_for('auth.profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-user-circle mr-3"></i> Meu Perfil
                     </a>
-                    <a href="{{ url_for('budget.budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos
                     </a>
-                    <a href="{{ url_for('goal.goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-bullseye mr-3"></i> Minhas Metas
                     </a>
-                    <a href="{{ url_for('account.accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-wallet mr-3"></i> Minhas Contas
                     </a>
-                    <a href="{{ url_for('report.reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-line mr-3"></i> Relatórios
                     </a>
-                    <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
                         <i class="fas fa-sign-out-alt mr-3"></i> Sair
                     </a>
                 </nav>
@@ -292,7 +292,7 @@
 
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Nova Meta</h2>
-            <form action="{{ url_for('goal.handle_add_goal') }}" method="POST" class="space-y-4">
+            <form action="{{ url_for('handle_add_goal') }}" method="POST" class="space-y-4">
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome da Meta</label>
                     <input type="text" id="name" name="name" placeholder="Ex: Viagem, Carro, Casa..." required
@@ -342,7 +342,7 @@
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" onclick="openContributeModal({{ goal.id }}, '{{ goal.name }}')" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Contribuir</button>
                                     <button type="button" onclick="openEditGoalModal({{ goal.id }}, '{{ goal.name }}', {{ goal.target_amount }}, {{ goal.current_amount }}, '{{ goal.due_date if goal.due_date else '' }}', '{{ goal.status }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Editar</button>
-                                    <form action="{{ url_for('goal.handle_delete_goal', goal_id=goal.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta meta?');" class="flex-1">
+                                    <form action="{{ url_for('handle_delete_goal', goal_id=goal.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta meta?');" class="flex-1">
                                         <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm w-full">Excluir</button>
                                     </form>
                                 </div>
@@ -362,7 +362,7 @@
                 Contribuir para <span id="contribute_goal_name"></span>
             </h3>
             <div class="mt-2">
-                <form id="contribute_form" method="POST" action="{{ url_for('goal.handle_contribute_to_goal', goal_id=0) }}" class="space-y-4">
+                <form id="contribute_form" method="POST" class="space-y-4">
                     <input type="hidden" id="contribute_goal_id" name="goal_id">
                     <div>
                         <label for="contribute_amount" class="block text-sm font-medium text-gray-700">Valor da Contribuição</label>
@@ -398,7 +398,7 @@
                 Editar Meta: <span id="edit_goal_name_display"></span>
             </h3>
             <div class="mt-2">
-                <form id="edit_goal_form" method="POST" action="{{ url_for('goal.handle_edit_goal', goal_id=0) }}" class="space-y-4">
+                <form id="edit_goal_form" method="POST" class="space-y-4">
                     <input type="hidden" id="edit_goal_id" name="goal_id">
                     <div>
                         <label for="edit_goal_name" class="block text-sm font-medium text-gray-700">Nome da Meta</label>
@@ -497,8 +497,7 @@
         function openContributeModal(id, name) {
             document.getElementById('contribute_goal_id').value = id;
             document.getElementById('contribute_goal_name').textContent = name;
-            // Atualiza a action do formulário com o ID correto
-            document.getElementById('contribute_form').action = `{{ url_for('goal.handle_contribute_to_goal', goal_id=0) }}`.replace('0', id);
+            document.getElementById('contribute_form').action = `/contribute_to_goal/${id}`;
             
             // Popula o dropdown de contas no modal de contribuição
             populateAccounts('source_account_id'); // Reutiliza a função populateAccounts
@@ -520,8 +519,7 @@
             document.getElementById('edit_goal_current_amount').value = currentAmount;
             document.getElementById('edit_goal_due_date').value = dueDate;
             document.getElementById('edit_goal_status').value = status;
-            // Atualiza a action do formulário com o ID correto
-            document.getElementById('edit_goal_form').action = `{{ url_for('goal.handle_edit_goal', goal_id=0) }}`.replace('0', id);
+            document.getElementById('edit_goal_form').action = `/edit_goal/${id}`;
             document.getElementById('edit-goal-modal').classList.add('active'); // Usa 'active' para mostrar o modal
         }
 
@@ -584,8 +582,8 @@
 
                 // Adiciona destaque se o href do link corresponder ao caminho atual
                 // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
-                if (link.getAttribute('href') === '{{ url_for("main.index") }}') {
-                    if (currentPath === '/' || currentPath === '{{ url_for("main.index") }}') {
+                if (link.getAttribute('href') === '{{ url_for("index") }}') {
+                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
                         link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
                         link.classList.remove('text-gray-800');
                     }

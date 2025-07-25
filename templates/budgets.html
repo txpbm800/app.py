@@ -268,25 +268,25 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
                 <nav class="space-y-3">
-                    <a href="{{ url_for('main.index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-home mr-3"></i> Dashboard
                     </a>
-                    <a href="{{ url_for('auth.profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-user-circle mr-3"></i> Meu Perfil
                     </a>
-                    <a href="{{ url_for('budget.budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos
                     </a>
-                    <a href="{{ url_for('goal.goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-bullseye mr-3"></i> Minhas Metas
                     </a>
-                    <a href="{{ url_for('account.accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-wallet mr-3"></i> Minhas Contas
                     </a>
-                    <a href="{{ url_for('report.reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-line mr-3"></i> Relatórios
                     </a>
-                    <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
                         <i class="fas fa-sign-out-alt mr-3"></i> Sair
                     </a>
                 </nav>
@@ -309,7 +309,7 @@
 
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Novo Orçamento</h2>
-            <form action="{{ url_for('budget.handle_add_budget') }}" method="POST" class="space-y-4">
+            <form action="{{ url_for('handle_add_budget') }}" method="POST" class="space-y-4">
                 <div>
                     <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria (Despesa)</label>
                     <select id="category_id" name="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
@@ -338,11 +338,11 @@
         <div class="bg-white rounded-lg shadow-md p-6">
             <!-- FUNCIONALIDADE: Navegação de Mês -->
             <div class="flex justify-between items-center mb-4">
-                <a href="{{ url_for('budget.budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
+                <a href="{{ url_for('budgets_page', month_year=prev_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
                     <span class="text-gray-800"> &lt; Mês Anterior</span>
                 </a>
                 <h2 class="text-2xl font-bold text-gray-800 text-center">Orçamentos de {{ current_month_year }}</h2>
-                <a href="{{ url_for('budget.budgets_page', month_year=next_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
+                <a href="{{ url_for('budgets_page', month_year=next_month_year) }}" class="px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">
                     <span class="text-gray-800">Próximo Mês &gt;</span>
                 </a>
             </div>
@@ -375,7 +375,7 @@
                                 </div>
                                 <div class="flex gap-2">
                                     <button type="button" onclick="openEditBudgetModal({{ budget.id }}, '{{ budget.category.name }}', {{ budget.budget_amount }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Editar</button>
-                                    <form action="{{ url_for('budget.handle_delete_budget', budget_id=budget.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="flex-1">
+                                    <form action="{{ url_for('handle_delete_budget', budget_id=budget.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este orçamento?');" class="flex-1">
                                         <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm w-full">Excluir</button>
                                     </form>
                                 </div>
@@ -395,4 +395,437 @@
                 Editar Orçamento para <span id="edit_budget_category_name"></span>
             </h3>
             <div class="mt-2">
-                <form id="edit_budget_form" method="POST" action="{{ url_for('budget.handle_edit_budget', bud
+                <form id="edit_budget_form" method="POST" class="space-y-4">
+                    <input type="hidden" id="edit_budget_id" name="budget_id">
+                    <div>
+                        <label for="edit_budget_amount" class="block text-sm font-medium text-gray-700">Novo Valor Orçado</label>
+                        <input type="number" step="0.01" id="edit_budget_amount" name="budget_amount" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="closeEditBudgetModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botão de alternância de modo claro/escuro -->
+    <button id="darkModeToggle" class="dark-mode-toggle">
+        <i class="fas fa-sun" id="darkModeIcon"></i>
+    </button>
+
+    <script>
+        // Mapeamento de palavras-chave para ícones Font Awesome
+        const keywordToIconMap = {
+            'salário': 'fa-solid fa-money-bill-wave',
+            'freelance': 'fa-solid fa-briefcase',
+            'outras receitas': 'fa-solid fa-plus-circle',
+            'alimentação': 'fa-solid fa-utensils',
+            'transporte': 'fa-solid fa-car',
+            'lazer': 'fa-solid fa-gamepad',
+            'moradia': 'fa-solid fa-home',
+            'saúde': 'fa-solid fa-heartbeat',
+            'educação': 'fa-solid fa-graduation-cap',
+            'contas fixas': 'fa-solid fa-receipt',
+            'outras despesas': 'fa-solid fa-minus-circle',
+            'poupança para metas': 'fa-solid fa-piggy-bank',
+            'compras': 'fa-solid fa-shopping-cart',
+            'esportes': 'fa-solid fa-futbol',
+            'casa': 'fa-solid fa-house',
+            'carro': 'fa-solid fa-car',
+            'internet': 'fa-solid fa-wifi',
+            'energia': 'fa-solid fa-bolt',
+            'água': 'fa-solid fa-tint',
+            'aluguel': 'fa-solid fa-house-user',
+            'serviços': 'fa-solid fa-concierge-bell',
+            'doação': 'fa-solid fa-hand-holding-heart',
+            'presente': 'fa-solid fa-gift',
+            'reembolso': 'fa-solid fa-undo',
+            'multa': 'fa-solid fa-exclamation-triangle',
+            'imposto': 'fa-solid fa-file-invoice-dollar',
+            'supermercado': 'fa-solid fa-shopping-basket',
+            'restaurante': 'fa-solid fa-utensils',
+            'farmácia': 'fa-solid fa-pills',
+            'combustível': 'fa-solid fa-gas-pump',
+            'academia': 'fa-solid fa-dumbbell',
+            'consultório': 'fa-solid fa-stethoscope',
+            'banco': 'fa-solid fa-university',
+            'transferência': 'fa-solid fa-exchange-alt',
+            'saque': 'fa-solid fa-money-bill-alt',
+            'depósito': 'fa-solid fa-piggy-bank',
+            'renda': 'fa-solid fa-sack-dollar',
+            'despesa': 'fa-solid fa-receipt',
+            'fatura': 'fa-solid fa-file-alt',
+            'assinatura': 'fa-solid fa-sync-alt',
+            'manutenção': 'fa-solid fa-tools',
+            'reparos': 'fa-solid fa-wrench',
+            'pet': 'fa-solid fa-paw',
+            'crianças': 'fa-solid fa-child',
+            'beleza': 'fa-solid fa-cut',
+            'roupas': 'fa-solid fa-tshirt',
+            'eletrônicos': 'fa-solid fa-plug',
+            'hospedagem': 'fa-solid fa-hotel',
+            'passagem': 'fa-solid fa-ticket-alt',
+            'frete': 'fa-solid fa-shipping-fast',
+            'delivery': 'fa-solid fa-motorcycle',
+            'café': 'fa-solid fa-coffee',
+            'bar': 'fa-solid fa-cocktail',
+            'cinema': 'fa-solid fa-ticket-alt',
+            'concerto': 'fa-solid fa-microphone-alt',
+            'museu': 'fa-solid fa-museum',
+            'parque': 'fa-solid fa-tree',
+            'seguro': 'fa-solid fa-car-crash',
+            'empréstimo': 'fa-solid fa-hand-holding-usd',
+            'juros': 'fa-solid fa-percent',
+            'cripto': 'fa-brands fa-bitcoin',
+            'ações': 'fa-solid fa-chart-area',
+            'crédito': 'fa-solid fa-credit-card',
+            'débito': 'fa-solid fa-money-bill-wave',
+            'pix': 'fa-solid fa-qrcode',
+            'boleto': 'fa-solid fa-barcode',
+            'online': 'fa-solid fa-globe',
+            'app': 'fa-solid fa-mobile-alt',
+            'hardware': 'fa-solid fa-desktop',
+            'software': 'fa-solid fa-code',
+            'consultoria': 'fa-solid fa-user-tie',
+            'marketing': 'fa-solid fa-bullhorn',
+            'vendas': 'fa-solid fa-cash-register',
+            'produção': 'fa-solid fa-industry',
+            'logística': 'fa-solid fa-truck',
+            'recursos humanos': 'fa-solid fa-users',
+            'jurídico': 'fa-solid fa-gavel',
+            'contabilidade': 'fa-solid fa-calculator',
+            'auditoria': 'fa-solid fa-clipboard-check',
+            'pesquisa': 'fa-solid fa-search',
+            'desenvolvimento': 'fa-solid fa-cogs',
+            'design': 'fa-solid fa-paint-brush',
+            'mídia': 'fa-solid fa-camera-retro',
+            'publicidade': 'fa-solid fa-ad',
+            'eventos': 'fa-solid fa-calendar-alt',
+            'treinamento': 'fa-solid fa-chalkboard-teacher',
+            'freelance': 'fa-solid fa-user-edit',
+            'startup': 'fa-solid fa-rocket',
+            'e-commerce': 'fa-solid fa-store',
+            'blog': 'fa-solid fa-blog',
+            'podcast': 'fa-solid fa-podcast',
+            'newsletter': 'fa-solid fa-envelope-open-text',
+            'webinar': 'fa-solid fa-video',
+            'curso': 'fa-solid fa-book-reader',
+            'workshop': 'fa-solid fa-users-cog',
+            'conferência': 'fa-solid fa-comments',
+            'seminário': 'fa-solid fa-microphone',
+            'diploma': 'fa-solid fa-award',
+            'certificação': 'fa-solid fa-certificate',
+            'idiomas': 'fa-solid fa-language',
+            'música': 'fa-solid fa-music',
+            'filme': 'fa-solid fa-film',
+            'série': 'fa-solid fa-tv',
+            'teatro': 'fa-solid fa-mask',
+            'arte': 'fa-solid fa-palette',
+            'fotografia': 'fa-solid fa-camera',
+            'dança': 'fa-solid fa-shoe-prints',
+            'show': 'fa-solid fa-ticket-alt',
+            'festival': 'fa-solid fa-fire',
+            'parque de diversões': 'fa-solid fa-roller-coaster',
+            'zoológico': 'fa-solid fa-paw',
+            'aquário': 'fa-solid fa-fish',
+            'natureza': 'fa-solid fa-leaf',
+            'praia': 'fa-solid fa-umbrella-beach',
+            'montanha': 'fa-solid fa-mountain',
+            'trilha': 'fa-solid fa-hiking',
+            'acampamento': 'fa-solid fa-campground',
+            'pesca': 'fa-solid fa-fish',
+            'esqui': 'fa-solid fa-skiing',
+            'snowboard': 'fa-solid fa-snowboarding',
+            'ciclismo': 'fa-solid fa-biking',
+            'natação': 'fa-solid fa-swimmer',
+            'basquete': 'fa-solid fa-basketball-ball',
+            'futebol': 'fa-solid fa-futbol',
+            'vôlei': 'fa-solid fa-volleyball-ball',
+            'tênis': 'fa-solid fa-tennis-ball',
+            'golfe': 'fa-solid fa-golf-ball',
+            'boxe': 'fa-solid fa-boxing-glove',
+            'yoga': 'fa-solid fa-om',
+            'meditação': 'fa-solid fa-hand-holding-heart',
+            'massagem': 'fa-solid fa-spa',
+            'terapia': 'fa-solid fa-brain',
+            'psicologia': 'fa-solid fa-brain',
+            'dentista': 'fa-solid fa-tooth',
+            'oftalmologista': 'fa-solid fa-eye',
+            'pediatra': 'fa-solid fa-baby',
+            'veterinário': 'fa-solid fa-cat',
+            'ambulância': 'fa-solid fa-ambulance',
+            'emergência': 'fa-solid fa-exclamation-circle',
+            'remédio': 'fa-solid fa-pills',
+            'vacina': 'fa-solid fa-syringe',
+            'hospital': 'fa-solid fa-hospital',
+            'clínica': 'fa-solid fa-clinic-medical',
+            'laboratório': 'fa-solid fa-microscope',
+            'exame': 'fa-solid fa-file-medical-alt',
+            'cirurgia': 'fa-solid fa-scalpel',
+            'dieta': 'fa-solid fa-apple-alt',
+            'nutrição': 'fa-solid fa-carrot',
+            'exercício': 'fa-solid fa-dumbbell',
+            'fitness': 'fa-solid fa-running',
+            'bem-estar': 'fa-solid fa-spa',
+            'mente': 'fa-solid fa-brain',
+            'corpo': 'fa-solid fa-male',
+            'espiritualidade': 'fa-solid fa-praying-hands',
+            'religião': 'fa-solid fa-church',
+            'caridade': 'fa-solid fa-hand-holding-heart',
+            'voluntariado': 'fa-solid fa-hands-helping',
+            'comunidade': 'fa-solid fa-people-carry',
+            'família': 'fa-solid fa-users',
+            'amigos': 'fa-solid fa-user-friends',
+            'relacionamento': 'fa-solid fa-heart',
+            'casamento': 'fa-solid fa-ring',
+            'aniversário': 'fa-solid fa-birthday-cake',
+            'festa': 'fa-solid fa-glass-cheers',
+            'feriado': 'fa-solid fa-holly-berry',
+            'natal': 'fa-solid fa-tree',
+            'páscoa': 'fa-solid fa-egg',
+            'halloween': 'fa-solid fa-ghost',
+            'carnaval': 'fa-solid fa-mask',
+            'ano novo': 'fa-solid fa-champagne-glasses',
+            'política': 'fa-solid fa-landmark',
+            'governo': 'fa-solid fa-building',
+            'lei': 'fa-solid fa-balance-scale',
+            'justiça': 'fa-solid fa-gavel',
+            'crime': 'fa-solid fa-mask',
+            'polícia': 'fa-solid fa-handcuffs',
+            'prisão': 'fa-solid fa-prison',
+            'militar': 'fa-solid fa-helmet-battle',
+            'guerra': 'fa-solid fa-bomb',
+            'paz': 'fa-solid fa-peace',
+            'direitos humanos': 'fa-solid fa-hand-holding-heart',
+            'meio ambiente': 'fa-solid fa-leaf',
+            'sustentabilidade': 'fa-solid fa-recycle',
+            'clima': 'fa-solid fa-cloud-sun',
+            'desastre': 'fa-solid fa-house-damage',
+            'socorro': 'fa-solid fa-hands-helping',
+            'notícias': 'fa-solid fa-newspaper',
+            'jornalismo': 'fa-solid fa-microphone-alt',
+            'reportagem': 'fa-solid fa-camera-retro',
+            'entrevista': 'fa-solid fa-comments',
+            'documentário': 'fa-solid fa-video',
+            'história': 'fa-solid fa-scroll',
+            'arqueologia': 'fa-solid fa-gopuram',
+            'ciência': 'fa-solid fa-atom',
+            'física': 'fa-solid fa-atom',
+            'química': 'fa-solid fa-flask',
+            'biologia': 'fa-solid fa-dna',
+            'matemática': 'fa-solid fa-calculator',
+            'estatística': 'fa-solid fa-chart-pie',
+            'programação': 'fa-solid fa-code',
+            'engenharia': 'fa-solid fa-hard-hat',
+            'arquitetura': 'fa-solid fa-building',
+            'design gráfico': 'fa-solid fa-paint-brush',
+            'web design': 'fa-solid fa-globe',
+            'desenvolvimento web': 'fa-solid fa-laptop-code',
+            'aplicativos': 'fa-solid fa-mobile-alt',
+            'inteligência artificial': 'fa-solid fa-robot',
+            'machine learning': 'fa-solid fa-brain',
+            'big data': 'fa-solid fa-database',
+            'nuvem': 'fa-solid fa-cloud',
+            'segurança cibernética': 'fa-solid fa-user-secret',
+            'criptografia': 'fa-solid fa-key',
+            'redes': 'fa-solid fa-network-wired',
+            'servidores': 'fa-solid fa-server',
+            'firewall': 'fa-solid fa-fire-extinguisher',
+            'vírus': 'fa-solid fa-bug',
+            'malware': 'fa-solid fa-bug',
+            'phishing': 'fa-solid fa-fish',
+            'spam': 'fa-solid fa-envelope-open-text',
+            'backup': 'fa-solid fa-save',
+            'recuperação': 'fa-solid fa-undo',
+            'desastre': 'fa-solid fa-house-damage',
+            'continuidade de negócios': 'fa-solid fa-sync-alt',
+            'auditoria de segurança': 'fa-solid fa-clipboard-check',
+            'política de segurança': 'fa-solid fa-file-contract',
+            'conformidade': 'fa-solid fa-check-double',
+            'governança': 'fa-solid fa-sitemap',
+            'gestão de risco': 'fa-solid fa-chart-line',
+            'monitoramento': 'fa-solid fa-eye',
+            'alerta': 'fa-solid fa-bell',
+            'incidente': 'fa-solid fa-exclamation-circle',
+            'resposta a incidentes': 'fa-solid fa-headset',
+            'investigação': 'fa-solid fa-search',
+            'forense': 'fa-solid fa-microscope',
+            'perícia': 'fa-solid fa-search-dollar',
+            'ciberataque': 'fa-solid fa-skull-crossbones',
+            'ameaça': 'fa-solid fa-user-secret',
+            'vulnerabilidade': 'fa-solid fa-exclamation-triangle',
+            'patch': 'fa-solid fa-wrench',
+            'atualização': 'fa-solid fa-sync-alt',
+            'rede': 'fa-solid fa-network-wired',
+            'servidor': 'fa-solid fa-server',
+            'nuvem': 'fa-solid fa-cloud',
+            'virtualização': 'fa-solid fa-vr-cardboard',
+            'container': 'fa-solid fa-box',
+            'devops': 'fa-solid fa-cogs',
+            'automação': 'fa-solid fa-robot',
+            'integração contínua': 'fa-solid fa-sync-alt',
+            'entrega contínua': 'fa-solid fa-truck-loading',
+            'infraestrutura como código': 'fa-solid fa-code',
+            'monitoramento': 'fa-solid fa-eye',
+            'logs': 'fa-solid fa-file-alt',
+            'métricas': 'fa-solid fa-chart-bar',
+            'alertas': 'fa-solid fa-bell',
+            'dashboards': 'fa-solid fa-chart-line',
+            'relatórios': 'fa-solid fa-file-alt',
+            'auditoria': 'fa-solid fa-clipboard-check',
+            'conformidade': 'fa-solid fa-check-double',
+            'governança': 'fa-solid fa-sitemap',
+            'gestão de risco': 'fa-solid fa-chart-line',
+            // Adicione mais palavras-chave e ícones aqui
+        };
+
+        // Ícone padrão caso nenhuma palavra-chave seja encontrada
+        const defaultIcon = 'fa-solid fa-question-circle';
+
+        // Função para obter o ícone com base no texto (nome ou descrição)
+        function getIconForText(text) {
+            const lowerText = text.toLowerCase();
+            for (const keyword in keywordToIconMap) {
+                if (lowerText.includes(keyword)) {
+                    return keywordToIconMap[keyword];
+                }
+            }
+            return defaultIcon;
+        }
+
+        // Função para renderizar os ícones nas listas de orçamentos
+        function renderCategoryIconsInLists() {
+            document.querySelectorAll('.category-icon-fa').forEach(element => {
+                const categoryName = element.dataset.categoryName;
+                element.className = `category-icon-fa ${getIconForText(categoryName)}`;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const htmlElement = document.documentElement;
+            const toggleButton = document.getElementById('darkModeToggle');
+            const icon = document.getElementById('darkModeIcon');
+
+            // Verifica a preferência do usuário ou o que está salvo no localStorage
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlElement.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            toggleButton.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1.5s ease-out'; /* Aumentado para 1.5s */
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+
+            highlightCurrentPage(); // Chamada para destacar a página atual
+            renderCategoryIconsInLists(); // Chamada para renderizar os ícones dos orçamentos
+        });
+
+        // Funções para o modal de edição de orçamento
+        const editBudgetModal = document.getElementById('edit-budget-modal');
+        const editBudgetForm = document.getElementById('edit_budget_form');
+
+        function openEditBudgetModal(id, categoryName, budgetAmount) {
+            document.getElementById('edit_budget_id').value = id;
+            document.getElementById('edit_budget_category_name').textContent = categoryName;
+            document.getElementById('edit_budget_amount').value = budgetAmount;
+            editBudgetForm.action = `/edit_budget/${id}`;
+            editBudgetModal.classList.add('active');
+        }
+
+        function closeEditBudgetModal() {
+            editBudgetModal.classList.remove('active');
+        }
+
+        // Fecha o modal de edição de orçamento ao clicar fora
+        window.addEventListener('click', (event) => {
+            if (event.target == editBudgetModal) {
+                closeEditBudgetModal();
+            }
+        });
+
+
+        // Funções para o novo menu lateral (sidebar)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        // Event listener to close sidebar when clicking outside of it
+        document.addEventListener('click', (event) => {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarButton = document.querySelector('header .flex.items-center button');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(event.target) && (!sidebarButton || !sidebarButton.contains(event.target))) {
+                toggleSidebar();
+            }
+        });
+
+
+        // Função para destacar o link da página atual no sidebar
+        function highlightCurrentPage() {
+            const sidebarLinks = document.querySelectorAll('#sidebar nav a');
+            const currentPath = window.location.pathname;
+
+            sidebarLinks.forEach(link => {
+                // Remove classes de destaque de todos os links primeiro
+                link.classList.remove('bg-gray-200', 'text-purple-700', 'font-semibold');
+                link.classList.add('text-gray-800'); // Garante a cor padrão
+
+                // Adiciona destaque se o href do link corresponder ao caminho atual
+                // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
+                if (link.getAttribute('href') === '{{ url_for("index") }}') {
+                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
+                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
+                        link.classList.remove('text-gray-800');
+                    }
+                } else if (currentPath.startsWith(link.getAttribute('href'))) {
+                    // Para outras páginas, usa startsWith, mas com uma verificação mais rigorosa
+                    // para evitar que /profile/monthly_summary destaque apenas /profile
+                    // Verifica se o caminho do link é um prefixo do caminho atual E
+                    // que o próximo caractere após o prefixo seja '/' ou o final da string
+                    const linkHref = link.getAttribute('href');
+                    if (currentPath === linkHref || (currentPath.startsWith(linkHref) && currentPath.charAt(linkHref.length) === '/')) {
+                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
+                        link.classList.remove('text-gray-800');
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
