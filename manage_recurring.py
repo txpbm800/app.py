@@ -1,21 +1,28 @@
 import datetime
 from dateutil.relativedelta import relativedelta
-# Importa os objetos do banco de dados do app.py
-# É importante que estes sejam importados do app.py para usar a mesma instância de db
-# e os mesmos modelos.
-from app import db, Transaction, Subscription, Account, Category, TODAY_DATE
+import calendar # Importar calendar aqui também, pois é usado na lógica de datas
 
-def process_subscriptions_and_generate_transactions(user_id, db_session, TransactionModel, SubscriptionModel, AccountModel, CategoryModel, current_date):
+
+def process_subscriptions_and_generate_transactions(user_id, db_instance, TransactionModel, SubscriptionModel, AccountModel, CategoryModel, current_date):
     """
     Processa as assinaturas ativas de um usuário, gerando transações para aquelas
     cuja próxima data de vencimento já passou ou é o dia atual.
+    
+    Argumentos:
+        user_id (int): O ID do usuário.
+        db_instance: A instância do SQLAlchemy 'db' do seu aplicativo Flask.
+        TransactionModel: O modelo de banco de dados Transaction.
+        SubscriptionModel: O modelo de banco de dados Subscription.
+        AccountModel: O modelo de banco de dados Account.
+        CategoryModel: O modelo de banco de dados Category.
+        current_date (datetime.date): A data atual para comparação.
     """
     print(f"\n--- Processando assinaturas para o usuário {user_id} ---")
 
     active_subscriptions = SubscriptionModel.query.filter(
         SubscriptionModel.user_id == user_id,
         SubscriptionModel.status == 'active',
-        db_session.cast(SubscriptionModel.next_due_date, db_session.Date) <= current_date
+        db_instance.cast(SubscriptionModel.next_due_date, db_instance.Date) <= current_date
     ).all()
 
     if not active_subscriptions:
@@ -75,11 +82,11 @@ def process_subscriptions_and_generate_transactions(user_id, db_session, Transac
                 category_id=category_for_sub_id,
                 account_id=account_for_sub.id
             )
-            db_session.session.add(new_transaction)
+            db_instance.session.add(new_transaction)
             
             # Atualizar o saldo da conta
             account_for_sub.balance -= sub.amount
-            db_session.session.add(account_for_sub)
+            db_instance.session.add(account_for_sub)
             print(f"  Transação gerada para '{sub.name}' em {sub.next_due_date}. Saldo da conta '{account_for_sub.name}' atualizado para R${account_for_sub.balance:.2f}.")
 
         # Calcular a próxima data de vencimento para a assinatura
@@ -105,9 +112,8 @@ def process_subscriptions_and_generate_transactions(user_id, db_session, Transac
                 current_next_due_date_obj = current_next_due_date_obj.replace(day=last_day_of_month)
 
         sub.next_due_date = current_next_due_date_obj.isoformat()
-        db_session.session.add(sub)
+        db_instance.session.add(sub)
         print(f"  Próximo vencimento para '{sub.name}' atualizado para: {sub.next_due_date}")
 
-    db_session.session.commit()
+    db_instance.session.commit()
     print(f"--- Processamento de assinaturas concluído para o usuário {user_id} ---")
-

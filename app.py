@@ -21,6 +21,7 @@ from openpyxl.styles.numbers import FORMAT_CURRENCY_USD_SIMPLE # Para formato de
 from fpdf import FPDF # Para exportar para PDF
 
 # Importa a nova função de gerenciamento de recorrências
+# A importação agora é apenas da função, não dos modelos
 from manage_recurring import process_subscriptions_and_generate_transactions
 
 app = Flask(__name__)
@@ -503,7 +504,7 @@ def process_recurring_items_on_access(user_id):
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
     
-    # Processar Assinaturas (chamando a função do novo módulo)
+    # Processar Assinaturas (chamando a função do novo módulo e passando as dependências)
     process_subscriptions_and_generate_transactions(user_id, db, Transaction, Subscription, Account, Category, TODAY_DATE)
 
 
@@ -1148,7 +1149,7 @@ def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transacti
     ).scalar() or 0.0 # Saldo atual de todas as contas
 
     # Para a evolução do patrimônio, precisamos de pontos de dados ao longo do tempo.
-    # Vamos gerar um ponto por mês dentro do período selecionado.
+    # Vamos gerar um ponto por dia dentro do período selecionado.
     net_worth_labels = []
     net_worth_values = []
 
@@ -1284,7 +1285,8 @@ def send_recovery_email(recipient_email, recovery_code):
 @login_required
 def index():
     """Rota principal do dashboard."""
-    process_recurring_items_on_access(current_user.id) # Chamada atualizada
+    # Chamada atualizada para passar os modelos e a instância do db
+    process_recurring_items_on_access(current_user.id) 
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
@@ -2616,4 +2618,3 @@ with app.app_context():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-    
