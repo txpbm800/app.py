@@ -380,7 +380,10 @@
             </div>
             <nav class="relative">
                 {% if current_user.is_authenticated %}
-                    <span class="text-gray-700">Olá, {{ current_user.username }}!</span>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-gray-700">Olá, {{ current_user.username }}!</span>
+                        <img src="{{ current_user.profile_picture_url or 'https://placehold.co/40x40/aabbcc/ffffff?text=PF' }}" alt="Foto de Perfil" class="w-10 h-10 rounded-full object-cover border-2 border-purple-500">
+                    </div>
                 {% else %}
                     <a href="{{ url_for('login') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Login</a>
                     <a href="{{ url_for('register') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Registrar</a>
