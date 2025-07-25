@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minhas Metas Financeiras - Gestão Financeira Pessoal</title>
+    <title>Minhas Assinaturas - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Link para o Font Awesome via CDN para os ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -133,10 +133,6 @@
             background-color: #374762; /* Um azul ainda mais escuro para o hover */
         }
 
-        .progress-bar-container { width: 100%; background-color: #e2e8f0; border-radius: 9999px; overflow: hidden; }
-        html.dark .progress-bar-container { background-color: #4A5C7E; } /* Dark mode progress bar container */
-
-        .progress-bar { height: 1.5rem; border-radius: 9999px; text-align: center; color: white; font-weight: bold; transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out; }
         .modal {
             position: fixed;
             z-index: 1050;
@@ -148,7 +144,7 @@
             background-color: rgba(0,0,0,0.4);
             display: flex;
             justify-content: center;
-            align-items: center; /* Garante centralização vertical */
+            align-items: center;
             padding: 1rem;
             visibility: hidden;
             opacity: 0;
@@ -218,12 +214,28 @@
             opacity: 1;
             visibility: visible;
         }
-        /* Ajustes para as cores dos cards de meta */
+        /* Ajustes para as cores dos cards de assinatura */
         .bg-gray-50 { background-color: #f9fafb; } /* Tailwind gray-50 */
         html.dark .bg-gray-50 { background-color: #2D3A54; } /* Um tom mais escuro para o card no dark mode */
 
         .border-gray-200 { border-color: #e5e7eb; }
         html.dark .border-gray-200 { border-color: #374762; } /* Borda mais escura no dark mode */
+
+        /* Estilo para o ícone da categoria/assinatura */
+        .subscription-icon-fa {
+            width: 20px;
+            height: 20px;
+            display: inline-flex; /* Usar flex para centralizar o ícone */
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            margin-right: 8px;
+            color: #6b7280; /* Cor padrão cinza */
+            font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
+        }
+        html.dark .subscription-icon-fa {
+            color: var(--text-color-dark); /* Cor para ícone no modo escuro */
+        }
     </style>
 </head>
 <body class="min-h-screen p-4 sm:p-6 lg:p-8">
@@ -239,7 +251,7 @@
                         </svg>
                     </button>
                 {% endif %}
-                <h1 class="text-4xl font-bold text-gray-900">Minhas Metas Financeiras</h1>
+                <h1 class="text-4xl font-bold text-gray-900">Minhas Assinaturas</h1>
             </div>
             <nav>
                 {# Removido: <a href="{{ url_for('index') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Voltar para o Dashboard</a> #}
@@ -294,61 +306,88 @@
         {% endwith %}
 
         <div class="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Nova Meta</h2>
-            <form action="{{ url_for('handle_add_goal') }}" method="POST" class="space-y-4">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Nova Assinatura</h2>
+            <form action="{{ url_for('handle_add_subscription') }}" method="POST" class="space-y-4">
                 <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome da Meta</label>
-                    <input type="text" id="name" name="name" placeholder="Ex: Viagem, Carro, Casa..." required
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome do Serviço</label>
+                    <input type="text" id="name" name="name" placeholder="Ex: Netflix, Spotify, Academia" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
                 <div>
-                    <label for="target_amount" class="block text-sm font-medium text-gray-700 mb-1">Valor Alvo</label>
-                    <input type="number" step="0.01" id="target_amount" name="target_amount" placeholder="0.00" required
+                    <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
+                    <input type="number" step="0.01" id="amount" name="amount" placeholder="0.00" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                 </div>
                 <div>
-                    <label for="due_date" class="block text-sm font-medium text-gray-700 mb-1">Data Limite (Opcional)</label>
-                    <input type="date" id="due_date" name="due_date"
+                    <label for="billing_cycle" class="block text-sm font-medium text-gray-700 mb-1">Ciclo de Cobrança</label>
+                    <select id="billing_cycle" name="billing_cycle" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="monthly">Mensal</option>
+                        <option value="quarterly">Trimestral</option>
+                        <option value="semi-annually">Semestral</option>
+                        <option value="annually">Anual</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="due_date_of_month" class="block text-sm font-medium text-gray-700 mb-1">Dia do Mês de Vencimento</label>
+                    <input type="number" id="due_date_of_month" name="due_date_of_month" placeholder="Ex: 5, 15, 28" min="1" max="31" required
                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria (Despesa)</label>
+                    <select id="category_id" name="category_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Selecione uma categoria (Opcional)</option>
+                        {% for category in expense_categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta para Débito (Opcional)</label>
+                    <select id="account_id" name="account_id"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="">Selecione uma conta (Padrão: Principal)</option>
+                        {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
+                        {% endfor %}
+                    </select>
                 </div>
                 <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
-                    Adicionar Meta
+                    Adicionar Assinatura
                 </button>
             </form>
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Metas Atuais</h2>
-            {% if not goals %}
-                <p class="text-gray-500 text-center py-4 text-md">Nenhuma meta definida ainda.</p>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Assinaturas Atuais</h2>
+            {% if not subscriptions %}
+                <p class="text-gray-500 text-center py-4 text-md">Nenhuma assinatura definida ainda.</p>
             {% else %}
                 <div class="space-y-4">
-                    {% for goal in goals %}
-                        {% set percentage_achieved = (goal.current_amount / goal.target_amount * 100) if goal.target_amount > 0 else 0 %}
-                        {% set bar_color = 'bg-blue-500' if percentage_achieved < 100 else 'bg-green-500' %}
+                    {% for sub in subscriptions %}
                         <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <div class="flex-1 min-w-0">
-                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ goal.name }}</h3>
-                                <p class="text-sm text-gray-600">Alvo: R$ {{ "%.2f"|format(goal.target_amount) }}</p>
-                                <p class="text-sm text-gray-600">Atual: R$ {{ "%.2f"|format(goal.current_amount) }}</p>
-                                <p class="text-sm font-bold text-gray-700">
-                                    Status: {{ goal.status|capitalize }}
-                                    {% if goal.status == 'in_progress' and goal.due_date %} (Até: {{ goal.due_date }}) {% endif %}
-                                </p>
+                                <h3 class="font-semibold text-lg text-gray-800 truncate flex items-center">
+                                    <i class="subscription-icon-fa" data-subscription-name="{{ sub.name }}"></i>
+                                    {{ sub.name }}
+                                </h3>
+                                <p class="text-sm text-gray-600">Valor: R$ {{ "%.2f"|format(sub.amount) }}</p>
+                                <p class="text-sm text-gray-600">Ciclo: {{ sub.billing_cycle|capitalize }}</p>
+                                <p class="text-sm text-gray-600">Próximo Vencimento: {{ sub.next_due_date }}</p>
+                                <p class="text-sm text-gray-600">Status: <span class="font-semibold {% if sub.status == 'active' %}text-green-600{% else %}text-red-600{% endif %}">{{ sub.status|capitalize }}</span></p>
+                                {% if sub.category %}
+                                    <p class="text-sm text-gray-600">Categoria: {{ sub.category.name }}</p>
+                                {% endif %}
+                                {% if sub.account %}
+                                    <p class="text-sm text-gray-600">Conta: {{ sub.account.name }}</p>
+                                {% endif %}
                             </div>
-                            <div class="w-full sm:w-1/2 md:w-1/3 space-y-2">
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar {{ bar_color }}" style="width: {{ [percentage_achieved, 100]|min|round(0, 'floor') }}%;">
-                                        {{ percentage_achieved|round(0, 'floor') }}%
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <button type="button" onclick="openContributeModal({{ goal.id }}, '{{ goal.name }}')" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Contribuir</button>
-                                    <button type="button" onclick="openEditGoalModal({{ goal.id }}, '{{ goal.name }}', {{ goal.target_amount }}, {{ goal.current_amount }}, '{{ goal.due_date if goal.due_date else '' }}', '{{ goal.status }}')" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm flex-1">Editar</button>
-                                    <form action="{{ url_for('handle_delete_goal', goal_id=goal.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta meta?');" class="flex-1">
-                                        <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm w-full">Excluir</button>
-                                    </form>
-                                </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="openEditSubscriptionModal({{ sub.id }}, '{{ sub.name }}', {{ sub.amount }}, '{{ sub.billing_cycle }}', {{ sub.due_date_of_month }}, '{{ sub.next_due_date }}', '{{ sub.status }}', {{ sub.category_id if sub.category_id else 'null' }}, {{ sub.account_id if sub.account_id else 'null' }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Editar</button>
+                                <form action="{{ url_for('handle_delete_subscription', subscription_id=sub.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta assinatura?');">
+                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Excluir</button>
+                                </form>
                             </div>
                         </div>
                     {% endfor %}
@@ -357,83 +396,72 @@
         </div>
     </div>
 
-    {# Modal de Contribuição para Meta #}
-    <div id="contribute-modal" class="modal">
-        <div class="modal-content"> {# Removido 'flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0' e 'fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity' #}
-            <span class="close-button" onclick="closeContributeModal()">&times;</span>
-            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center" id="contribute-modal-title">
-                Contribuir para <span id="contribute_goal_name"></span>
-            </h3>
-            <div class="mt-2">
-                <form id="contribute_form" method="POST" class="space-y-4">
-                    <input type="hidden" id="contribute_goal_id" name="goal_id">
-                    <div>
-                        <label for="contribute_amount" class="block text-sm font-medium text-gray-700">Valor da Contribuição</label>
-                        <input type="number" step="0.01" id="contribute_amount" name="amount" placeholder="0.00" required
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    </div>
-                    <div> {# NOVO CAMPO: Seleção de Conta de Origem #}
-                        <label for="source_account_id" class="block text-sm font-medium text-gray-700">Conta de Origem</label>
-                        <select id="source_account_id" name="source_account_id" required
-                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            <option value="">Selecione uma conta</option>
-                            {# As opções serão populadas via JavaScript #}
-                        </select>
-                    </div>
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeContributeModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
-                            Cancelar
-                        </button>
-                        <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 sm:ml-3 sm:w-auto sm:text-sm">
-                            Adicionar Contribuição
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    {# Modal de Edição de Meta #}
-    <div id="edit-goal-modal" class="modal">
+    {# Modal de Edição de Assinatura #}
+    <div id="edit-subscription-modal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeEditGoalModal()">&times;</span>
+            <span class="close-button" onclick="closeEditSubscriptionModal()">&times;</span>
             <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">
-                Editar Meta: <span id="edit_goal_name_display"></span>
+                Editar Assinatura: <span id="edit_subscription_name_display"></span>
             </h3>
             <div class="mt-2">
-                <form id="edit_goal_form" method="POST" class="space-y-4">
-                    <input type="hidden" id="edit_goal_id" name="goal_id">
+                <form id="edit_subscription_form" method="POST" class="space-y-4">
+                    <input type="hidden" id="edit_subscription_id" name="subscription_id">
                     <div>
-                        <label for="edit_goal_name" class="block text-sm font-medium text-gray-700">Nome da Meta</label>
-                        <input type="text" id="edit_goal_name" name="name" required
+                        <label for="edit_name" class="block text-sm font-medium text-gray-700">Nome do Serviço</label>
+                        <input type="text" id="edit_name" name="edit_name" required
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </div>
                     <div>
-                        <label for="edit_goal_target_amount" class="block text-sm font-medium text-gray-700">Valor Alvo</label>
-                        <input type="number" step="0.01" id="edit_goal_target_amount" name="target_amount" required
+                        <label for="edit_amount" class="block text-sm font-medium text-gray-700">Valor</label>
+                        <input type="number" step="0.01" id="edit_amount" name="edit_amount" required
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </div>
                     <div>
-                        <label for="edit_goal_current_amount" class="block text-sm font-medium text-gray-700">Valor Atual</label>
-                        <input type="number" step="0.01" id="edit_goal_current_amount" name="current_amount" required
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    </div>
-                    <div>
-                        <label for="edit_goal_due_date" class="block text-sm font-medium text-gray-700">Data Limite</label>
-                        <input type="date" id="edit_goal_due_date" name="due_date"
-                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                    </div>
-                    <div>
-                        <label for="edit_goal_status" class="block text-sm font-medium text-gray-700">Status</label>
-                        <select id="edit_goal_status" name="status" required
+                        <label for="edit_billing_cycle" class="block text-sm font-medium text-gray-700">Ciclo de Cobrança</label>
+                        <select id="edit_billing_cycle" name="edit_billing_cycle" required
                                 class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
-                            <option value="in_progress">Em Progresso</option>
-                            <option value="achieved">Concluída</option>
-                            <option value="abandoned">Abandonada</option>
+                            <option value="monthly">Mensal</option>
+                            <option value="quarterly">Trimestral</option>
+                            <option value="semi-annually">Semestral</option>
+                            <option value="annually">Anual</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="edit_due_date_of_month" class="block text-sm font-medium text-gray-700">Dia do Mês de Vencimento</label>
+                        <input type="number" id="edit_due_date_of_month" name="edit_due_date_of_month" min="1" max="31" required
+                               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="edit_status" class="block text-sm font-medium text-gray-700">Status</label>
+                        <select id="edit_status" name="edit_status" required
+                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <option value="active">Ativa</option>
+                            <option value="inactive">Inativa</option>
+                            <option value="cancelled">Cancelada</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="edit_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria (Despesa)</label>
+                        <select id="edit_category_id" name="edit_category_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Selecione uma categoria (Opcional)</option>
+                            {% for category in expense_categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label for="edit_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta para Débito (Opcional)</label>
+                        <select id="edit_account_id" name="edit_account_id"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="">Selecione uma conta (Padrão: Principal)</option>
+                            {% for account in accounts %}
+                                <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
+                            {% endfor %}
                         </select>
                     </div>
                     <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeEditGoalModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
+                        <button type="button" onclick="closeEditSubscriptionModal()" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm">
                             Cancelar
                         </button>
                         <button type="submit" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:ml-3 sm:w-auto sm:text-sm">
@@ -452,7 +480,58 @@
     </button>
 
     <script>
-        const allAccounts = {{ accounts_json | tojson }}; // Passa accounts_json do app.py
+        // Mapeamento de palavras-chave para ícones Font Awesome
+        const keywordToIconMap = {
+            'netflix': 'fa-solid fa-film',
+            'spotify': 'fa-solid fa-music',
+            'academia': 'fa-solid fa-dumbbell',
+            'amazon prime': 'fa-solid fa-box',
+            'disney+': 'fa-solid fa-magic',
+            'microsoft 365': 'fa-solid fa-cloud',
+            'google drive': 'fa-solid fa-cloud',
+            'adobe creative cloud': 'fa-solid fa-palette',
+            'apple music': 'fa-solid fa-music',
+            'youtube premium': 'fa-solid fa-play-circle',
+            'game pass': 'fa-solid fa-gamepad',
+            'playstation plus': 'fa-solid fa-gamepad',
+            'xbox live': 'fa-solid fa-gamepad',
+            'internet': 'fa-solid fa-wifi',
+            'telefone': 'fa-solid fa-phone',
+            'celular': 'fa-solid fa-mobile-alt',
+            'seguro': 'fa-solid fa-shield-alt',
+            'software': 'fa-solid fa-laptop-code',
+            'nuvem': 'fa-solid fa-cloud',
+            'hosting': 'fa-solid fa-server',
+            'domínio': 'fa-solid fa-globe',
+            'jornal': 'fa-solid fa-newspaper',
+            'revista': 'fa-solid fa-book-open',
+            'clube': 'fa-solid fa-users',
+            'assinatura': 'fa-solid fa-sync-alt',
+            'recorrente': 'fa-solid fa-redo-alt',
+            // Adicione mais palavras-chave e ícones aqui
+        };
+
+        // Ícone padrão caso nenhuma palavra-chave seja encontrada
+        const defaultIcon = 'fa-solid fa-credit-card';
+
+        // Função para obter o ícone com base no texto (nome da assinatura)
+        function getIconForText(text) {
+            const lowerText = text.toLowerCase();
+            for (const keyword in keywordToIconMap) {
+                if (lowerText.includes(keyword)) {
+                    return keywordToIconMap[keyword];
+                }
+            }
+            return defaultIcon;
+        }
+
+        // Função para renderizar os ícones nas listas de assinaturas
+        function renderSubscriptionIconsInLists() {
+            document.querySelectorAll('.subscription-icon-fa').forEach(element => {
+                const subscriptionName = element.dataset.subscriptionName;
+                element.className = `subscription-icon-fa ${getIconForText(subscriptionName)}`;
+            });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             const htmlElement = document.documentElement;
@@ -495,75 +574,43 @@
             });
 
             highlightCurrentPage(); // Chamada para destacar a página atual
+            renderSubscriptionIconsInLists(); // Renderiza os ícones das assinaturas
         });
 
-        function openContributeModal(id, name) {
-            document.getElementById('contribute_goal_id').value = id;
-            document.getElementById('contribute_goal_name').textContent = name;
-            document.getElementById('contribute_form').action = `/contribute_to_goal/${id}`;
+        // Funções para o modal de edição de assinatura
+        const editSubscriptionModal = document.getElementById('edit-subscription-modal');
+        const editSubscriptionForm = document.getElementById('edit_subscription_form');
+
+        async function openEditSubscriptionModal(id, name, amount, billingCycle, dueDateOfMonth, nextDueDate, status, categoryId, accountId) {
+            document.getElementById('edit_subscription_id').value = id;
+            document.getElementById('edit_subscription_name_display').textContent = name;
+            document.getElementById('edit_name').value = name;
+            document.getElementById('edit_amount').value = amount;
+            document.getElementById('edit_billing_cycle').value = billingCycle;
+            document.getElementById('edit_due_date_of_month').value = dueDateOfMonth;
+            document.getElementById('edit_status').value = status;
             
-            // Popula o dropdown de contas no modal de contribuição
-            populateAccounts('source_account_id'); // Reutiliza a função populateAccounts
+            // Preencher categoria e conta
+            const editCategoryIdSelect = document.getElementById('edit_category_id');
+            editCategoryIdSelect.value = categoryId || ''; // Seleciona a categoria ou vazio
             
-            document.getElementById('contribute-modal').classList.add('active');
+            const editAccountIdSelect = document.getElementById('edit_account_id');
+            editAccountIdSelect.value = accountId || ''; // Seleciona a conta ou vazio
+
+            editSubscriptionForm.action = `/edit_subscription/${id}`;
+            editSubscriptionModal.classList.add('active');
         }
 
-        function closeContributeModal() {
-            document.getElementById('contribute-modal').classList.remove('active');
-            document.getElementById('contribute_amount').value = ''; // Clear input
-            document.getElementById('source_account_id').value = ''; // Limpa a seleção da conta
+        function closeEditSubscriptionModal() {
+            editSubscriptionModal.classList.remove('active');
         }
 
-        function openEditGoalModal(id, name, targetAmount, currentAmount, dueDate, status) {
-            document.getElementById('edit_goal_id').value = id;
-            document.getElementById('edit_goal_name_display').textContent = name;
-            document.getElementById('edit_goal_name').value = name;
-            document.getElementById('edit_goal_target_amount').value = targetAmount;
-            document.getElementById('edit_goal_current_amount').value = currentAmount;
-            document.getElementById('edit_goal_due_date').value = dueDate;
-            document.getElementById('edit_goal_status').value = status;
-            document.getElementById('edit_goal_form').action = `/edit_goal/${id}`;
-            document.getElementById('edit-goal-modal').classList.add('active'); // Usa 'active' para mostrar o modal
-        }
-
-        function closeEditGoalModal() {
-            document.getElementById('edit-goal-modal').classList.remove('active'); // Usa 'active' para esconder o modal
-        }
-
-        // Reutiliza a função populateAccounts do index.html
-        function populateAccounts(selectElementId, selectedAccountId = null) {
-            const selectElement = document.getElementById(selectElementId);
-            if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
-            allAccounts.forEach(account => {
-                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
-                if (selectedAccountId && account.id === selectedAccountId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
-            });
-            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
-            if (allAccounts.length === 1) {
-                selectElement.value = allAccounts[0].id;
-            }
-        }
-
-        // Adiciona o fechamento do modal de contribuição ao clicar fora
-        const contributeModal = document.getElementById('contribute-modal');
+        // Fecha o modal de edição de assinatura ao clicar fora
         window.addEventListener('click', (event) => {
-            if (event.target == contributeModal) {
-                closeContributeModal();
+            if (event.target == editSubscriptionModal) {
+                closeEditSubscriptionModal();
             }
         });
-
-        // Adiciona o fechamento do modal de edição de meta ao clicar fora
-        const editGoalModal = document.getElementById('edit-goal-modal');
-        window.addEventListener('click', (event) => {
-            if (event.target == editGoalModal) {
-                closeEditGoalModal();
-            }
-        });
-
 
         // Funções para o novo menu lateral (sidebar)
         function toggleSidebar() {
@@ -572,6 +619,17 @@
             sidebar.classList.toggle('active');
             overlay.classList.toggle('active');
         }
+
+        // Event listener to close sidebar when clicking outside of it
+        document.addEventListener('click', (event) => {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarButton = document.querySelector('header .flex.items-center button');
+            const overlay = document.getElementById('sidebar-overlay');
+
+            if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(event.target) && (!sidebarButton || !sidebarButton.contains(event.target))) {
+                toggleSidebar();
+            }
+        });
 
         // Função para destacar o link da página atual no sidebar
         function highlightCurrentPage() {

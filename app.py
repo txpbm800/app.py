@@ -20,6 +20,9 @@ from openpyxl.styles import Font, PatternFill # Para estilos no Excel
 from openpyxl.styles.numbers import FORMAT_CURRENCY_USD_SIMPLE # Para formato de moeda no Excel
 from fpdf import FPDF # Para exportar para PDF
 
+# Importa a nova função de gerenciamento de recorrências
+from manage_recurring import process_subscriptions_and_generate_transactions
+
 app = Flask(__name__)
 
 # --- CONFIGURAÇÃO DA API KEY GEMINI ---
@@ -38,10 +41,8 @@ if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL or 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'finance.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# --- CORREÇÃO AQUI: Inicialize db e migrate sem 'app' imediatamente ---
 db = SQLAlchemy()
 migrate = Migrate() # Inicialize Migrate sem app e db ainda
-# --- FIM DA CORREÇÃO ---
 
 
 login_manager = LoginManager()
@@ -81,6 +82,8 @@ class User(UserMixin, db.Model):
     goals = db.relationship('Goal', backref='user_goal_owner', lazy=True, cascade='all, delete-orphan')
     categories = db.relationship('Category', backref='owner', lazy=True, cascade='all, delete-orphan')
     accounts = db.relationship('Account', backref='owner', lazy=True, cascade='all, delete-orphan')
+    # Novo relacionamento para Assinaturas
+    subscriptions = db.relationship('Subscription', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
     def set_password(self, password):
@@ -104,6 +107,8 @@ class Category(db.Model):
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
     budgets = db.relationship('Budget', backref='category', lazy=True) 
+    # Novo relacionamento para Assinaturas
+    subscriptions = db.relationship('Subscription', backref='category', lazy=True)
 
     __table_args__ = (db.UniqueConstraint('name', 'type', 'user_id', name='_user_category_type_uc'),)
 
@@ -119,6 +124,8 @@ class Account(db.Model):
 
     transactions = db.relationship('Transaction', backref='account', lazy=True)
     bills = db.relationship('Bill', backref='account_bill', lazy=True)
+    # Novo relacionamento para Assinaturas
+    subscriptions = db.relationship('Subscription', backref='account', lazy=True)
 
     __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_user_account_uc'),)
 
@@ -195,6 +202,24 @@ class Goal(db.Model):
 
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
+
+# NOVO MODELO: Subscription
+class Subscription(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    # monthly, quarterly, semi-annually, annually
+    billing_cycle = db.Column(db.String(20), nullable=False) 
+    # Dia do mês para cobrança (ex: 15 para todo dia 15)
+    due_date_of_month = db.Column(db.Integer, nullable=False) 
+    next_due_date = db.Column(db.String(10), nullable=False) # YYYY-MM-DD
+    status = db.Column(db.String(20), default='active', nullable=False) # active, inactive, cancelled
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'), nullable=True)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=True)
+
+    def __repr__(self):
+        return f"<Subscription {self.name}: R${self.amount} {self.billing_cycle}>"
 
 
 # --- Funções de Lógica de Negócios (TODAS DEFINIDAS ANTES DAS ROTAS) ---
@@ -462,8 +487,9 @@ def _generate_future_recurring_bills(master_bill):
     db.session.commit()
     # --- FIM DA CORREÇÃO ---
 
-def process_recurring_bills_on_access(user_id):
-    """Processa Bills mestras recorrentes que precisam gerar novas ocorrências."""
+def process_recurring_items_on_access(user_id):
+    """Processa Bills mestras recorrentes e Assinaturas que precisam gerar novas ocorrências."""
+    # Processar Bills Recorrentes
     recurring_seed_bills_to_process = Bill.query.filter(
         Bill.user_id == user_id,
         Bill.is_master_recurring_bill == True,
@@ -471,12 +497,16 @@ def process_recurring_bills_on_access(user_id):
         db.cast(Bill.recurring_next_due_date, db.Date) <= TODAY_DATE
     ).all()
     
-    print(f"\n--- process_recurring_bills_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
+    print(f"\n--- process_recurring_items_on_access chamada. Processando {len(recurring_seed_bills_to_process)} Bills mestras recorrentes devidas ---")
 
     for bill_seed in recurring_seed_bills_to_process:
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
-        
+    
+    # Processar Assinaturas (chamando a função do novo módulo)
+    process_subscriptions_and_generate_transactions(user_id, db, Transaction, Subscription, Account, Category, TODAY_DATE)
+
+
 def add_bill_db(description, amount, due_date, user_id, 
                 is_recurring=False, recurring_frequency=None, recurring_total_occurrences=0, bill_type='expense', category_id=None, account_id=None):
     
@@ -1001,6 +1031,7 @@ def delete_account_db(account_id, user_id):
     # Definindo account_id para None
     Transaction.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
     Bill.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
+    Subscription.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None}) # NOVO: Desvincular assinaturas
     
     db.session.delete(account)
     db.session.commit()
@@ -1253,7 +1284,7 @@ def send_recovery_email(recipient_email, recovery_code):
 @login_required
 def index():
     """Rota principal do dashboard."""
-    process_recurring_bills_on_access(current_user.id)
+    process_recurring_items_on_access(current_user.id) # Chamada atualizada
     
     dashboard_data = get_dashboard_data_db(current_user.id)
     
@@ -1550,6 +1581,7 @@ def create_default_data_for_user(user):
     db.session.add(Category(name='Contas Fixas', type='expense', user_id=user.id))
     db.session.add(Category(name='Outras Despesas', type='expense', user_id=user.id))
     db.session.add(Category(name='Poupança para Metas', type='expense', user_id=user.id))
+    db.session.add(Category(name='Assinaturas', type='expense', user_id=user.id)) # NOVA CATEGORIA PADRÃO
     
     # Cria uma conta principal padrão
     db.session.add(Account(name='Conta Principal', balance=0.00, user_id=user.id))
@@ -2062,7 +2094,7 @@ def recreate_last_month_budget():
 
 @app.route('/suggest_budget_ai')
 @login_required
-def suggest_budget_with_ai():
+def suggest_budget_ai(): # Renomeado para evitar conflito com a função interna
     current_month_date = datetime.date.today().replace(day=1)
     last_month_date = current_month_date - relativedelta(months=1)
     last_month_year = last_month_date.strftime('%Y-%m')
@@ -2401,16 +2433,187 @@ def export_report(format):
         flash('Formato de exportação inválido.', 'danger')
         return redirect(url_for('reports_page'))
 
+# --- ROTAS PARA GERENCIAMENTO DE ASSINATURAS ---
+@app.route('/subscriptions')
+@login_required
+def subscriptions_page():
+    user_id = current_user.id
+    subscriptions = Subscription.query.filter_by(user_id=user_id).all()
+    expense_categories = Category.query.filter_by(user_id=user_id, type='expense').all()
+    user_accounts = Account.query.filter_by(user_id=user_id).all()
+    return render_template('subscriptions.html', 
+                           subscriptions=subscriptions, 
+                           expense_categories=expense_categories,
+                           accounts=user_accounts)
+
+@app.route('/add_subscription', methods=['POST'])
+@login_required
+def handle_add_subscription():
+    name = request.form['name']
+    amount = request.form['amount']
+    billing_cycle = request.form['billing_cycle']
+    due_date_of_month = request.form['due_date_of_month']
+    category_id = request.form.get('category_id', type=int)
+    account_id = request.form.get('account_id', type=int)
+
+    # Calcular a próxima data de vencimento inicial
+    today = datetime.date.today()
+    next_due_date_obj = None
+    try:
+        due_day = int(due_date_of_month)
+        if not (1 <= due_day <= 31):
+            flash('Dia de vencimento inválido. Deve ser entre 1 e 31.', 'danger')
+            return redirect(url_for('subscriptions_page'))
+        
+        # Tenta criar a data no mês atual
+        try:
+            next_due_date_obj = today.replace(day=due_day)
+        except ValueError: # Dia inválido para o mês atual (ex: 31 de fev)
+            # Tenta o último dia do mês
+            last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+            next_due_date_obj = today.replace(day=last_day_of_month)
+
+        # Se a data de vencimento já passou no mês atual, define para o próximo mês
+        if next_due_date_obj < today:
+            next_due_date_obj += relativedelta(months=1)
+            # Garante que o dia ainda é válido para o novo mês
+            try:
+                next_due_date_obj = next_due_date_obj.replace(day=due_day)
+            except ValueError:
+                last_day_of_next_month = calendar.monthrange(next_due_date_obj.year, next_due_date_obj.month)[1]
+                next_due_date_obj = next_due_date_obj.replace(day=last_day_of_next_month)
+
+    except ValueError:
+        flash('Dia de vencimento inválido. Insira um número.', 'danger')
+        return redirect(url_for('subscriptions_page'))
+    
+    if not next_due_date_obj:
+        flash('Não foi possível determinar a próxima data de vencimento.', 'danger')
+        return redirect(url_for('subscriptions_page'))
+
+    new_subscription = Subscription(
+        user_id=current_user.id,
+        name=name,
+        amount=float(amount),
+        billing_cycle=billing_cycle,
+        due_date_of_month=int(due_date_of_month),
+        next_due_date=next_due_date_obj.isoformat(),
+        status='active',
+        category_id=category_id,
+        account_id=account_id
+    )
+    db.session.add(new_subscription)
+    db.session.commit()
+    flash('Assinatura adicionada com sucesso!', 'success')
+    return redirect(url_for('subscriptions_page'))
+
+@app.route('/get_subscription_data/<int:subscription_id>', methods=['GET'])
+@login_required
+def get_subscription_data(subscription_id):
+    subscription = Subscription.query.filter_by(id=subscription_id, user_id=current_user.id).first()
+    if subscription:
+        return jsonify({
+            'id': subscription.id,
+            'name': subscription.name,
+            'amount': subscription.amount,
+            'billing_cycle': subscription.billing_cycle,
+            'due_date_of_month': subscription.due_date_of_month,
+            'next_due_date': subscription.next_due_date,
+            'status': subscription.status,
+            'category_id': subscription.category_id,
+            'account_id': subscription.account_id
+        })
+    return jsonify({'error': 'Assinatura não encontrada ou não pertence a este usuário'}), 404
+
+@app.route('/edit_subscription/<int:subscription_id>', methods=['POST'])
+@login_required
+def handle_edit_subscription(subscription_id):
+    subscription = Subscription.query.filter_by(id=subscription_id, user_id=current_user.id).first()
+    if not subscription:
+        flash('Assinatura não encontrada.', 'danger')
+        return redirect(url_for('subscriptions_page'))
+
+    name = request.form['edit_name']
+    amount = request.form['edit_amount']
+    billing_cycle = request.form['edit_billing_cycle']
+    due_date_of_month = request.form['edit_due_date_of_month']
+    status = request.form['edit_status']
+    category_id = request.form.get('edit_category_id', type=int)
+    account_id = request.form.get('edit_account_id', type=int)
+
+    # Atualizar campos
+    subscription.name = name
+    subscription.amount = float(amount)
+    subscription.billing_cycle = billing_cycle
+    subscription.status = status
+    subscription.category_id = category_id
+    subscription.account_id = account_id
+
+    # Recalcular next_due_date se o dia do mês ou ciclo de cobrança mudar
+    if int(due_date_of_month) != subscription.due_date_of_month or billing_cycle != subscription.billing_cycle:
+        subscription.due_date_of_month = int(due_date_of_month)
+        
+        # Lógica para recalcular next_due_date (similar à adição)
+        today = datetime.date.today()
+        next_due_date_obj = None
+        try:
+            due_day = int(due_date_of_month)
+            if not (1 <= due_day <= 31):
+                flash('Dia de vencimento inválido. Deve ser entre 1 e 31.', 'danger')
+                return redirect(url_for('subscriptions_page'))
+            
+            # Tenta criar a data no mês atual
+            try:
+                next_due_date_obj = today.replace(day=due_day)
+            except ValueError: # Dia inválido para o mês atual (ex: 31 de fev)
+                last_day_of_month = calendar.monthrange(today.year, today.month)[1]
+                next_due_date_obj = today.replace(day=last_day_of_month)
+
+            # Se a data de vencimento já passou no mês atual, define para o próximo mês
+            if next_due_date_obj < today:
+                next_due_date_obj += relativedelta(months=1)
+                # Garante que o dia ainda é válido para o novo mês
+                try:
+                    next_due_date_obj = next_due_date_obj.replace(day=due_day)
+                except ValueError:
+                    last_day_of_next_month = calendar.monthrange(next_due_date_obj.year, next_due_date_obj.month)[1]
+                    next_due_date_obj = next_due_date_obj.replace(day=last_day_of_next_month)
+
+        except ValueError:
+            flash('Dia de vencimento inválido. Insira um número.', 'danger')
+            return redirect(url_for('subscriptions_page'))
+        
+        if next_due_date_obj:
+            subscription.next_due_date = next_due_date_obj.isoformat()
+        else:
+            flash('Não foi possível recalcular a próxima data de vencimento.', 'danger')
+            return redirect(url_for('subscriptions_page'))
+
+    db.session.commit()
+    flash('Assinatura atualizada com sucesso!', 'success')
+    return redirect(url_for('subscriptions_page'))
+
+@app.route('/delete_subscription/<int:subscription_id>', methods=['POST'])
+@login_required
+def handle_delete_subscription(subscription_id):
+    subscription = Subscription.query.filter_by(id=subscription_id, user_id=current_user.id).first()
+    if not subscription:
+        flash('Assinatura não encontrada.', 'danger')
+        return redirect(url_for('subscriptions_page'))
+    
+    db.session.delete(subscription)
+    db.session.commit()
+    flash('Assinatura excluída com sucesso!', 'info')
+    return redirect(url_for('subscriptions_page'))
+
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
-# --- CORREÇÃO AQUI: Associar db e migrate ao app após a inicialização do app ---
 with app.app_context():
     db.init_app(app) # Associar SQLAlchemy ao app
     migrate.init_app(app, db) # Associar Flask-Migrate ao app e db
     db.create_all() # Cria as tabelas se não existirem (para SQLite local ou primeira vez)
-# --- FIM DA CORREÇÃO ---
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-           
+    

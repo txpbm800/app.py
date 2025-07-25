@@ -298,6 +298,9 @@
                     <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-line mr-3"></i> Relatórios
                     </a>
+                    <a href="{{ url_for('subscriptions_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                        <i class="fas fa-sync-alt mr-3"></i> Assinaturas
+                    </a>
                     <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
                         <i class="fas fa-sign-out-alt mr-3"></i> Sair
                     </a>
@@ -366,7 +369,7 @@
                     {% for budget in budgets %}
                         {% set percentage_spent = (budget.current_spent / budget.budget_amount * 100) if budget.budget_amount > 0 else 0 %}
                         {% set bar_color = 'bg-green-500' if percentage_spent <= 75 else ('bg-orange-500' if percentage_spent <= 100 else 'bg-red-500') %}
-                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 draggable-budget-item" draggable="true" data-budget-id="{{ budget.id }}">
+                        <div class="p-4 rounded-xl border-2 transition-all duration-300 ease-in-out {% if percentage_spent > 100 %}border-red-300 bg-red-50{% elif percentage_spent >= 80 %}border-orange-300 bg-orange-50{% else %}border-gray-200 bg-gray-50{% endif %} hover:border-blue-300 hover:shadow-md draggable-budget-item" draggable="true" data-budget-id="{{ budget.id }}">
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-lg text-gray-800 truncate flex items-center">
                                     {# Ícone da categoria com a nova classe e lógica #}
