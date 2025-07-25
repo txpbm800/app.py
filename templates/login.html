@@ -154,7 +154,7 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('login') }}" class="space-y-6">
+        <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-6">
             <div>
                 <label for="identifier" class="block text-sm font-medium text-gray-700 mb-1">E-mail ou Nome de Usuário</label>
                 <input type="text" id="identifier" name="identifier" required
@@ -172,11 +172,11 @@
             </button>
         </form>
         <p class="mt-6 text-center text-sm text-gray-600">
-            Não tem uma conta? <a href="{{ url_for('register') }}" class="font-medium text-purple-600 hover:text-purple-500">Crie uma aqui</a>
+            Não tem uma conta? <a href="{{ url_for('auth.register') }}" class="font-medium text-purple-600 hover:text-purple-500">Crie uma aqui</a>
         </p>
         {# NOVO: Link para recuperação de senha #}
         <p class="mt-2 text-center text-sm text-gray-600">
-            <a href="{{ url_for('forgot_password_request') }}" class="font-medium text-blue-600 hover:text-blue-500">Esqueceu sua senha?</a>
+            <a href="{{ url_for('auth.forgot_password_request') }}" class="font-medium text-blue-600 hover:text-blue-500">Esqueceu sua senha?</a>
         </p>
     </div>
 

@@ -6,7 +6,7 @@
     <title>Registrar - Gestão Financeira Pessoal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Link para o Font Awesome via CDN para os ícones -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA===" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         
@@ -174,7 +174,7 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST" action="{{ url_for('register') }}" class="space-y-6">
+        <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-6">
             <div>
                 <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Nome de Usuário</label>
                 <input type="text" id="username" name="username" required
@@ -202,7 +202,7 @@
             </button>
         </form>
         <p class="mt-6 text-center text-sm text-gray-600">
-            Já tem uma conta? <a href="{{ url_for('login') }}" class="font-medium text-purple-600 hover:text-purple-500">Faça login aqui</a>
+            Já tem uma conta? <a href="{{ url_for('auth.login') }}" class="font-medium text-purple-600 hover:text-purple-500">Faça login aqui</a>
         </p>
     </div>
 

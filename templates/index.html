@@ -382,8 +382,8 @@
                 {% if current_user.is_authenticated %}
                     <span class="text-gray-700">Olá, {{ current_user.username }}!</span>
                 {% else %}
-                    <a href="{{ url_for('login') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Login</a>
-                    <a href="{{ url_for('register') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Registrar</a>
+                    <a href="{{ url_for('auth.login') }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors mr-2">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-md transition-colors">Registrar</a>
                 {% endif %}
             </nav>
         </header>
@@ -393,25 +393,25 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
                 <nav class="space-y-3">
-                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('main.index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-home mr-3"></i> Dashboard
                     </a>
-                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('auth.profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-user-circle mr-3"></i> Meu Perfil
                     </a>
-                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('budget.budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos
                     </a>
-                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('goal.goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-bullseye mr-3"></i> Minhas Metas
                     </a>
-                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('account.accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-wallet mr-3"></i> Minhas Contas
                     </a>
-                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
+                    <a href="{{ url_for('report.reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-chart-line mr-3"></i> Relatórios
                     </a>
-                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
+                    <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
                         <i class="fas fa-sign-out-alt mr-3"></i> Sair
                     </a>
                 </nav>
@@ -499,9 +499,9 @@
             <h3 class="font-bold text-lg mb-2">Hora de planejar o seu mês!</h3>
             <p class="text-sm mb-4">Percebi que você ainda não tem um orçamento para este mês. O que gostaria de fazer?</p>
             <div class="flex flex-wrap gap-2">
-                <a href="{{ url_for('budgets_page') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Criar Manualmente</a>
-                <a href="{{ url_for('recreate_last_month_budget') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Recriar Orçamento Anterior</a>
-                <a href="{{ url_for('suggest_budget_with_ai') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center gap-2">
+                <a href="{{ url_for('budget.budgets_page') }}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Criar Manualmente</a>
+                <a href="{{ url_for('budget.recreate_last_month_budget') }}" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-md text-sm">Recriar Orçamento Anterior</a>
+                <a href="{{ url_for('budget.suggest_budget_with_ai') }}" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center gap-2">
                     Pedir Sugestão da IA ✨
                 </a>
             </div>
@@ -535,7 +535,7 @@
                         </svg>
                     </button>
                     <div id="transaction-form-content" class="collapsible-content">
-                        <form action="{{ url_for('handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
+                        <form action="{{ url_for('main.handle_add_transaction') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                                 <input type="text" id="description" name="description" placeholder="Ex: Salário, Aluguel, Compras..." required
@@ -598,7 +598,7 @@
                         </svg>
                     </button>
                     <div id="bill-form-content" class="collapsible-content">
-                        <form action="{{ url_for('handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
+                        <form action="{{ url_for('main.handle_add_bill') }}" method="POST" class="space-y-4 px-6 pb-6">
                             <div>
                                 <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                                 <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
@@ -679,7 +679,7 @@
                         <span>Contas a Pagar</span>
                     </h2>
                     <div class="mb-4 space-y-2">
-                        <form id="bills-filter-sort-form" action="{{ url_for('index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
+                        <form id="bills-filter-sort-form" action="{{ url_for('main.index') }}" method="GET" class="flex flex-wrap gap-2 items-end">
                             <input type="hidden" name="transaction_type" value="{{ request.args.get('transaction_type', '') }}">
                             <input type="hidden" name="start_date" value="{{ request.args.get('start_date', '') }}">
                             <input type="hidden" name="end_date" value="{{ request.args.get('end_date', '') }}">
@@ -738,7 +738,7 @@
                                                 <button type="button" onclick="openPayBillModal({{ bill.id }}, '{{ bill.description }}', {{ bill.amount }})" class="col-span-2 sm:col-span-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Pagar</button>
                                                 {% endif %}
                                                 <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="col-span-2 sm:col-span-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Editar</button>
-                                                <form action="{{ url_for('handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2">
+                                                <form action="{{ url_for('main.handle_delete_bill', bill_id=bill.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir esta conta?');" class="col-span-2">
                                                     <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Excluir</button>
                                                 </form>
                                             </div>
@@ -754,7 +754,7 @@
 
         <div class="rounded-lg shadow-md bg-white p-6 my-6">
             <h2 class="text-2xl font-bold text-gray-800 mb-4">Filtrar Transações</h2>
-            <form id="transactions-filter-form" action="{{ url_for('index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            <form id="transactions-filter-form" action="{{ url_for('main.index') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                 <input type="hidden" name="bill_status" value="{{ request.args.get('bill_status', 'pending') }}">
                 <div>
                     <label for="transaction_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
@@ -775,7 +775,7 @@
                 <div class="flex gap-2">
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Filtrar</button>
                     <!-- Botão Limpar: Adicionado dark:bg-gray-700 e dark:text-gray-200 para modo escuro -->
-                    <a href="{{ url_for('index') }}" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">Limpar</a>
+                    <a href="{{ url_for('main.index') }}" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">Limpar</a>
                 </div>
             </form>
         </div>
@@ -917,7 +917,7 @@
             <span class="close-button" onclick="closePayBillModal()">&times;</span>
             <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Confirmar Pagamento</h3>
             
-            <form id="pay-bill-form" method="POST" class="space-y-4">
+            <form id="pay-bill-form" action="{{ url_for('main.handle_pay_bill') }}" method="POST" class="space-y-4">
                 <input type="hidden" id="pay_bill_id" name="bill_id">
                 <p class="text-lg text-gray-700 mb-4">Você está prestes a pagar a conta: <strong id="pay_bill_description"></strong> no valor de <strong id="pay_bill_amount_display"></strong>.</p>
                 
@@ -1330,12 +1330,6 @@
             }
         }
 
-        // Modifica populateCategoriesByType para usar a nova função de atualização de dropdown
-        // Esta função não é mais necessária, pois populateCategoryDropdown é chamada diretamente.
-        // function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
-        //     populateCategoryDropdown(selectElementId, transactionType, selectedCategoryId);
-        // }
-
         // Modifica populateAccounts para garantir que o dropdown de contas seja populado corretamente
         function populateAccounts(selectElementId, selectedAccountId = null) {
             const selectElement = document.getElementById(selectElementId);
@@ -1556,8 +1550,8 @@
 
                 // Adiciona destaque se o href do link corresponder ao caminho atual
                 // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
-                if (link.getAttribute('href') === '{{ url_for("index") }}') {
-                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
+                if (link.getAttribute('href') === '{{ url_for("main.index") }}') {
+                    if (currentPath === '/' || currentPath === '{{ url_for("main.index") }}') {
                         link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
                         link.classList.remove('text-gray-800');
                     }

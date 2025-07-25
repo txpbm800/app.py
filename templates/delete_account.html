@@ -157,8 +157,7 @@
             {% endif %}
         {% endwith %}
 
-        <!-- CORREÇÃO: Ação do formulário corrigida de 'delete_account' para 'delete_account_user' -->
-        <form method="POST" action="{{ url_for('delete_account_user') }}" class="space-y-6">
+        <form method="POST" action="{{ url_for('auth.delete_account_user') }}" class="space-y-6">
             <div>
                 <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-1">Confirme sua Senha para Continuar</label>
                 <input type="password" id="confirm_password" name="confirm_password" required
@@ -169,7 +168,7 @@
             </button>
         </form>
         <p class="mt-6 text-center text-sm text-gray-600">
-            <a href="{{ url_for('profile') }}" class="font-medium text-blue-600 hover:text-blue-500">Cancelar</a>
+            <a href="{{ url_for('auth.profile') }}" class="font-medium text-blue-600 hover:text-blue-500">Cancelar</a>
         </p>
     </div>
 
