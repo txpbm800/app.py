@@ -73,12 +73,11 @@
         .text-gray-500 { color: #6b7280; } /* Tailwind gray-500 */
         html.dark .text-gray-500 { color: #A7B6D8; }
 
-        /* Ajuste para inputs e selects no modo escuro */
         .border-gray-300 { border-color: var(--input-border-light); }
         html.dark .border-gray-300 { 
             border-color: var(--input-border-dark); 
-            background-color: var(--card-bg-dark); /* Fundo do input */
-            color: var(--text-color-dark); /* Cor do texto digitado */
+            background-color: var(--card-bg-dark);
+            color: var(--text-color-dark);
         }
 
         .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
@@ -87,281 +86,89 @@
         .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
         html.dark .shadow-md { box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.15); }
 
-        /* Modificações específicas para sidebar */
         .sidebar { background-color: var(--sidebar-bg-light); }
         html.dark .sidebar { background-color: var(--sidebar-bg-dark); }
-
         .sidebar a { color: var(--sidebar-text-light); }
         html.dark .sidebar a { color: var(--sidebar-text-dark); }
-
         .sidebar a:hover { background-color: var(--sidebar-hover-bg-light); }
         html.dark .sidebar a:hover { background-color: var(--sidebar-hover-bg-dark); }
-
         .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-light); }
         html.dark .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-dark); }
-
         .sidebar a.text-purple-700 { color: var(--sidebar-active-text-light); }
         html.dark .sidebar a.text-purple-700 { color: var(--sidebar-active-text-dark); }
 
-        /* Estilos para o botão de modo */
         .dark-mode-toggle {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background-color: #6366f1; /* purple-500 */
-            color: white;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            z-index: 1000;
+            position: fixed; bottom: 20px; right: 20px; background-color: #6366f1; color: white;
+            border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.2s ease; z-index: 1000;
         }
-        .dark-mode-toggle:hover {
-            background-color: #4f46e5; /* purple-600 */
-            transform: translateY(-2px);
-        }
-        html.dark .dark-mode-toggle {
-            background-color: #4A5C7E; /* Um azul mais escuro para o botão no modo escuro */
-        }
-        html.dark .dark-mode-toggle:hover {
-            background-color: #374762; /* Um azul ainda mais escuro para o hover */
-        }
-
-        /* Cores específicas de cards no index.html */
-        .bg-gradient-to-br.from-blue-50 { background-image: linear-gradient(to bottom right, var(--bg-color-light), var(--card-bg-light)); }
-        html.dark .bg-gradient-to-br.from-blue-50 { background-image: linear-gradient(to bottom right, #232E47, #374762); } /* Degradê azulado */
-
-        .border-blue-200 { border-color: #bfdbfe; }
-        html.dark .border-blue-200 { border-color: #4A5C7E; }
-
-        .text-blue-700 { color: #1e40af; }
-        html.dark .text-blue-700 { color: #8DA8FF; }
-
-        .text-blue-600 { color: #2563eb; }
-        html.dark .text-blue-600 { color: #A7B6D8; }
-
-        .bg-gradient-to-br.from-green-50 { background-image: linear-gradient(to bottom right, #f0fdf4, #dcfce7); }
-        html.dark .bg-gradient-to-br.from-green-50 { background-image: linear-gradient(to bottom right, #232E47, #374762); }
-
-        .border-green-200 { border-color: #bbf7d0; }
-        html.dark .border-green-200 { border-color: #4A5C7E; }
-
-        .text-green-700 { color: #047857; }
-        html.dark .text-green-700 { color: #9AE6B4; }
-
-        .text-green-600 { color: #059669; }
-        html.dark .text-green-600 { color: #B4E8C9; }
-
-        .bg-gradient-to-br.from-red-50 { background-image: linear-gradient(to bottom right, #fef2f2, #fee2e2); }
-        html.dark .bg-gradient-to-br.from-red-50 { background-image: linear-gradient(to bottom right, #232E47, #374762); }
-
-        .border-red-200 { border-color: #fecaca; }
-        html.dark .border-red-200 { border-color: #4A5C7E; }
-
-        .text-red-700 { color: #b91c1c; }
-        html.dark .text-red-700 { color: #FFB3B3; }
-
-        .text-red-600 { color: #dc2626; }
-        html.dark .text-red-600 { color: #FFCCCC; }
-
-        .bg-gradient-to-br.from-orange-50 { background-image: linear-gradient(to bottom right, #fff7ed, #ffedd5); }
-        html.dark .bg-gradient-to-br.from-orange-50 { background-image: linear-gradient(to bottom right, #232E47, #374762); }
-
-        .border-orange-200 { border-color: #fed7aa; }
-        html.dark .border-orange-200 { border-color: #4A5C7E; }
-
-        .text-orange-700 { color: #c2410c; }
-        html.dark .text-orange-700 { color: #FFD2A8; }
-
-        .text-orange-600 { color: #ea580c; }
-        html.dark .text-orange-600 { color: #FFE0BB; }
+        .dark-mode-toggle:hover { background-color: #4f46e5; transform: translateY(-2px); }
+        html.dark .dark-mode-toggle { background-color: #4A5C7E; }
+        html.dark .dark-mode-toggle:hover { background-color: #374762; }
 
         .card-hover:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
         .collapsible-content {
-            max-height: 0;
-            overflow: hidden;
+            max-height: 0; overflow: hidden;
             transition: max-height 0.5s ease-in-out, padding 0.5s ease-in-out;
-            padding-top: 0;
-            padding-bottom: 0;
+            padding-top: 0; padding-bottom: 0;
         }
-        .collapsible-content.expanded {
-            max-height: 1200px;
-            padding-top: 1rem;
-            padding-bottom: 1.5rem;
-        }
-        .arrow-icon {
-            transition: transform 0.3s ease-out;
-        }
-        .arrow-icon.rotated {
-            transform: rotate(180deg);
-        }
-        /* Estilos para o menu lateral (sidebar) */
+        .collapsible-content.expanded { max-height: 1200px; padding-top: 1rem; padding-bottom: 1.5rem; }
+        .arrow-icon { transition: transform 0.3s ease-out; }
+        .arrow-icon.rotated { transform: rotate(180deg); }
+
         .sidebar {
-            position: fixed;
-            top: 0;
-            left: -280px; /* Esconde o menu inicialmente */
-            width: 280px;
-            height: 100%;
-            background-color: white;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-            z-index: 2000;
-            transition: left 0.3s ease-in-out;
-            padding-top: 4rem; /* Espaço para o cabeçalho */
-            overflow-y: auto; /* Adiciona scroll se o conteúdo for muito longo */
+            position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
+            background-color: white; box-shadow: 2px 0 8px rgba(0,0,0,0.1); z-index: 2000;
+            transition: left 0.3s ease-in-out; padding-top: 4rem; overflow-y: auto;
         }
-        .sidebar.active {
-            left: 0; /* Mostra o menu */
-        }
+        .sidebar.active { left: 0; }
         .sidebar-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-            z-index: 1999;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); z-index: 1999; opacity: 0;
+            visibility: hidden; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
         }
-        .sidebar-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-        /* Estilos para modais pop-up */
+        .sidebar-overlay.active { opacity: 1; visibility: visible; }
+        
         .modal {
-            position: fixed;
-            z-index: 1050;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 1rem;
-            visibility: hidden;
-            opacity: 0;
+            position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4); display: flex; justify-content: center;
+            align-items: center; padding: 1rem; visibility: hidden; opacity: 0;
             transition: visibility 0.3s, opacity 0.3s;
         }
-        .modal.active {
-            visibility: visible;
-            opacity: 1;
-        }
+        .modal.active { visibility: visible; opacity: 1; }
         .modal-content {
-            background-color: #fefefe;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            width: 100%;
-            max-width: 500px;
-            position: relative;
+            background-color: #fefefe; padding: 2rem; border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 100%; max-width: 500px; position: relative;
         }
-        html.dark .modal-content {
-            background-color: var(--card-bg-dark); /* Adicionado para modal */
-        }
+        html.dark .modal-content { background-color: var(--card-bg-dark); }
         .close-button {
-            position: absolute;
-            top: 1rem;
-            right: 1.5rem;
-            font-size: 1.5rem;
-            font-weight: bold;
-            cursor: pointer;
-            color: #aaa;
+            position: absolute; top: 1rem; right: 1.5rem; font-size: 1.5rem;
+            font-weight: bold; cursor: pointer; color: #aaa;
         }
-        html.dark .close-button {
-            color: var(--text-color-dark); /* Cor para o botão fechar no modo escuro */
-        }
-        .close-button:hover {
-            color: #333;
-        }
-        .list-scroll-area { 
-            max-height: 300px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-        .bill-actions-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr)); 
-            gap: 0.5rem;
-            width: 100%;
-        }
-        @media (min-width: 640px) {
-            .bill-actions-grid {
-                width: auto;
-                flex-shrink: 0; 
-                max-width: 280px;
-            }
-            .bill-actions-grid form, .bill-actions-grid button {
-                width: auto;
-                min-width: 80px;
-            }
-        }
-        .bill-reschedule-form input[type="date"] {
-            min-width: 120px;
-        }
-        /* Estilo para o ícone da categoria */
+        html.dark .close-button { color: var(--text-color-dark); }
+        .close-button:hover { color: #333; }
+        .list-scroll-area { max-height: 300px; overflow-y: auto; padding-right: 10px; }
+        
         .category-icon-fa {
-            width: 20px;
-            height: 20px;
-            display: inline-flex; /* Usar flex para centralizar o ícone */
-            align-items: center;
-            justify-content: center;
-            vertical-align: middle;
-            margin-right: 8px;
-            color: #6b7280; /* Cor padrão cinza */
-            font-size: 1.25rem; /* Aumentar o tamanho do ícone Font Awesome */
+            width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+            vertical-align: middle; margin-right: 8px; color: #6b7280; font-size: 1.25rem;
         }
-        html.dark .category-icon-fa {
-            color: var(--text-color-dark); /* Cor para ícone no modo escuro */
-        }
-
-        /* Ajustes para as cores dos cards de transação e bills */
-        .bg-gray-50 { background-color: #f9fafb; }
+        html.dark .category-icon-fa { color: var(--text-color-dark); }
         html.dark .bg-gray-50 { background-color: #2D3A54; }
-
-        .border-gray-200 { border-color: #e5e7eb; }
         html.dark .border-gray-200 { border-color: #374762; }
-
-        .bg-green-50 { background-color: #f0fdf4; }
-        html.dark .bg-green-50 { background-color: #2D3A54; } /* Ou outra cor de card escuro */
-        .hover\:bg-green-100:hover { background-color: #dcfce7; }
-        html.dark .hover\:bg-green-100:hover { background-color: #374762; } /* Hover escuro */
-
-        .bg-red-50 { background-color: #fef2f2; }
-        html.dark .bg-red-50 { background-color: #2D3A54; } /* Ou outra cor de card escuro */
-        .hover\:bg-red-100:hover { background-color: #fee2e2; }
-        html.dark .hover\:bg-red-100:hover { background-color: #374762; } /* Hover escuro */
-
-        .bg-blue-100 { background-color: #dbeafe; }
+        html.dark .bg-green-50 { background-color: #2D3A54; }
+        html.dark .hover\:bg-green-100:hover { background-color: #374762; }
+        html.dark .bg-red-50 { background-color: #2D3A54; }
+        html.dark .hover\:bg-red-100:hover { background-color: #374762; }
         html.dark .bg-blue-100 { background-color: #2D3A54; }
-        .border-blue-200 { border-color: #bfdbfe; }
         html.dark .border-blue-200 { border-color: #374762; }
-
-        .bg-yellow-100 { background-color: #fefce8; }
         html.dark .bg-yellow-100 { background-color: #2D3A54; }
-
-        /* Estilo para o ícone de check na seção "Contas a Pagar" */
-        .bill-check-icon {
-            /* Remove o círculo e centraliza */
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.0rem; /* Aumenta o tamanho do ícone */
-            color: #22c55e; /* Tailwind green-500 */
-        }
-
+        .bill-check-icon { display: inline-flex; align-items: center; justify-content: center; font-size: 2.0rem; color: #22c55e; }
+        
         /* Estilos para arrastar e soltar */
         .dragging {
             opacity: 0.5;
@@ -383,13 +190,11 @@
                 {% if current_user.is_authenticated %}
                     <button type="button" onclick="toggleSidebar()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4 p-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-8 w-8">
-                            <line x1="4" x2="20" y1="12" y2="12"/>
-                            <line x1="4" x2="20" y1="6" y2="6"/>
-                            <line x1="4" x2="20" y1="18" y2="18"/>
+                            <line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>
                         </svg>
                     </button>
                 {% endif %}
-                <h1 class="text-4xl font-bold text-gray-900">Gestão Financeira Pessoal</h1>
+                <h1 class="text-4xl font-bold text-gray-900">Dashboard Financeiro</h1>
             </div>
             <nav class="relative">
                 {% if current_user.is_authenticated %}
@@ -409,34 +214,20 @@
             <div class="p-6">
                 <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
                 <nav class="space-y-3">
-                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-home mr-3"></i> Dashboard
-                    </a>
-                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-user-circle mr-3"></i> Meu Perfil
-                    </a>
-                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos
-                    </a>
-                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-bullseye mr-3"></i> Minhas Metas
-                    </a>
-                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-wallet mr-3"></i> Minhas Contas
-                    </a>
-                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-chart-line mr-3"></i> Relatórios
-                    </a>
-                    <a href="{{ url_for('subscriptions_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-sync-alt mr-3"></i> Assinaturas
-                    </a>
-                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md">
-                        <i class="fas fa-sign-out-alt mr-3"></i> Sair
-                    </a>
+                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-home mr-3"></i> Dashboard</a>
+                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-user-circle mr-3"></i> Meu Perfil</a>
+                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos</a>
+                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-bullseye mr-3"></i> Minhas Metas</a>
+                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-wallet mr-3"></i> Minhas Contas</a>
+                    <!-- NOVOS LINKS -->
+                    <a href="{{ url_for('investments_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-line mr-3"></i> Investimentos</a>
+                    <a href="{{ url_for('debts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-credit-card mr-3"></i> Dívidas</a>
+                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-bar mr-3"></i> Relatórios</a>
+                    <a href="{{ url_for('subscriptions_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-sync-alt mr-3"></i> Assinaturas</a>
+                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md"><i class="fas fa-sign-out-alt mr-3"></i> Sair</a>
                 </nav>
             </div>
         </div>
-        <!-- Overlay para fechar o sidebar ao clicar fora -->
         <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
 
         <div id="flash-messages-container" class="mb-6">
@@ -451,68 +242,52 @@
             {% endwith %}
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 p-6 shadow-md card-hover transition-all duration-300">
-                <div class="flex items-center justify-between space-y-0 pb-2">
-                    <h3 class="text-sm font-medium text-blue-700">Saldo Atual</h3>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up h-5 w-5 text-blue-600"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+        <!-- SEÇÃO DE RESUMO ATUALIZADA -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Card de Patrimônio Líquido -->
+            <div class="lg:col-span-3 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-200 p-6 shadow-lg card-hover transition-all duration-300">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-indigo-800">Patrimônio Líquido</h3>
+                    <i class="fas fa-balance-scale h-6 w-6 text-indigo-600"></i>
                 </div>
                 <div class="mt-2">
-                    <div class="text-3xl font-bold {% if dashboard.balance >= 0 %}text-green-600{% else %}text-red-600{% endif %}">
-                        R$ {{ "%.2f"|format(dashboard.balance) }}
+                    <div class="text-4xl font-bold {% if dashboard.net_worth >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+                        R$ {{ "%.2f"|format(dashboard.net_worth) }}
                     </div>
-                    <p class="text-xs text-blue-600 mt-1">
-                        {% if dashboard.balance >= 0 %}Saldo positivo{% else %}Saldo negativo{% endif %}
+                    <p class="text-xs text-indigo-700 mt-1">
+                        (Contas + Investimentos) - Dívidas
                     </p>
                 </div>
             </div>
 
-            <div class="rounded-xl bg-gradient-to-br from-green-50 to-green-100 border-green-200 p-6 shadow-md card-hover transition-all duration-300">
-                <div class="flex items-center justify-between space-y-0 pb-2">
-                    <h3 class="text-sm font-medium text-green-700">Receitas</h3>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up h-5 w-5 text-green-600"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
-                </div>
-                <div class="mt-2">
-                    <div class="text-3xl font-bold text-green-600">
-                        R$ {{ "%.2f"|format(dashboard.totalIncome) }}
-                    </div>
-                    <p class="text-xs text-green-600 mt-1">
-                        Total de entradas **do mês**
-                    </p>
-                </div>
+            <!-- Outros Cards -->
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Saldo em Contas</h3>
+                <p class="text-2xl font-bold {% if dashboard.balance >= 0 %}text-green-600{% else %}text-red-600{% endif %}">R$ {{ "%.2f"|format(dashboard.balance) }}</p>
             </div>
-
-            <div class="rounded-xl bg-gradient-to-br from-red-50 to-red-100 border-red-200 p-6 shadow-md card-hover transition-all duration-300">
-                <div class="flex items-center justify-between space-y-0 pb-2">
-                    <h3 class="text-sm font-medium text-red-700">Despesas</h3>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-down h-5 w-5 text-red-600"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
-                </div>
-                <div class="mt-2">
-                    <div class="text-3xl font-bold text-red-600">
-                        R$ {{ "%.2f"|format(dashboard.totalExpenses) }}
-                    </div>
-                    <p class="text-xs text-red-600 mt-1">
-                        Total de saídas **do mês**
-                    </p>
-                </div>
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Total em Investimentos</h3>
+                <p class="text-2xl font-bold text-green-600">R$ {{ "%.2f"|format(dashboard.total_investments) }}</p>
             </div>
-
-            <div class="rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200 p-6 shadow-md card-hover transition-all duration-300">
-                <div class="flex items-center justify-between space-y-0 pb-2">
-                    <h3 class="text-sm font-medium text-orange-700">Contas a Pagar</h3>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card h-5 w-5 text-orange-600"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
-                </div>
-                <div class="mt-2">
-                    <div class="text-3xl font-bold text-orange-600">
-                        R$ {{ "%.2f"|format(dashboard.totalPendingBills) }}
-                    </div>
-                    <p class="text-xs text-orange-600 mt-1">
-                        Valor pendente **do mês atual e atrasadas**
-                    </p>
-                </div>
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Total em Dívidas</h3>
+                <p class="text-2xl font-bold text-red-600">R$ {{ "%.2f"|format(dashboard.total_debts) }}</p>
+            </div>
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Receitas do Mês</h3>
+                <p class="text-2xl font-bold text-green-600">R$ {{ "%.2f"|format(dashboard.totalIncome) }}</p>
+            </div>
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Despesas do Mês</h3>
+                <p class="text-2xl font-bold text-red-600">R$ {{ "%.2f"|format(dashboard.totalExpenses) }}</p>
+            </div>
+            <div class="rounded-xl p-6 shadow-md card-hover transition-all duration-300 bg-white">
+                <h3 class="text-sm font-medium text-gray-600">Contas a Pagar (Mês)</h3>
+                <p class="text-2xl font-bold text-orange-500">R$ {{ "%.2f"|format(dashboard.totalPendingBills) }}</p>
             </div>
         </div>
 
+        <!-- Restante do conteúdo do index.html (formulários, listas, etc.) -->
         {% if show_new_budget_alert %}
         <div class="mb-8 p-4 rounded-lg bg-blue-100 border border-blue-200 text-blue-800">
             <h3 class="font-bold text-lg mb-2">Hora de planejar o seu mês!</h3>
@@ -621,22 +396,22 @@
                             <div>
                                 <label for="bill-description" class="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
                                 <input type="text" id="bill-description" name="bill_description" placeholder="Ex: Aluguel, Energia, Internet..." required
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             <div>
                                 <label for="bill-amount" class="block text-sm font-medium text-gray-700 mb-1">Valor</label>
                                 <input type="number" step="0.01" id="bill-amount" name="bill_amount" placeholder="0.00" required
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             <div>
                                 <label for="bill-due-date" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
                                 <input type="date" id="bill-due-date" name="bill_due_date" value="{{ current_date }}" required
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                             </div>
                             
                             <div>
                                 <label for="bill_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo da Conta</label>
-                                <select id="bill_type" name="bill_type" required onchange="populateCategoryDropdown('bill_category_id', this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <select id="bill_type" name="bill_type" required onchange="populateCategoryDropdown('bill_category_id', this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="expense" selected>Despesa</option>
                                     <option value="income">Receita</option>
                                 </select>
@@ -644,20 +419,10 @@
                             <div>
                                 <label for="bill_category_id" class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                                 <select id="bill_category_id" name="bill_category_id" required
-                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
                                     <option value="">Selecione a Categoria</option>
                                 </select>
                             </div>
-                            {# REMOVIDO: Campo de seleção de conta para Nova Conta a Pagar #}
-                            {# <div>
-                                <label for="bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
-                                <select id="bill_account_id" name="bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
-                                    <option value="">Selecione uma conta</option>
-                                    {% for account in accounts %}
-                                    <option value="{{ account.id }}">{{ account.name }} (R$ {{ "%.2f"|format(account.balance) }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div> #}
 
                             <div class="flex items-center">
                                 <input type="checkbox" id="is_recurring_bill" name="is_recurring_bill" class="mr-2" onchange="toggleBillRecurringFields()">
@@ -722,7 +487,6 @@
                         <div class="space-y-4">
                             {% if not bills %}
                                 <div class="text-center py-8 flex flex-col items-center justify-center">
-                                    {# Ícone de check atualizado #}
                                     <i class="fas fa-check bill-check-icon mb-3"></i>
                                     <p class="text-gray-500 text-lg">Nenhuma conta encontrada com os filtros atuais!</p>
                                 </div>
@@ -753,7 +517,6 @@
                                             
                                             <div class="grid grid-cols-2 gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                                                 {% if bill.status == 'pending' %}
-                                                {# Botão Pagar agora abre um modal #}
                                                 <button type="button" onclick="openPayBillModal({{ bill.id }}, '{{ bill.description }}', {{ bill.amount }})" class="col-span-2 sm:col-span-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Pagar</button>
                                                 {% endif %}
                                                 <button type="button" onclick="openEditModal('bill', {{ bill.id }})" class="col-span-2 sm:col-span-1 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Editar</button>
@@ -793,7 +556,6 @@
                 </div>
                 <div class="flex gap-2">
                     <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Filtrar</button>
-                    <!-- Botão Limpar: Adicionado dark:bg-gray-700 e dark:text-gray-200 para modo escuro -->
                     <button type="button" onclick="clearTransactionFilters()" class="w-full text-center bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200">Limpar</button>
                 </div>
             </form>
@@ -810,7 +572,6 @@
                             {% for transaction in income_transactions %}
                                 <div class="flex items-center justify-between p-3 bg-green-50 rounded-xl hover:bg-green-100 draggable-transaction-item" draggable="true" data-transaction-id="{{ transaction.id }}">
                                     <div class="flex items-center space-x-3">
-                                        {# Ícone da categoria com a nova classe e lógica #}
                                         <i class="category-icon-fa" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}" data-description="{{ transaction.description }}"></i>
                                         <div>
                                             <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
@@ -842,7 +603,6 @@
                             {% for transaction in expense_transactions %}
                                 <div class="flex items-center justify-between p-3 bg-red-50 rounded-xl hover:bg-red-100 draggable-transaction-item" draggable="true" data-transaction-id="{{ transaction.id }}">
                                     <div class="flex items-center space-x-3">
-                                        {# Ícone da categoria com a nova classe e lógica #}
                                         <i class="category-icon-fa" data-category-name="{{ transaction.category.name if transaction.category else 'Sem Categoria' }}" data-description="{{ transaction.description }}"></i>
                                         <div>
                                             <p class="font-medium text-gray-800 text-md">{{ transaction.description }}</p>
@@ -866,7 +626,7 @@
         </div>
     </div>
 
-    {# Modal de Edição de Transação/Conta #}
+    <!-- Modais -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <span class="close-button" onclick="closeEditModal()">&times;</span>
@@ -920,17 +680,11 @@
                     <label for="edit_bill_dueDate" class="block text-sm font-medium text-gray-700 mb-1">Data de Vencimento</label>
                     <input type="date" id="edit_bill_dueDate" name="edit_bill_dueDate" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
-                {# REMOVIDO: Campo de seleção de conta para Edição de Conta a Pagar #}
-                {# <div>
-                    <label for="edit_bill_account_id" class="block text-sm font-medium text-gray-700 mb-1">Conta (para pagamento)</label>
-                    <select id="edit_bill_account_id" name="edit_bill_account_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md"></select>
-                </div> #}
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Salvar Edição</button>
             </form>
         </div>
     </div>
-
-    {# NOVO MODAL: Confirmar Pagamento de Conta #}
+    
     <div id="pay-bill-modal" class="modal">
         <div class="modal-content">
             <span class="close-button" onclick="closePayBillModal()">&times;</span>
@@ -952,7 +706,6 @@
         </div>
     </div>
 
-    <!-- Botão de alternância de modo claro/escuro -->
     <button id="darkModeToggle" class="dark-mode-toggle">
         <i class="fas fa-sun" id="darkModeIcon"></i>
     </button>
@@ -962,277 +715,31 @@
         const allAccounts = {{ accounts_json | tojson }};
         const allGoals = {{ goals_json | tojson }};
 
-        // Mapeamento de palavras-chave para ícones Font Awesome
-        // Esta é a "inteligência" que tenta adivinhar o ícone mais relevante.
-        // Adicione mais palavras-chave e ícones conforme necessário para suas categorias/transações!
         const keywordToIconMap = {
-            'salário': 'fa-solid fa-money-bill-wave',
-            'freelance': 'fa-solid fa-briefcase',
-            'outras receitas': 'fa-solid fa-plus-circle',
-            'alimentação': 'fa-solid fa-utensils',
-            'transporte': 'fa-solid fa-car',
-            'lazer': 'fa-solid fa-gamepad',
-            'moradia': 'fa-solid fa-home',
-            'saúde': 'fa-solid fa-heartbeat',
-            'educação': 'fa-solid fa-graduation-cap',
-            'contas fixas': 'fa-solid fa-receipt',
-            'outras despesas': 'fa-solid fa-minus-circle',
-            'poupança para metas': 'fa-solid fa-piggy-bank',
-            'compras': 'fa-solid fa-shopping-cart',
-            'esportes': 'fa-solid fa-futbol',
-            'casa': 'fa-solid fa-house',
-            'carro': 'fa-solid fa-car',
-            'internet': 'fa-solid fa-wifi',
-            'energia': 'fa-solid fa-bolt',
-            'água': 'fa-solid fa-tint',
-            'aluguel': 'fa-solid fa-house-user',
-            'serviços': 'fa-solid fa-concierge-bell',
-            'doação': 'fa-solid fa-hand-holding-heart',
-            'presente': 'fa-solid fa-gift',
-            'reembolso': 'fa-solid fa-undo',
-            'multa': 'fa-solid fa-exclamation-triangle',
-            'imposto': 'fa-solid fa-file-invoice-dollar',
-            'supermercado': 'fa-solid fa-shopping-basket',
-            'restaurante': 'fa-solid fa-utensils',
-            'farmácia': 'fa-solid fa-pills',
-            'combustível': 'fa-solid fa-gas-pump',
-            'academia': 'fa-solid fa-dumbbell',
-            'consultório': 'fa-solid fa-stethoscope',
-            'banco': 'fa-solid fa-university',
-            'transferência': 'fa-solid fa-exchange-alt',
-            'saque': 'fa-solid fa-money-bill-alt',
-            'depósito': 'fa-solid fa-piggy-bank',
-            'renda': 'fa-solid fa-sack-dollar',
-            'despesa': 'fa-solid fa-receipt',
-            'fatura': 'fa-solid fa-file-alt',
-            'assinatura': 'fa-solid fa-sync-alt',
-            'manutenção': 'fa-solid fa-tools',
-            'reparos': 'fa-solid fa-wrench',
-            'pet': 'fa-solid fa-paw',
-            'crianças': 'fa-solid fa-child',
-            'beleza': 'fa-solid fa-cut',
-            'roupas': 'fa-solid fa-tshirt',
-            'eletrônicos': 'fa-solid fa-plug',
-            'hospedagem': 'fa-solid fa-hotel',
-            'passagem': 'fa-solid fa-ticket-alt',
-            'frete': 'fa-solid fa-shipping-fast',
-            'delivery': 'fa-solid fa-motorcycle',
-            'café': 'fa-solid fa-coffee',
-            'bar': 'fa-solid fa-cocktail',
-            'cinema': 'fa-solid fa-ticket-alt',
-            'concerto': 'fa-solid fa-microphone-alt',
-            'museu': 'fa-solid fa-museum',
-            'parque': 'fa-solid fa-tree',
-            'seguro': 'fa-solid fa-car-crash',
-            'empréstimo': 'fa-solid fa-hand-holding-usd',
-            'juros': 'fa-solid fa-percent',
-            'cripto': 'fa-brands fa-bitcoin',
-            'ações': 'fa-solid fa-chart-area',
-            'crédito': 'fa-solid fa-credit-card',
-            'débito': 'fa-solid fa-money-bill-wave',
-            'pix': 'fa-solid fa-qrcode',
-            'boleto': 'fa-solid fa-barcode',
-            'online': 'fa-solid fa-globe',
-            'app': 'fa-solid fa-mobile-alt',
-            'hardware': 'fa-solid fa-desktop',
-            'software': 'fa-solid fa-code',
-            'consultoria': 'fa-solid fa-user-tie',
-            'marketing': 'fa-solid fa-bullhorn',
-            'vendas': 'fa-solid fa-cash-register',
-            'produção': 'fa-solid fa-industry',
-            'logística': 'fa-solid fa-truck',
-            'recursos humanos': 'fa-solid fa-users',
-            'jurídico': 'fa-solid fa-gavel',
-            'contabilidade': 'fa-solid fa-calculator',
-            'auditoria': 'fa-solid fa-clipboard-check',
-            'pesquisa': 'fa-solid fa-search',
-            'desenvolvimento': 'fa-solid fa-cogs',
-            'design': 'fa-solid fa-paint-brush',
-            'mídia': 'fa-solid fa-camera-retro',
-            'publicidade': 'fa-solid fa-ad',
-            'eventos': 'fa-solid fa-calendar-alt',
-            'treinamento': 'fa-solid fa-chalkboard-teacher',
-            'freelance': 'fa-solid fa-user-edit',
-            'startup': 'fa-solid fa-rocket',
-            'e-commerce': 'fa-solid fa-store',
-            'blog': 'fa-solid fa-blog',
-            'podcast': 'fa-solid fa-podcast',
-            'newsletter': 'fa-solid fa-envelope-open-text',
-            'webinar': 'fa-solid fa-video',
-            'curso': 'fa-solid fa-book-reader',
-            'workshop': 'fa-solid fa-users-cog',
-            'conferência': 'fa-solid fa-comments',
-            'seminário': 'fa-solid fa-microphone',
-            'diploma': 'fa-solid fa-award',
-            'certificação': 'fa-solid fa-certificate',
-            'idiomas': 'fa-solid fa-language',
-            'música': 'fa-solid fa-music',
-            'filme': 'fa-solid fa-film',
-            'série': 'fa-solid fa-tv',
-            'teatro': 'fa-solid fa-mask',
-            'arte': 'fa-solid fa-palette',
-            'fotografia': 'fa-solid fa-camera',
-            'dança': 'fa-solid fa-shoe-prints',
-            'show': 'fa-solid fa-ticket-alt',
-            'festival': 'fa-solid fa-fire',
-            'parque de diversões': 'fa-solid fa-roller-coaster',
-            'zoológico': 'fa-solid fa-paw',
-            'aquário': 'fa-solid fa-fish',
-            'natureza': 'fa-solid fa-leaf',
-            'praia': 'fa-solid fa-umbrella-beach',
-            'montanha': 'fa-solid fa-mountain',
-            'trilha': 'fa-solid fa-hiking',
-            'acampamento': 'fa-solid fa-campground',
-            'pesca': 'fa-solid fa-fish',
-            'esqui': 'fa-solid fa-skiing',
-            'snowboard': 'fa-solid fa-snowboarding',
-            'ciclismo': 'fa-solid fa-biking',
-            'natação': 'fa-solid fa-swimmer',
-            'basquete': 'fa-solid fa-basketball-ball',
-            'futebol': 'fa-solid fa-futbol',
-            'vôlei': 'fa-solid fa-volleyball-ball',
-            'tênis': 'fa-solid fa-tennis-ball',
-            'golfe': 'fa-solid fa-golf-ball',
-            'boxe': 'fa-solid fa-boxing-glove',
-            'yoga': 'fa-solid fa-om',
-            'meditação': 'fa-solid fa-hand-holding-heart',
-            'massagem': 'fa-solid fa-spa',
-            'terapia': 'fa-solid fa-brain',
-            'psicologia': 'fa-solid fa-brain',
-            'dentista': 'fa-solid fa-tooth',
-            'oftalmologista': 'fa-solid fa-eye',
-            'pediatra': 'fa-solid fa-baby',
-            'veterinário': 'fa-solid fa-cat',
-            'ambulância': 'fa-solid fa-ambulance',
-            'emergência': 'fa-solid fa-exclamation-circle',
-            'remédio': 'fa-solid fa-pills',
-            'vacina': 'fa-solid fa-syringe',
-            'hospital': 'fa-solid fa-hospital',
-            'clínica': 'fa-solid fa-clinic-medical',
-            'laboratório': 'fa-solid fa-microscope',
-            'exame': 'fa-solid fa-file-medical-alt',
-            'cirurgia': 'fa-solid fa-scalpel',
-            'dieta': 'fa-solid fa-apple-alt',
-            'nutrição': 'fa-solid fa-carrot',
-            'exercício': 'fa-solid fa-dumbbell',
-            'fitness': 'fa-solid fa-running',
-            'bem-estar': 'fa-solid fa-spa',
-            'mente': 'fa-solid fa-brain',
-            'corpo': 'fa-solid fa-male',
-            'espiritualidade': 'fa-solid fa-praying-hands',
-            'religião': 'fa-solid fa-church',
-            'caridade': 'fa-solid fa-hand-holding-heart',
-            'voluntariado': 'fa-solid fa-hands-helping',
-            'comunidade': 'fa-solid fa-people-carry',
-            'família': 'fa-solid fa-users',
-            'amigos': 'fa-solid fa-user-friends',
-            'relacionamento': 'fa-solid fa-heart',
-            'casamento': 'fa-solid fa-ring',
-            'aniversário': 'fa-solid fa-birthday-cake',
-            'festa': 'fa-solid fa-glass-cheers',
-            'feriado': 'fa-solid fa-holly-berry',
-            'natal': 'fa-solid fa-tree',
-            'páscoa': 'fa-solid fa-egg',
-            'halloween': 'fa-solid fa-ghost',
-            'carnaval': 'fa-solid fa-mask',
-            'ano novo': 'fa-solid fa-champagne-glasses',
-            'política': 'fa-solid fa-landmark',
-            'governo': 'fa-solid fa-building',
-            'lei': 'fa-solid fa-balance-scale',
-            'justiça': 'fa-solid fa-gavel',
-            'crime': 'fa-solid fa-mask',
-            'polícia': 'fa-solid fa-handcuffs',
-            'prisão': 'fa-solid fa-prison',
-            'militar': 'fa-solid fa-helmet-battle',
-            'guerra': 'fa-solid fa-bomb',
-            'paz': 'fa-solid fa-peace',
-            'direitos humanos': 'fa-solid fa-hand-holding-heart',
-            'meio ambiente': 'fa-solid fa-leaf',
-            'sustentabilidade': 'fa-solid fa-recycle',
-            'clima': 'fa-solid fa-cloud-sun',
-            'desastre': 'fa-solid fa-house-damage',
-            'socorro': 'fa-solid fa-hands-helping',
-            'notícias': 'fa-solid fa-newspaper',
-            'jornalismo': 'fa-solid fa-microphone-alt',
-            'reportagem': 'fa-solid fa-camera-retro',
-            'entrevista': 'fa-solid fa-comments',
-            'documentário': 'fa-solid fa-video',
-            'história': 'fa-solid fa-scroll',
-            'arqueologia': 'fa-solid fa-gopuram',
-            'ciência': 'fa-solid fa-atom',
-            'física': 'fa-solid fa-atom',
-            'química': 'fa-solid fa-flask',
-            'biologia': 'fa-solid fa-dna',
-            'matemática': 'fa-solid fa-calculator',
-            'estatística': 'fa-solid fa-chart-pie',
-            'programação': 'fa-solid fa-code',
-            'engenharia': 'fa-solid fa-hard-hat',
-            'arquitetura': 'fa-solid fa-building',
-            'design gráfico': 'fa-solid fa-paint-brush',
-            'web design': 'fa-solid fa-globe',
-            'desenvolvimento web': 'fa-solid fa-laptop-code',
-            'aplicativos': 'fa-solid fa-mobile-alt',
-            'inteligência artificial': 'fa-solid fa-robot',
-            'machine learning': 'fa-solid fa-brain',
-            'big data': 'fa-solid fa-database',
-            'nuvem': 'fa-solid fa-cloud',
-            'segurança cibernética': 'fa-solid fa-user-secret',
-            'criptografia': 'fa-solid fa-key',
-            'redes': 'fa-solid fa-network-wired',
-            'servidores': 'fa-solid fa-server',
-            'firewall': 'fa-solid fa-fire-extinguisher',
-            'vírus': 'fa-solid fa-bug',
-            'malware': 'fa-solid fa-bug',
-            'phishing': 'fa-solid fa-fish',
-            'spam': 'fa-solid fa-envelope-open-text',
-            'backup': 'fa-solid fa-save',
-            'recuperação': 'fa-solid fa-undo',
-            'desastre': 'fa-solid fa-house-damage',
-            'continuidade de negócios': 'fa-solid fa-sync-alt',
-            'auditoria de segurança': 'fa-solid fa-clipboard-check',
-            'política de segurança': 'fa-solid fa-file-contract',
-            'conformidade': 'fa-solid fa-check-double',
-            'governança': 'fa-solid fa-sitemap',
-            'gestão de risco': 'fa-solid fa-chart-line',
-            'monitoramento': 'fa-solid fa-eye',
-            'alerta': 'fa-solid fa-bell',
-            'incidente': 'fa-solid fa-exclamation-circle',
-            'resposta a incidentes': 'fa-solid fa-headset',
-            'investigação': 'fa-solid fa-search',
-            'forense': 'fa-solid fa-microscope',
-            'perícia': 'fa-solid fa-search-dollar',
-            'ciberataque': 'fa-solid fa-skull-crossbones',
-            'ameaça': 'fa-solid fa-user-secret',
-            'vulnerabilidade': 'fa-solid fa-exclamation-triangle',
-            'patch': 'fa-solid fa-wrench',
-            'atualização': 'fa-solid fa-sync-alt',
-            'rede': 'fa-solid fa-network-wired',
-            'servidor': 'fa-solid fa-server',
-            'nuvem': 'fa-solid fa-cloud',
-            'virtualização': 'fa-solid fa-vr-cardboard',
-            'container': 'fa-solid fa-box',
-            'devops': 'fa-solid fa-cogs',
-            'automação': 'fa-solid fa-robot',
-            'integração contínua': 'fa-solid fa-sync-alt',
-            'entrega contínua': 'fa-solid fa-truck-loading',
-            'infraestrutura como código': 'fa-solid fa-code',
-            'monitoramento': 'fa-solid fa-eye',
-            'logs': 'fa-solid fa-file-alt',
-            'métricas': 'fa-solid fa-chart-bar',
-            'alertas': 'fa-solid fa-bell',
-            'dashboards': 'fa-solid fa-chart-line',
-            'relatórios': 'fa-solid fa-file-alt',
-            'auditoria': 'fa-solid fa-clipboard-check',
-            'conformidade': 'fa-solid fa-check-double',
-            'governança': 'fa-solid fa-sitemap',
-            'gestão de risco': 'fa-solid fa-chart-line',
-            // Adicione mais palavras-chave e ícones aqui
+            'salário': 'fa-solid fa-money-bill-wave', 'freelance': 'fa-solid fa-briefcase', 'outras receitas': 'fa-solid fa-plus-circle',
+            'alimentação': 'fa-solid fa-utensils', 'transporte': 'fa-solid fa-car', 'lazer': 'fa-solid fa-gamepad',
+            'moradia': 'fa-solid fa-home', 'saúde': 'fa-solid fa-heartbeat', 'educação': 'fa-solid fa-graduation-cap',
+            'contas fixas': 'fa-solid fa-receipt', 'outras despesas': 'fa-solid fa-minus-circle', 'poupança para metas': 'fa-solid fa-piggy-bank',
+            'compras': 'fa-solid fa-shopping-cart', 'esportes': 'fa-solid fa-futbol', 'casa': 'fa-solid fa-house',
+            'carro': 'fa-solid fa-car', 'internet': 'fa-solid fa-wifi', 'energia': 'fa-solid fa-bolt', 'água': 'fa-solid fa-tint',
+            'aluguel': 'fa-solid fa-house-user', 'serviços': 'fa-solid fa-concierge-bell', 'doação': 'fa-solid fa-hand-holding-heart',
+            'presente': 'fa-solid fa-gift', 'reembolso': 'fa-solid fa-undo', 'multa': 'fa-solid fa-exclamation-triangle',
+            'imposto': 'fa-solid fa-file-invoice-dollar', 'supermercado': 'fa-solid fa-shopping-basket', 'restaurante': 'fa-solid fa-utensils',
+            'farmácia': 'fa-solid fa-pills', 'combustível': 'fa-solid fa-gas-pump', 'academia': 'fa-solid fa-dumbbell',
+            'consultório': 'fa-solid fa-stethoscope', 'banco': 'fa-solid fa-university', 'transferência': 'fa-solid fa-exchange-alt',
+            'saque': 'fa-solid fa-money-bill-alt', 'depósito': 'fa-solid fa-piggy-bank', 'renda': 'fa-solid fa-sack-dollar',
+            'despesa': 'fa-solid fa-receipt', 'fatura': 'fa-solid fa-file-alt', 'assinatura': 'fa-solid fa-sync-alt',
+            'manutenção': 'fa-solid fa-tools', 'reparos': 'fa-solid fa-wrench', 'pet': 'fa-solid fa-paw', 'crianças': 'fa-solid fa-child',
+            'beleza': 'fa-solid fa-cut', 'roupas': 'fa-solid fa-tshirt', 'eletrônicos': 'fa-solid fa-plug', 'hospedagem': 'fa-solid fa-hotel',
+            'passagem': 'fa-solid fa-ticket-alt', 'frete': 'fa-solid fa-shipping-fast', 'delivery': 'fa-solid fa-motorcycle',
+            'café': 'fa-solid fa-coffee', 'bar': 'fa-solid fa-cocktail', 'cinema': 'fa-solid fa-ticket-alt',
+            'seguro': 'fa-solid fa-car-crash', 'empréstimo': 'fa-solid fa-hand-holding-usd', 'juros': 'fa-solid fa-percent',
+            'cripto': 'fa-brands fa-bitcoin', 'ações': 'fa-solid fa-chart-area', 'crédito': 'fa-solid fa-credit-card',
+            'débito': 'fa-solid fa-money-bill-wave', 'pix': 'fa-solid fa-qrcode', 'boleto': 'fa-solid fa-barcode',
+            'online': 'fa-solid fa-globe', 'app': 'fa-solid fa-mobile-alt', 'investimento': 'fa-solid fa-chart-line',
         };
-
-        // Ícone padrão caso nenhuma palavra-chave seja encontrada
         const defaultIcon = 'fa-solid fa-question-circle';
 
-        // Função para obter o ícone com base no texto (nome ou descrição)
         function getIconForText(text) {
             const lowerText = text.toLowerCase();
             for (const keyword in keywordToIconMap) {
@@ -1248,7 +755,6 @@
             const toggleButton = document.getElementById('darkModeToggle');
             const icon = document.getElementById('darkModeIcon');
 
-            // Verifica a preferência do usuário ou o que está salvo no localStorage
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 htmlElement.classList.add('dark');
@@ -1261,137 +767,89 @@
             }
 
             toggleButton.addEventListener('click', () => {
-                if (htmlElement.classList.contains('dark')) {
-                    htmlElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                    icon.classList.remove('fa-moon');
-                    icon.classList.add('fa-sun');
-                } else {
-                    htmlElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                    icon.classList.remove('fa-sun');
-                    icon.classList.add('fa-moon');
-                }
+                htmlElement.classList.toggle('dark');
+                const isDarkMode = htmlElement.classList.contains('dark');
+                localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                icon.className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
             });
 
-            // Inicializa as categorias para o formulário de transação (tipo 'expense' por padrão)
             populateCategoryDropdown('category_id', document.getElementById('type').value);
-            // Inicializa as categorias para o formulário de conta a pagar (tipo 'expense' por padrão)
             populateCategoryDropdown('bill_category_id', document.getElementById('bill_type').value);
             
             const flashMessages = document.querySelectorAll('.flash-message');
             flashMessages.forEach(message => {
                 setTimeout(() => {
-                    message.style.transition = 'opacity 1.5s ease-out'; /* Aumentado para 1.5s */
+                    message.style.transition = 'opacity 1.5s ease-out';
                     message.style.opacity = '0';
                     message.addEventListener('transitionend', () => message.remove());
                 }, 4000);
             });
 
-            // Garante que o campo de conta esteja populado e selecionado se houver apenas uma
             populateAccounts('account_id');
-            populateGoals('goal_id'); // Popula metas na carga inicial
-
-            // Dispara a lógica de visibilidade da meta ao carregar a página
+            populateGoals('goal_id');
             updateGoalFieldVisibility('category_id', 'goal-field-container', 'goal_id');
-
-            // Renderiza os ícones nas listas de transações
             renderCategoryIconsInLists();
-            highlightCurrentPage(); // Chamada para destacar a página atual
-
-            // Lógica para filtros persistentes
+            highlightCurrentPage();
             loadTransactionFilters();
-
-            // Lógica para arrastar e soltar transações
             setupDragAndDrop('income-transactions-list', '.draggable-transaction-item');
             setupDragAndDrop('expense-transactions-list', '.draggable-transaction-item');
         });
 
-        // Função para renderizar os ícones nas listas de transações
         function renderCategoryIconsInLists() {
             document.querySelectorAll('.category-icon-fa').forEach(element => {
                 const categoryName = element.dataset.categoryName;
                 const description = element.dataset.description;
-                // Combina nome da categoria e descrição para uma busca mais inteligente
                 const textForIcon = `${categoryName} ${description}`;
                 element.className = `category-icon-fa ${getIconForText(textForIcon)}`;
             });
         }
 
-        // Função para atualizar as opções de categoria com ícones no dropdown
         function populateCategoryDropdown(selectElementId, transactionType, selectedCategoryId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = ''; // Limpa todas as opções existentes
+            selectElement.innerHTML = ''; 
             
             const filteredCategories = allCategories.filter(cat => cat[1] === transactionType);
             
-            console.log(`Populating ${selectElementId} with categories of type: ${transactionType}. Found ${filteredCategories.length} categories.`);
-
             if (filteredCategories.length === 0) {
-                const noOptionsMessage = document.createElement('option');
-                noOptionsMessage.value = "";
-                noOptionsMessage.textContent = `Nenhuma categoria de ${transactionType === 'income' ? 'receita' : 'despesa'} disponível.`;
-                selectElement.appendChild(noOptionsMessage);
-                selectElement.required = false; // Torna o campo não obrigatório se não houver opções
+                selectElement.innerHTML = `<option value="">Nenhuma categoria de ${transactionType === 'income' ? 'receita' : 'despesa'} disponível.</option>`;
+                selectElement.required = false;
             } else {
-                selectElement.disabled = false; // Habilita o select
-                selectElement.required = true; // Torna o campo obrigatório novamente
+                selectElement.disabled = false;
+                selectElement.required = true;
                 
-                // Adiciona a opção padrão "Selecione a Categoria"
-                const defaultOption = document.createElement('option');
-                defaultOption.value = "";
-                defaultOption.textContent = "Selecione a Categoria";
-                selectElement.appendChild(defaultOption);
-
+                let optionsHTML = '<option value="">Selecione a Categoria</option>';
                 filteredCategories.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat[0]; // cat[0] é o ID da categoria
-                    option.textContent = cat[2]; // cat[2] é o nome da categoria
-                    if (selectedCategoryId && cat[0] === selectedCategoryId) {
-                        option.selected = true;
-                    }
-                    selectElement.appendChild(option);
+                    const selected = selectedCategoryId && cat[0] === selectedCategoryId ? 'selected' : '';
+                    optionsHTML += `<option value="${cat[0]}" ${selected}>${cat[2]}</option>`;
                 });
+                selectElement.innerHTML = optionsHTML;
             }
         }
 
-        // Modifica populateCategoriesByType para usar a nova função de atualização de dropdown
-        // Esta função não é mais necessária, pois populateCategoryDropdown é chamada diretamente.
-        // function filterCategoriesByType(transactionType, selectElementId, selectedCategoryId = null) {
-        //     populateCategoryDropdown(selectElementId, transactionType, selectedCategoryId);
-        // }
-
-        // Modifica populateAccounts para garantir que o dropdown de contas seja populado corretamente
         function populateAccounts(selectElementId, selectedAccountId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma conta</option>'; // Garante a opção padrão
+            let optionsHTML = '<option value="">Selecione uma conta</option>';
             allAccounts.forEach(account => {
-                const option = new Option(`${account.name} (R$ ${account.balance.toFixed(2)})`, account.id);
-                if (selectedAccountId && account.id === selectedAccountId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
+                const selected = selectedAccountId && account.id === selectedAccountId ? 'selected' : '';
+                optionsHTML += `<option value="${account.id}" ${selected}>${account.name} (R$ ${account.balance.toFixed(2)})</option>`;
             });
-            // Se não houver uma conta selecionada e houver apenas uma conta disponível, selecione-a automaticamente
-            if (allAccounts.length === 1) {
+            selectElement.innerHTML = optionsHTML;
+            if (!selectedAccountId && allAccounts.length === 1) {
                 selectElement.value = allAccounts[0].id;
             }
         }
 
-        // Modifica populateGoals para garantir que o dropdown de metas seja populado corretamente
         function populateGoals(selectElementId, selectedGoalId = null) {
             const selectElement = document.getElementById(selectElementId);
             if (!selectElement) return;
-            selectElement.innerHTML = '<option value="">Selecione uma Meta</option>'; // Garante a opção padrão
+            let optionsHTML = '<option value="">Selecione uma Meta</option>';
             allGoals.forEach(goal => {
-                const option = new Option(goal.name, goal.id);
-                if (selectedGoalId && goal.id === selectedGoalId) {
-                    option.selected = true;
-                }
-                selectElement.add(option);
+                const selected = selectedGoalId && goal.id === selectedGoalId ? 'selected' : '';
+                optionsHTML += `<option value="${goal.id}" ${selected}>${goal.name}</option>`;
             });
+            selectElement.innerHTML = optionsHTML;
         }
 
         function toggleAccordion(contentId, arrowId, otherContentIds, otherArrowIds) {
@@ -1410,26 +868,11 @@
             arrow.classList.toggle('rotated');
         }
 
-        // Funções para o novo menu lateral (sidebar)
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebar-overlay').classList.toggle('active');
         }
 
-        document.addEventListener('click', (event) => {
-            const sidebar = document.getElementById('sidebar');
-            const sidebarButton = document.querySelector('header .flex.items-center button'); // Ajustado seletor para o botão do sidebar
-            const overlay = document.getElementById('sidebar-overlay');
-
-            // Se o clique foi fora do sidebar e não foi no botão que abre o sidebar, fecha o sidebar
-            if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(event.target) && (!sidebarButton || !sidebarButton.contains(event.target))) {
-                toggleSidebar();
-            }
-        });
-
-        // Nova função para controlar a visibilidade do campo de meta
         function updateGoalFieldVisibility(categorySelectId, goalContainerId, goalSelectId) {
             const categorySelect = document.getElementById(categorySelectId);
             const goalContainer = document.getElementById(goalContainerId);
@@ -1440,14 +883,9 @@
                 cat[0] == currentSelectedCategoryValue && cat[2].toLowerCase().includes('poupança para metas')
             );
 
-            if (isPoupancaParaMetas) {
-                goalContainer.classList.remove('hidden');
-                goalSelect.setAttribute('required', 'required'); // Torna a meta obrigatória
-            } else {
-                goalContainer.classList.add('hidden');
-                goalSelect.removeAttribute('required'); // Remove a obrigatoriedade
-                goalSelect.value = ''; // Limpa a seleção da meta se não for mais obrigatória
-            }
+            goalContainer.classList.toggle('hidden', !isPoupancaParaMetas);
+            goalSelect.required = isPoupancaParaMetas;
+            if (!isPoupancaParaMetas) goalSelect.value = '';
         }
 
         const editModal = document.getElementById('edit-modal');
@@ -1473,13 +911,10 @@
                     document.getElementById('edit_date').value = data.date;
                     document.getElementById('edit_type').value = data.type;
                     
-                    // Atualiza as categorias e seleciona a correta
                     populateCategoryDropdown('edit_category_id', data.type, data.category_id);
-                    
                     populateAccounts('edit_account_id', data.account_id);
                     populateGoals('edit_goal_id', data.goal_id);
                     
-                    // Lógica para o modal de edição:
                     updateGoalFieldVisibility('edit_category_id', 'edit-goal-field-container', 'edit_goal_id');
 
                     editTransactionForm.action = `/edit_transaction/${id}`;
@@ -1495,26 +930,33 @@
                 }
             } catch (error) {
                 console.error('Erro ao abrir modal de edição:', error);
-                // Usar um modal customizado ou flash message em vez de alert
-                // alert('Não foi possível carregar os dados para edição.');
                 closeEditModal();
             }
         }
 
-        function closeEditModal() {
-            editModal.classList.remove('active');
+        function closeEditModal() { editModal.classList.remove('active'); }
+
+        const payBillModal = document.getElementById('pay-bill-modal');
+        const payBillForm = document.getElementById('pay-bill-form');
+
+        function openPayBillModal(billId, description, amount) {
+            document.getElementById('pay_bill_id').value = billId;
+            document.getElementById('pay_bill_description').textContent = description;
+            document.getElementById('pay_bill_amount_display').textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
+            payBillForm.action = `/pay_bill/${billId}`;
+            populateAccounts('payment_account_id');
+            payBillModal.classList.add('active');
         }
+
+        function closePayBillModal() { payBillModal.classList.remove('active'); }
 
         window.onclick = function(event) {
-            if (event.target == editModal) {
-                closeEditModal();
-            }
+            if (event.target == editModal) closeEditModal();
+            if (event.target == payBillModal) closePayBillModal();
         }
 
         function toggleBillRecurringFields() {
-            const isRecurringCheckbox = document.getElementById('is_recurring_bill');
-            const recurringFieldsDiv = document.getElementById('bill_recurring_fields');
-            recurringFieldsDiv.classList.toggle('hidden', !isRecurringCheckbox.checked);
+            document.getElementById('bill_recurring_fields').classList.toggle('hidden', !document.getElementById('is_recurring_bill').checked);
         }
 
         function updateRecurringOccurrenceLabel(frequencySelectId, labelId, inputId) {
@@ -1523,97 +965,31 @@
             const input = document.getElementById(inputId);
             const fieldDiv = input.parentElement;
 
-            if (select.value === 'installments') {
-                label.textContent = 'Total de Parcelas';
-                input.placeholder = 'Ex: 12';
-                input.min = "1";
-                input.required = true;
-                fieldDiv.classList.remove('hidden');
-            } else {
-                label.textContent = 'Total de Ocorrências (0 para indefinido)';
-                input.placeholder = '0';
-                input.min = "0";
-                input.required = false;
-                fieldDiv.classList.add('hidden');
-            }
+            const isInstallments = select.value === 'installments';
+            label.textContent = isInstallments ? 'Total de Parcelas' : 'Total de Ocorrências (0 para indefinido)';
+            input.placeholder = isInstallments ? 'Ex: 12' : '0';
+            input.min = isInstallments ? "1" : "0";
+            input.required = isInstallments;
+            fieldDiv.classList.toggle('hidden', !isInstallments);
         }
 
-        // --- Funções para o NOVO Modal de Pagamento de Conta ---
-        const payBillModal = document.getElementById('pay-bill-modal');
-        const payBillForm = document.getElementById('pay-bill-form');
-        const payBillDescription = document.getElementById('pay_bill_description');
-        const payBillAmountDisplay = document.getElementById('pay_bill_amount_display');
-        const payBillIdInput = document.getElementById('pay_bill_id');
-        const paymentAccountSelect = document.getElementById('payment_account_id');
-
-        function openPayBillModal(billId, description, amount) {
-            payBillIdInput.value = billId;
-            payBillDescription.textContent = description;
-            payBillAmountDisplay.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(amount);
-            payBillForm.action = `/pay_bill/${billId}`;
-            
-            // Popula o dropdown de contas no modal de pagamento
-            populateAccounts(paymentAccountSelect.id); // Reutiliza a função populateAccounts
-            
-            payBillModal.classList.add('active');
-        }
-
-        function closePayBillModal() {
-            payBillModal.classList.remove('active');
-            paymentAccountSelect.value = ''; // Limpa a seleção da conta
-        }
-
-        // Adiciona o fechamento do modal de pagamento ao clicar fora
-        window.addEventListener('click', (event) => {
-            if (event.target == payBillModal) {
-                closePayBillModal();
-            }
-        });
-
-        // Função para destacar o link da página atual no sidebar
         function highlightCurrentPage() {
-            const sidebarLinks = document.querySelectorAll('#sidebar nav a');
             const currentPath = window.location.pathname;
-
-            sidebarLinks.forEach(link => {
-                // Remove classes de destaque de todos os links primeiro
+            document.querySelectorAll('#sidebar nav a').forEach(link => {
                 link.classList.remove('bg-gray-200', 'text-purple-700', 'font-semibold');
-                link.classList.add('text-gray-800'); // Garante a cor padrão
-
-                // Adiciona destaque se o href do link corresponder ao caminho atual
-                // Condição para o Dashboard: só destaca se for a raiz OU se o caminho for exatamente '/index'
-                if (link.getAttribute('href') === '{{ url_for("index") }}') {
-                    if (currentPath === '/' || currentPath === '{{ url_for("index") }}') {
-                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
-                        link.classList.remove('text-gray-800');
-                    }
-                } else if (currentPath.startsWith(link.getAttribute('href'))) {
-                    // Para outras páginas, usa startsWith, mas com uma verificação mais rigorosa
-                    // para evitar que /profile/monthly_summary destaque apenas /profile
-                    // Verifica se o caminho do link é um prefixo do caminho atual E
-                    // que o próximo caractere após o prefixo seja '/' ou o final da string
-                    const linkHref = link.getAttribute('href');
-                    if (currentPath === linkHref || (currentPath.startsWith(linkHref) && currentPath.charAt(linkHref.length) === '/')) {
-                        link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
-                        link.classList.remove('text-gray-800');
-                    }
+                const linkHref = link.getAttribute('href');
+                if (linkHref === currentPath || (linkHref !== '/' && currentPath.startsWith(linkHref))) {
+                    link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
                 }
             });
         }
 
-        // --- Lógica para Filtros Persistentes (Transações) ---
         const transactionFilterForm = document.getElementById('transactions-filter-form');
-        const transactionTypeFilter = document.getElementById('transaction_type');
-        const startDateFilter = document.getElementById('start_date_filter');
-        const endDateFilter = document.getElementById('end_date_filter');
-        // Adicione aqui outros campos de filtro se houver (ex: category_filter)
-
         function saveTransactionFilters() {
             const filters = {
-                transactionType: transactionTypeFilter.value,
-                startDate: startDateFilter.value,
-                endDate: endDateFilter.value,
-                // Adicione outros filtros aqui
+                transactionType: document.getElementById('transaction_type').value,
+                startDate: document.getElementById('start_date_filter').value,
+                endDate: document.getElementById('end_date_filter').value,
             };
             localStorage.setItem('transactionFilters', JSON.stringify(filters));
         }
@@ -1622,95 +998,55 @@
             const savedFilters = localStorage.getItem('transactionFilters');
             if (savedFilters) {
                 const filters = JSON.parse(savedFilters);
-                transactionTypeFilter.value = filters.transactionType || '';
-                startDateFilter.value = filters.startDate || '';
-                endDateFilter.value = filters.endDate || '';
-                // Aplique outros filtros aqui
+                document.getElementById('transaction_type').value = filters.transactionType || '';
+                document.getElementById('start_date_filter').value = filters.startDate || '';
+                document.getElementById('end_date_filter').value = filters.endDate || '';
             }
         }
 
         function clearTransactionFilters() {
             localStorage.removeItem('transactionFilters');
-            // Redireciona para a URL base para limpar todos os parâmetros de filtro da URL
             window.location.href = "{{ url_for('index') }}"; 
         }
 
-        // Salva os filtros antes de enviar o formulário
         transactionFilterForm.addEventListener('submit', saveTransactionFilters);
 
-        // --- Lógica para Arrastar e Soltar (Drag and Drop) para Transações ---
         let draggedItem = null;
-
         function setupDragAndDrop(containerId, itemSelector) {
             const listContainer = document.getElementById(containerId);
             if (!listContainer) return;
 
-            listContainer.addEventListener('dragstart', (e) => {
+            listContainer.addEventListener('dragstart', e => {
                 if (e.target.matches(itemSelector)) {
                     draggedItem = e.target;
-                    setTimeout(() => {
-                        draggedItem.classList.add('dragging');
-                    }, 0);
-                    e.dataTransfer.setData('text/plain', draggedItem.dataset.transactionId); // Pode ser útil para identificar o item
+                    setTimeout(() => draggedItem.classList.add('dragging'), 0);
                 }
             });
 
-            listContainer.addEventListener('dragover', (e) => {
-                e.preventDefault(); // Permite o drop
+            listContainer.addEventListener('dragover', e => {
+                e.preventDefault();
                 const afterElement = getDragAfterElement(listContainer, e.clientY, itemSelector);
-                const currentDraggable = document.querySelector('.dragging');
-                if (currentDraggable) {
+                if (draggedItem) {
                     if (afterElement == null) {
-                        listContainer.appendChild(currentDraggable);
+                        listContainer.appendChild(draggedItem);
                     } else {
-                        listContainer.insertBefore(currentDraggable, afterElement);
+                        listContainer.insertBefore(draggedItem, afterElement);
                     }
                 }
-                // Adicionar feedback visual para o elemento sobre o qual está arrastando
-                const hoveredItem = e.target.closest(itemSelector);
-                listContainer.querySelectorAll(itemSelector).forEach(item => {
-                    item.classList.remove('drag-over');
-                });
-                if (hoveredItem && hoveredItem !== draggedItem) {
-                    hoveredItem.classList.add('drag-over');
-                }
             });
 
-            listContainer.addEventListener('dragleave', (e) => {
-                // Remover feedback visual quando o item sai de cima de outro
-                const hoveredItem = e.target.closest(itemSelector);
-                if (hoveredItem) {
-                    hoveredItem.classList.remove('drag-over');
-                }
-            });
-
-            listContainer.addEventListener('drop', (e) => {
-                e.preventDefault();
-                draggedItem.classList.remove('dragging');
-                draggedItem = null;
-                // Remover feedback visual de todos os itens
-                listContainer.querySelectorAll(itemSelector).forEach(item => {
-                    item.classList.remove('drag-over');
-                });
-                // Aqui você enviaria a nova ordem para o backend se necessário
-                // console.log('Nova ordem de IDs:', Array.from(listContainer.children).map(item => item.dataset.transactionId));
-            });
-
-            listContainer.addEventListener('dragend', () => {
+            const dragEndHandler = () => {
                 if (draggedItem) {
                     draggedItem.classList.remove('dragging');
+                    draggedItem = null;
                 }
-                draggedItem = null;
-                // Remover feedback visual de todos os itens
-                listContainer.querySelectorAll(itemSelector).forEach(item => {
-                    item.classList.remove('drag-over');
-                });
-            });
+            };
+            listContainer.addEventListener('dragend', dragEndHandler);
+            listContainer.addEventListener('drop', dragEndHandler);
         }
 
         function getDragAfterElement(container, y, itemSelector) {
-            const draggableElements = [...container.querySelectorAll(itemSelector + ':not(.dragging)')];
-
+            const draggableElements = [...container.querySelectorAll(`${itemSelector}:not(.dragging)`)];
             return draggableElements.reduce((closest, child) => {
                 const box = child.getBoundingClientRect();
                 const offset = y - box.top - box.height / 2;

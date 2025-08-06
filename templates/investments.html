@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Investimentos - Gestão Financeira Pessoal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link para o Font Awesome via CDN para os ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        /* Variáveis CSS para modo claro */
+        :root {
+            --bg-color-light: #f7fafc; /* Tailwind gray-50 */
+            --text-color-light: #1a202c; /* Tailwind gray-900 */
+            --card-bg-light: #ffffff;
+            --border-color-light: #e2e8f0; /* Tailwind gray-200 */
+            --input-border-light: #cbd5e0; /* Tailwind gray-300 */
+            --input-focus-ring-light: #8b5cf6; /* Tailwind purple-500 for forms */
+            --header-bg-light: #ffffff;
+            --sidebar-bg-light: #ffffff;
+            --sidebar-text-light: #4a5568; /* Tailwind gray-700 */
+            --sidebar-hover-bg-light: #edf2f7; /* Tailwind gray-100 */
+            --sidebar-active-bg-light: #e2e8f0; /* Tailwind gray-200 */
+            --sidebar-active-text-light: #6b46c1; /* Tailwind purple-700 */
+        }
+
+        /* Variáveis CSS para modo escuro (tom azulado) */
+        html.dark {
+            --bg-color-dark: #1A263F; /* Um azul escuro suave */
+            --text-color-dark: #E0E7FF; /* Texto claro azulado */
+            --card-bg-dark: #232E47; /* Um pouco mais claro que o fundo */
+            --border-color-dark: #374762; /* Borda mais escura */
+            --input-border-dark: #4A5C7E; /* Borda de input escura */
+            --input-focus-ring-dark: #7b68ee; /* Um azul/roxo para foco */
+            --header-bg-dark: #232E47;
+            --sidebar-bg-dark: #232E47;
+            --sidebar-text-dark: #A7B6D8; /* Texto claro azulado */
+            --sidebar-hover-bg-dark: #2D3A54; /* Hover mais escuro */
+            --sidebar-active-bg-dark: #374762; /* Ativo mais escuro */
+            --sidebar-active-text-dark: #C5D4F5; /* Ativo mais claro */
+        }
+
+        /* Aplica as variáveis globalmente */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color-light);
+            color: var(--text-color-light);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        html.dark body {
+            background-color: var(--bg-color-dark);
+            color: var(--text-color-dark);
+        }
+        
+        /* Aplica as variáveis aos elementos */
+        .bg-white { background-color: var(--card-bg-light); }
+        html.dark .bg-white { background-color: var(--card-bg-dark); }
+
+        .text-gray-900 { color: var(--text-color-light); }
+        html.dark .text-gray-900 { color: var(--text-color-dark); }
+
+        .text-gray-800 { color: #1f2937; }
+        html.dark .text-gray-800 { color: var(--text-color-dark); }
+
+        .text-gray-700 { color: #374151; }
+        html.dark .text-gray-700 { color: var(--sidebar-text-dark); }
+
+        .text-gray-600 { color: #4b5563; }
+        html.dark .text-gray-600 { color: #A7B6D8; }
+
+        .text-gray-500 { color: #6b7280; }
+        html.dark .text-gray-500 { color: #A7B6D8; }
+
+        .border-gray-300 { border-color: var(--input-border-light); }
+        html.dark .border-gray-300 { 
+            border-color: var(--input-border-dark); 
+            background-color: var(--card-bg-dark);
+            color: var(--text-color-dark);
+        }
+
+        .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-light); --tw-ring-color: var(--input-focus-ring-light); }
+        html.dark .focus\:ring-purple-500:focus { border-color: var(--input-focus-ring-dark); --tw-ring-color: var(--input-focus-ring-dark); }
+
+        .shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        html.dark .shadow-md { box-shadow: 0 4px 10px -1px rgba(0, 0, 0, 0.3), 0 2px 6px -1px rgba(0, 0, 0, 0.15); }
+
+        .sidebar { background-color: var(--sidebar-bg-light); }
+        html.dark .sidebar { background-color: var(--sidebar-bg-dark); }
+
+        .sidebar a { color: var(--sidebar-text-light); }
+        html.dark .sidebar a { color: var(--sidebar-text-dark); }
+
+        .sidebar a:hover { background-color: var(--sidebar-hover-bg-light); }
+        html.dark .sidebar a:hover { background-color: var(--sidebar-hover-bg-dark); }
+
+        .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-light); }
+        html.dark .sidebar a.bg-gray-200 { background-color: var(--sidebar-active-bg-dark); }
+
+        .sidebar a.text-purple-700 { color: var(--sidebar-active-text-light); }
+        html.dark .sidebar a.text-purple-700 { color: var(--sidebar-active-text-dark); }
+
+        .dark-mode-toggle {
+            position: fixed; bottom: 20px; right: 20px; background-color: #6366f1; color: white;
+            border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background-color 0.3s ease, transform 0.2s ease; z-index: 1000;
+        }
+        .dark-mode-toggle:hover { background-color: #4f46e5; transform: translateY(-2px); }
+        html.dark .dark-mode-toggle { background-color: #4A5C7E; }
+        html.dark .dark-mode-toggle:hover { background-color: #374762; }
+
+        .modal {
+            position: fixed; z-index: 1050; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.4); display: flex; justify-content: center;
+            align-items: center; padding: 1rem; visibility: hidden; opacity: 0;
+            transition: visibility 0.3s, opacity 0.3s;
+        }
+        .modal.active { visibility: visible; opacity: 1; }
+        .modal-content {
+            background-color: #fefefe; padding: 2rem; border-radius: 0.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 100%; max-width: 500px; position: relative;
+        }
+        html.dark .modal-content { background-color: var(--card-bg-dark); }
+        .close-button {
+            position: absolute; top: 1rem; right: 1.5rem; font-size: 1.5rem;
+            font-weight: bold; cursor: pointer; color: #aaa;
+        }
+        html.dark .close-button { color: var(--text-color-dark); }
+        .close-button:hover { color: #333; }
+        
+        .sidebar {
+            position: fixed; top: 0; left: -280px; width: 280px; height: 100%;
+            background-color: white; box-shadow: 2px 0 8px rgba(0,0,0,0.1); z-index: 2000;
+            transition: left 0.3s ease-in-out; padding-top: 4rem; overflow-y: auto;
+        }
+        .sidebar.active { left: 0; }
+        .sidebar-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); z-index: 1999; opacity: 0;
+            visibility: hidden; transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .sidebar-overlay.active { opacity: 1; visibility: visible; }
+
+        html.dark .bg-gray-50 { background-color: #2D3A54; }
+        html.dark .border-gray-200 { border-color: #374762; }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div class="flex items-center">
+                {% if current_user.is_authenticated %}
+                    <button type="button" onclick="toggleSidebar()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4 p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-8 w-8">
+                            <line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/>
+                        </svg>
+                    </button>
+                {% endif %}
+                <h1 class="text-4xl font-bold text-gray-900">Meus Investimentos</h1>
+            </div>
+        </header>
+
+        <!-- Sidebar Menu -->
+        <div id="sidebar" class="sidebar">
+            <div class="p-6">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">Navegação</h2>
+                <nav class="space-y-3">
+                    <a href="{{ url_for('index') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-home mr-3"></i> Dashboard</a>
+                    <a href="{{ url_for('profile') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-user-circle mr-3"></i> Meu Perfil</a>
+                    <a href="{{ url_for('budgets_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-pie mr-3"></i> Meus Orçamentos</a>
+                    <a href="{{ url_for('goals_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-bullseye mr-3"></i> Minhas Metas</a>
+                    <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-wallet mr-3"></i> Minhas Contas</a>
+                    <a href="{{ url_for('investments_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-line mr-3"></i> Investimentos</a>
+                    <a href="{{ url_for('debts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-credit-card mr-3"></i> Dívidas</a>
+                    <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-bar mr-3"></i> Relatórios</a>
+                    <a href="{{ url_for('subscriptions_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-sync-alt mr-3"></i> Assinaturas</a>
+                    <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-red-500 hover:bg-red-100 border-t border-gray-200 rounded-md"><i class="fas fa-sign-out-alt mr-3"></i> Sair</a>
+                </nav>
+            </div>
+        </div>
+        <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div id="flash-messages-container" class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="flash-message p-3 rounded-md text-sm mb-2 {% if category == 'success' %}bg-green-100 text-green-700{% elif category == 'danger' %}bg-red-100 text-red-700{% else %}bg-blue-100 text-blue-700{% endif %}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Adicionar Novo Investimento</h2>
+            <form action="{{ url_for('add_investment') }}" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Nome do Ativo</label>
+                    <input type="text" id="name" name="name" placeholder="Ex: Ações da Empresa X, Tesouro Selic" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Investimento</label>
+                    <input type="text" id="type" name="type" placeholder="Ex: Ação, Fundo, Cripto, Renda Fixa" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="current_value" class="block text-sm font-medium text-gray-700 mb-1">Valor Atual</label>
+                    <input type="number" step="0.01" id="current_value" name="current_value" placeholder="0.00" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div>
+                    <label for="purchase_date" class="block text-sm font-medium text-gray-700 mb-1">Data da Compra (Opcional)</label>
+                    <input type="date" id="purchase_date" name="purchase_date"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="institution" class="block text-sm font-medium text-gray-700 mb-1">Instituição (Opcional)</label>
+                    <input type="text" id="institution" name="institution" placeholder="Ex: XP, Nubank, Binance"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-md transition-colors">
+                        Adicionar Investimento
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Carteira de Investimentos</h2>
+            {% if not investments %}
+                <p class="text-gray-500 text-center py-4 text-md">Nenhum investimento adicionado ainda.</p>
+            {% else %}
+                <div class="space-y-4">
+                    {% for investment in investments %}
+                        <div class="p-4 rounded-xl border border-gray-200 bg-gray-50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div class="flex-1 min-w-0">
+                                <h3 class="font-semibold text-lg text-gray-800 truncate">{{ investment.name }}</h3>
+                                <p class="text-sm text-gray-600">Tipo: {{ investment.type }}</p>
+                                <p class="text-sm text-gray-600">Instituição: {{ investment.institution or 'N/A' }}</p>
+                                <p class="text-sm text-gray-600">Valor Atual: 
+                                    <span class="font-bold text-green-600">
+                                        R$ {{ "%.2f"|format(investment.current_value) }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="openEditInvestmentModal({{ investment.id }})" class="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-1 px-3 rounded-md text-sm">Editar</button>
+                                <form action="{{ url_for('delete_investment', investment_id=investment.id) }}" method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este investimento?');">
+                                    <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-1 px-3 rounded-md text-sm">Excluir</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Modal de Edição de Investimento -->
+    <div id="edit-investment-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeEditInvestmentModal()">&times;</span>
+            <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">Editar Investimento</h3>
+            
+            <form id="edit-investment-form" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="edit_investment_id" name="investment_id">
+                <div>
+                    <label for="edit_name" class="block text-sm font-medium text-gray-700 mb-1">Nome do Ativo</label>
+                    <input type="text" id="edit_name" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_type" class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <input type="text" id="edit_type" name="type" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_current_value" class="block text-sm font-medium text-gray-700 mb-1">Valor Atual</label>
+                    <input type="number" step="0.01" id="edit_current_value" name="current_value" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div>
+                    <label for="edit_purchase_date" class="block text-sm font-medium text-gray-700 mb-1">Data da Compra</label>
+                    <input type="date" id="edit_purchase_date" name="purchase_date" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="md:col-span-2">
+                    <label for="edit_institution" class="block text-sm font-medium text-gray-700 mb-1">Instituição</label>
+                    <input type="text" id="edit_institution" name="institution" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <button id="darkModeToggle" class="dark-mode-toggle">
+        <i class="fas fa-sun" id="darkModeIcon"></i>
+    </button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const htmlElement = document.documentElement;
+            const toggleButton = document.getElementById('darkModeToggle');
+            const icon = document.getElementById('darkModeIcon');
+
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                htmlElement.classList.add('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                htmlElement.classList.remove('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+
+            toggleButton.addEventListener('click', () => {
+                if (htmlElement.classList.contains('dark')) {
+                    htmlElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    htmlElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            });
+
+            const flashMessages = document.querySelectorAll('.flash-message');
+            flashMessages.forEach(message => {
+                setTimeout(() => {
+                    message.style.transition = 'opacity 1.5s ease-out';
+                    message.style.opacity = '0';
+                    message.addEventListener('transitionend', () => message.remove());
+                }, 4000);
+            });
+
+            highlightCurrentPage();
+        });
+
+        const editInvestmentModal = document.getElementById('edit-investment-modal');
+        const editInvestmentForm = document.getElementById('edit-investment-form');
+
+        async function openEditInvestmentModal(id) {
+            try {
+                const response = await fetch(`/get_investment_data/${id}`);
+                if (!response.ok) throw new Error('Falha ao buscar dados do investimento');
+                const data = await response.json();
+
+                document.getElementById('edit_investment_id').value = data.id;
+                document.getElementById('edit_name').value = data.name;
+                document.getElementById('edit_type').value = data.type;
+                document.getElementById('edit_current_value').value = data.current_value;
+                document.getElementById('edit_purchase_date').value = data.purchase_date || '';
+                document.getElementById('edit_institution').value = data.institution || '';
+                
+                editInvestmentForm.action = `/edit_investment/${id}`;
+                editInvestmentModal.classList.add('active');
+            } catch (error) {
+                console.error('Erro ao abrir modal de edição:', error);
+                alert('Não foi possível carregar os dados para edição.');
+            }
+        }
+
+        function closeEditInvestmentModal() {
+            editInvestmentModal.classList.remove('active');
+        }
+
+        window.addEventListener('click', (event) => {
+            if (event.target == editInvestmentModal) {
+                closeEditInvestmentModal();
+            }
+        });
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
+
+        function highlightCurrentPage() {
+            const sidebarLinks = document.querySelectorAll('#sidebar nav a');
+            const currentPath = window.location.pathname;
+
+            sidebarLinks.forEach(link => {
+                link.classList.remove('bg-gray-200', 'text-purple-700', 'font-semibold');
+                link.classList.add('text-gray-800');
+
+                const linkHref = link.getAttribute('href');
+                if (currentPath === linkHref || (currentPath.startsWith(linkHref) && currentPath.charAt(linkHref.length) === '/')) {
+                    link.classList.add('bg-gray-200', 'text-purple-700', 'font-semibold');
+                    link.classList.remove('text-gray-800');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

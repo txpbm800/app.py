@@ -83,8 +83,11 @@ class User(UserMixin, db.Model):
     goals = db.relationship('Goal', backref='user_goal_owner', lazy=True, cascade='all, delete-orphan')
     categories = db.relationship('Category', backref='owner', lazy=True, cascade='all, delete-orphan')
     accounts = db.relationship('Account', backref='owner', lazy=True, cascade='all, delete-orphan')
-    # Novo relacionamento para Assinaturas
     subscriptions = db.relationship('Subscription', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    # --- NOVO --- Relacionamentos para Dívidas e Investimentos
+    debts = db.relationship('Debt', backref='user', lazy=True, cascade='all, delete-orphan')
+    investments = db.relationship('Investment', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
     def set_password(self, password):
@@ -108,7 +111,6 @@ class Category(db.Model):
     
     transactions = db.relationship('Transaction', backref='category', lazy=True)
     budgets = db.relationship('Budget', backref='category', lazy=True) 
-    # Novo relacionamento para Assinaturas
     subscriptions = db.relationship('Subscription', backref='category', lazy=True)
 
     __table_args__ = (db.UniqueConstraint('name', 'type', 'user_id', name='_user_category_type_uc'),)
@@ -125,7 +127,6 @@ class Account(db.Model):
 
     transactions = db.relationship('Transaction', backref='account', lazy=True)
     bills = db.relationship('Bill', backref='account_bill', lazy=True)
-    # Novo relacionamento para Assinaturas
     subscriptions = db.relationship('Subscription', backref='account', lazy=True)
 
     __table_args__ = (db.UniqueConstraint('name', 'user_id', name='_user_account_uc'),)
@@ -204,15 +205,12 @@ class Goal(db.Model):
     def __repr__(self):
         return f"<Goal {self.name}: {self.current_amount}/{self.target_amount}>"
 
-# NOVO MODELO: Subscription
 class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    # monthly, quarterly, semi-annually, annually
     billing_cycle = db.Column(db.String(20), nullable=False) 
-    # Dia do mês para cobrança (ex: 15 para todo dia 15)
     due_date_of_month = db.Column(db.Integer, nullable=False) 
     next_due_date = db.Column(db.String(10), nullable=False) # YYYY-MM-DD
     status = db.Column(db.String(20), default='active', nullable=False) # active, inactive, cancelled
@@ -221,6 +219,34 @@ class Subscription(db.Model):
 
     def __repr__(self):
         return f"<Subscription {self.name}: R${self.amount} {self.billing_cycle}>"
+
+# --- NOVO --- Modelos para Dívidas e Investimentos
+
+class Debt(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(50), nullable=False) # Ex: Financiamento, Empréstimo, Cartão de Crédito
+    total_amount = db.Column(db.Float, nullable=False)
+    outstanding_balance = db.Column(db.Float, nullable=False)
+    interest_rate = db.Column(db.Float, nullable=True)
+    start_date = db.Column(db.String(10), nullable=False)
+    end_date = db.Column(db.String(10), nullable=True)
+
+    def __repr__(self):
+        return f"<Debt {self.name} - Outstanding: {self.outstanding_balance}>"
+
+class Investment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(50), nullable=False) # Ex: Ação, Fundo, Cripto
+    current_value = db.Column(db.Float, nullable=False)
+    purchase_date = db.Column(db.String(10), nullable=True)
+    institution = db.Column(db.String(100), nullable=True) # Ex: XP, Nubank, Binance
+
+    def __repr__(self):
+        return f"<Investment {self.name} - Value: {self.current_value}>"
 
 
 # --- Funções de Lógica de Negócios (TODAS DEFINIDAS ANTES DAS ROTAS) ---
@@ -454,8 +480,6 @@ def _generate_future_recurring_bills(master_bill):
     
     # --- CORREÇÃO DA LÓGICA DE recurring_next_due_date ---
     if master_bill.recurring_total_occurrences > 0:
-        # Se houver um número fixo de ocorrências, o master bill se desativa após todas serem geradas.
-        # O next_due_date deve apontar para a próxima que deveria ser gerada.
         next_occurrence_number = master_bill.recurring_installments_generated + 1
         
         if next_occurrence_number > master_bill.recurring_total_occurrences:
@@ -472,7 +496,6 @@ def _generate_future_recurring_bills(master_bill):
             master_bill.recurring_next_due_date = next_due_date_for_master.isoformat()
             print(f"DEBUG: Próximo vencimento da semente '{master_bill.description}' atualizado para: {master_bill.recurring_next_due_date}")
     else: # Indefinido (recurring_total_occurrences é 0)
-        # O próximo vencimento é simplesmente o próximo período a partir de HOJE
         next_due_date_for_master = TODAY_DATE
         if master_bill.recurring_frequency == 'monthly' or master_bill.recurring_frequency == 'installments':
             next_due_date_for_master += relativedelta(months=1)
@@ -490,7 +513,6 @@ def _generate_future_recurring_bills(master_bill):
 
 def process_recurring_items_on_access(user_id):
     """Processa Bills mestras recorrentes e Assinaturas que precisam gerar novas ocorrências."""
-    # Processar Bills Recorrentes
     recurring_seed_bills_to_process = Bill.query.filter(
         Bill.user_id == user_id,
         Bill.is_master_recurring_bill == True,
@@ -504,7 +526,6 @@ def process_recurring_items_on_access(user_id):
         print(f"    Acionando geração em massa para mestra '{bill_seed.description}' (ID: {bill_seed.id}) por estar vencida.")
         _generate_future_recurring_bills(bill_seed)
     
-    # Processar Assinaturas (chamando a função do novo módulo e passando as dependências)
     process_subscriptions_and_generate_transactions(user_id, db, Transaction, Subscription, Account, Category, TODAY_DATE)
 
 
@@ -570,9 +591,8 @@ def pay_bill_db(bill_id, user_id, payment_account_id): # Adicionado payment_acco
         else:
             print("AVISO: Nenhuma categoria de despesa padrão encontrada para o pagamento da conta.")
             flash("Aviso: Categoria padrão para pagamento de conta não encontrada. A transação pode não ser categorizada corretamente.", 'warning')
-            category_for_payment_id = None # Garante que seja None se não encontrar
+            category_for_payment_id = None
             
-
     new_payment_transaction = add_transaction_db(
         description=f"Pagamento: {bill.description}",
         amount=bill.amount,
@@ -754,6 +774,7 @@ def edit_bill_db(bill_id, description, amount, dueDate, user_id,
     db.session.commit()
     return True
 
+# --- ALTERADO --- Função do dashboard para incluir Dívidas, Investimentos e Patrimônio Líquido
 def get_dashboard_data_db(user_id):
     current_month_start = TODAY_DATE.replace(day=1)
     next_month_start = (current_month_start + relativedelta(months=1))
@@ -792,13 +813,22 @@ def get_dashboard_data_db(user_id):
         db.cast(Bill.dueDate, db.Date) < next_month_start
     ).order_by(db.cast(Bill.dueDate, db.Date).asc()).all()
 
+    # --- NOVO --- Cálculos de Dívidas e Investimentos
+    total_investments = db.session.query(db.func.sum(Investment.current_value)).filter_by(user_id=user_id).scalar() or 0.0
+    total_debts = db.session.query(db.func.sum(Debt.outstanding_balance)).filter_by(user_id=user_id).scalar() or 0.0
+    
+    # Ativos (Contas + Investimentos) - Passivos (Dívidas)
+    net_worth = (total_balance + total_investments) - total_debts
 
     return {
         'balance': total_balance,
         'totalIncome': monthly_income,
         'totalExpenses': monthly_expenses,
         'totalPendingBills': monthly_pending_bills_amount,
-        'pendingBillsList': all_pending_bills_list
+        'pendingBillsList': all_pending_bills_list,
+        'total_investments': total_investments,
+        'total_debts': total_debts,
+        'net_worth': net_worth
     }
 
 # --- FUNÇÕES GEMINI ---
@@ -919,7 +949,7 @@ def delete_goal_db(goal_id, user_id):
         return True
     return False
 
-def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicionado source_account_id
+def contribute_to_goal_db(goal_id, user_id, amount, source_account_id):
     goal = Goal.query.filter_by(id=goal_id, user_id=user_id).first()
     if not goal:
         return False
@@ -929,7 +959,7 @@ def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicio
         flash('O valor da contribuição deve ser maior que zero.', 'danger')
         return False
 
-    source_account = Account.query.get(source_account_id) # Usa source_account_id
+    source_account = Account.query.get(source_account_id)
     if not source_account or source_account.user_id != user_id:
         print(f"ERROR: Conta de origem {source_account_id} não encontrada ou não pertence ao usuário {user_id}.")
         flash('Conta de origem inválida ou não pertence a você.', 'danger')
@@ -961,10 +991,10 @@ def contribute_to_goal_db(goal_id, user_id, amount, source_account_id): # Adicio
             type='expense',
             user_id=user_id,
             category_id=poupanca_metas_category.id,
-            account_id=source_account_id # Usa source_account_id
+            account_id=source_account_id
         )
         db.session.add(new_transaction)
-        source_account.balance -= amount_to_add_actual # Debita da conta de origem
+        source_account.balance -= amount_to_add_actual
         db.session.add(source_account)
 
         transaction_month_year = TODAY_DATE.strftime('%Y-%m')
@@ -992,7 +1022,7 @@ def add_account_db(user_id, name, initial_balance):
     """Adiciona uma nova conta para o usuário."""
     existing_account = Account.query.filter_by(user_id=user_id, name=name).first()
     if existing_account:
-        return False # Conta com o mesmo nome já existe para este usuário
+        return False
     
     new_account = Account(
         user_id=user_id,
@@ -1010,10 +1040,9 @@ def edit_account_db(account_id, user_id, new_name=None, new_balance=None):
         return False
     
     if new_name and new_name != account.name:
-        # Verifica se o novo nome já existe para evitar duplicatas
         existing_account_with_new_name = Account.query.filter_by(user_id=user_id, name=new_name).first()
         if existing_account_with_new_name and existing_account_with_new_name.id != account_id:
-            return False # Já existe outra conta com este nome
+            return False
         account.name = new_name
     
     if new_balance is not None:
@@ -1028,11 +1057,9 @@ def delete_account_db(account_id, user_id):
     if not account:
         return False
     
-    # Antes de deletar a conta, desvincular todas as transações e contas a pagar associadas
-    # Definindo account_id para None
     Transaction.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
     Bill.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
-    Subscription.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None}) # NOVO: Desvincular assinaturas
+    Subscription.query.filter_by(account_id=account_id, user_id=user_id).update({'account_id': None})
     
     db.session.delete(account)
     db.session.commit()
@@ -1060,34 +1087,29 @@ def transfer_funds_db(user_id, source_account_id, destination_account_id, amount
         flash(f'Saldo insuficiente na conta de origem ({source_account.name}) para realizar a transferência.', 'danger')
         return False
 
-    # Debitar da conta de origem
     source_account.balance -= amount
     db.session.add(source_account)
 
-    # Creditar na conta de destino
     destination_account.balance += amount
     db.session.add(destination_account)
 
-    # Criar transação de despesa para a conta de origem
-    # Usamos category_id=None para transferências, pois não são despesas reais, apenas movimentação de fundos.
     add_transaction_db(
         description=f"Transferência para {destination_account.name}",
         amount=amount,
         date=TODAY_DATE.isoformat(),
         type='expense',
         user_id=user_id,
-        category_id=None, # Transferências não afetam categorias de despesa/receita
+        category_id=None,
         account_id=source_account_id
     )
 
-    # Criar transação de receita para a conta de destino
     add_transaction_db(
         description=f"Transferência de {source_account.name}",
         amount=amount,
         date=TODAY_DATE.isoformat(),
         type='income',
         user_id=user_id,
-        category_id=None, # Transferências não afetam categorias de despesa/receita
+        category_id=None,
         account_id=destination_account_id
     )
 
@@ -1097,23 +1119,16 @@ def transfer_funds_db(user_id, source_account_id, destination_account_id, amount
 
 # --- Funções para Relatórios Detalhados ---
 def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transaction_type=None, category_id=None):
-    """
-    Busca dados detalhados para relatórios com base em filtros.
-    Retorna dados para gráficos e um resumo para a IA.
-    """
-    
-    # Validação de datas
     try:
         start_date = datetime.datetime.strptime(start_date_str, '%Y-%m-%d').date()
         end_date = datetime.datetime.strptime(end_date_str, '%Y-%m-%d').date()
     except ValueError:
         return {'error': 'Formato de data inválido.'}
 
-    # Query base para transações
     transactions_query = Transaction.query.filter(
         Transaction.user_id == user_id,
         Transaction.date >= start_date_str,
-        Transaction.date <= end_date_str # Usar <= para incluir o dia final
+        Transaction.date <= end_date_str
     )
 
     if transaction_type and transaction_type in ['income', 'expense']:
@@ -1124,7 +1139,6 @@ def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transacti
 
     transactions = transactions_query.all()
 
-    # 1. Dados para Gráfico de Despesas por Categoria (Pie Chart)
     expenses_by_category = {}
     total_expenses_in_period = 0.0
     for t in transactions:
@@ -1137,76 +1151,47 @@ def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transacti
         'labels': list(expenses_by_category.keys()),
         'values': list(expenses_by_category.values())
     }
-
-    # 2. Dados para Gráfico de Evolução do Patrimônio Líquido (Line Chart)
-    # Isso é mais complexo, pois exige o saldo das contas ao longo do tempo.
-    # Uma abordagem simplificada é calcular o saldo líquido cumulativo a partir de um ponto inicial.
-    # Para um relatório detalhado, podemos pegar o saldo inicial de todas as contas e aplicar as transações.
     
-    # Pega o saldo inicial de todas as contas no início do período
-    initial_balance_sum = db.session.query(db.func.sum(Account.balance)).filter(
-        Account.user_id == user_id
-    ).scalar() or 0.0 # Saldo atual de todas as contas
-
-    # Para a evolução do patrimônio, precisamos de pontos de dados ao longo do tempo.
-    # Vamos gerar um ponto por dia dentro do período selecionado.
-    net_worth_labels = []
-    net_worth_values = []
-
-    # Começa com o saldo total atual e "reverte" as transações para o passado
-    # Ou, uma abordagem mais simples: recalcular o saldo para cada ponto no tempo
-    
-    # Pegar todas as transações do usuário até a data final do relatório
     all_user_transactions_until_end_date = Transaction.query.filter(
         Transaction.user_id == user_id,
         Transaction.date <= end_date_str
     ).order_by(Transaction.date.asc()).all()
 
-    # Calcula o saldo inicial da primeira transação ou 0 se não houver transações
-    current_net_worth = 0.0
-    if all_user_transactions_until_end_date:
-        # Encontra o primeiro saldo conhecido ou assume 0 antes da primeira transação
-        first_transaction_date = datetime.datetime.strptime(all_user_transactions_until_end_date[0].date, '%Y-%m-%d').date()
-        
-        # Se o relatório começa antes da primeira transação, o saldo inicial é 0.
-        # Se o relatório começa depois da primeira transação, precisamos calcular o saldo até o start_date.
-        
-        # Calcula o saldo até o dia anterior ao start_date do relatório
-        balance_before_report_start = 0.0
-        for t in all_user_transactions_until_end_date:
-            t_date = datetime.datetime.strptime(t.date, '%Y-%m-%d').date()
-            if t_date < start_date:
-                if t.type == 'income':
-                    balance_before_report_start += t.amount
-                else:
-                    balance_before_report_start -= t.amount
-        current_net_worth = balance_before_report_start
+    balance_evolution_labels = []
+    balance_evolution_values = []
     
-    # Itera pelos dias/meses dentro do período do relatório
+    balance_before_report_start = 0.0
+    for t in all_user_transactions_until_end_date:
+        t_date = datetime.datetime.strptime(t.date, '%Y-%m-%d').date()
+        if t_date < start_date:
+            if t.type == 'income':
+                balance_before_report_start += t.amount
+            else:
+                balance_before_report_start -= t.amount
+    current_balance = balance_before_report_start
+    
     current_date_iter = start_date
     while current_date_iter <= end_date:
-        net_worth_labels.append(current_date_iter.strftime('%d/%m/%Y'))
+        balance_evolution_labels.append(current_date_iter.strftime('%d/%m/%Y'))
         
-        # Adiciona o efeito das transações do dia atual
         for t in all_user_transactions_until_end_date:
             t_date = datetime.datetime.strptime(t.date, '%Y-%m-%d').date()
             if t_date == current_date_iter:
                 if t.type == 'income':
-                    current_net_worth += t.amount
+                    current_balance += t.amount
                 else:
-                    current_net_worth -= t.amount
-        net_worth_values.append(current_net_worth)
-        current_date_iter += datetime.timedelta(days=1) # Incrementa por dia para mais granularidade
+                    current_balance -= t.amount
+        balance_evolution_values.append(current_balance)
+        current_date_iter += datetime.timedelta(days=1)
 
-    net_worth_chart_data = {
-        'labels': net_worth_labels,
-        'values': net_worth_values
+    # --- ALTERADO --- Renomeado para refletir que é o saldo da conta, não patrimônio líquido
+    account_balance_evolution_chart_data = {
+        'labels': balance_evolution_labels,
+        'values': balance_evolution_values
     }
 
-
-    # 3. Resumo para IA
     total_income_in_period = sum(t.amount for t in transactions if t.type == 'income')
-    total_expenses_in_period_for_ai = sum(t.amount for t in transactions if t.type == 'expense') # Use this for AI
+    total_expenses_in_period_for_ai = sum(t.amount for t in transactions if t.type == 'expense')
     balance_in_period = total_income_in_period - total_expenses_in_period_for_ai
 
     ai_summary_data = {
@@ -1215,27 +1200,25 @@ def get_detailed_report_data_db(user_id, start_date_str, end_date_str, transacti
         'total_income': total_income_in_period,
         'total_expenses': total_expenses_in_period_for_ai,
         'balance': balance_in_period,
-        'expenses_by_category': expenses_by_category, # Detalhes para IA
+        'expenses_by_category': expenses_by_category,
         'transaction_count': len(transactions)
     }
 
     return {
         'expenses_by_category_chart': expenses_chart_data,
-        'net_worth_evolution_chart': net_worth_chart_data,
+        'account_balance_evolution_chart': account_balance_evolution_chart_data, # --- ALTERADO ---
         'ai_summary': ai_summary_data
     }
 
 
 # --- Funções de Email ---
 def generate_recovery_code(length=6):
-    """Gera um código alfanumérico aleatório."""
     characters = string.ascii_uppercase + string.digits
     return ''.join(random.choice(characters) for i in range(length))
 
 def send_recovery_email(recipient_email, recovery_code):
-    """Envia o código de recuperação para o e-mail do usuário."""
     if not EMAIL_USERNAME or not EMAIL_PASSWORD:
-        print("ERROR: send_recovery_email - Credenciais de email (EMAIL_USERNAME ou EMAIL_PASSWORD) não configuradas. Verifique as variáveis de ambiente.")
+        print("ERROR: send_recovery_email - Credenciais de email não configuradas.")
         return False
 
     sender_email = EMAIL_USERNAME
@@ -1245,37 +1228,24 @@ def send_recovery_email(recipient_email, recovery_code):
 
     message = MIMEText(
         f"Seu código de recuperação de senha é: {recovery_code}\n"
-        "Este código é válido por 10 minutos. Se você não solicitou esta redefinição, por favor, ignore este e-mail."
+        "Este código é válido por 10 minutos."
     )
-    message["Subject"] = "Código de Recuperação de Senha - Gestão Financeira Pessoal"
+    message["Subject"] = "Código de Recuperação de Senha"
     message["From"] = sender_email
     message["To"] = recipient_email
     
     try:
-        print(f"DEBUG: send_recovery_email - Tentando conectar a {smtp_server}:{smtp_port} com usuário {sender_email}")
+        print(f"DEBUG: send_recovery_email - Tentando conectar a {smtp_server}:{smtp_port}")
         context = ssl.create_default_context()
-        
-        # --- CORREÇÃO: Usar smtplib.SMTP com starttls() para a porta 587 ---
         with smtplib.SMTP(smtp_server, smtp_port) as server:
-            server.starttls(context=context) # Inicia a criptografia TLS
+            server.starttls(context=context)
             server.login(sender_email, sender_password)
-            print(f"DEBUG: send_recovery_email - Login SMTP bem-sucedido para {sender_email}")
+            print(f"DEBUG: send_recovery_email - Login SMTP bem-sucedido")
             server.sendmail(sender_email, recipient_email, message.as_string())
-        # --- FIM CORREÇÃO ---
-
-        print(f"DEBUG: send_recovery_email - Email de recuperação enviado para {recipient_email}")
+        print(f"DEBUG: send_recovery_email - Email enviado para {recipient_email}")
         return True
-    except smtplib.SMTPAuthenticationError as auth_err:
-        print(f"ERROR: send_recovery_email - SMTPAuthenticationError: Falha de autenticação. Verifique o EMAIL_USERNAME e a SENHA DE APLICAÇÃO (App Password) no Render. Erro: {auth_err}")
-        return False
-    except smtplib.SMTPServerDisconnected as disconnect_err:
-        print(f"ERROR: send_recovery_email - SMTPServerDisconnected: Servidor desconectado inesperadamente. Verifique EMAIL_SERVER e EMAIL_PORT. Erro: {disconnect_err}")
-        return False
-    except smtplib.SMTPException as smtp_err:
-        print(f"ERROR: send_recovery_email - SMTPException: Erro geral SMTP. Pode ser problema de conexão, firewall ou servidor SMTP. Erro: {smtp_err}")
-        return False
     except Exception as e:
-        print(f"ERROR: send_recovery_email - Erro inesperado ao enviar email: {type(e).__name__} - {e}")
+        print(f"ERROR: send_recovery_email - Erro ao enviar email: {e}")
         return False
 
 
@@ -1284,8 +1254,6 @@ def send_recovery_email(recipient_email, recovery_code):
 @app.route('/')
 @login_required
 def index():
-    """Rota principal do dashboard."""
-    # Chamada atualizada para passar os modelos e a instância do db
     process_recurring_items_on_access(current_user.id) 
     
     dashboard_data = get_dashboard_data_db(current_user.id)
@@ -1428,8 +1396,7 @@ def handle_add_bill():
     recurring_total_occurrences = request.form.get('recurring_total_occurrences_bill', type=int)
     bill_type = request.form['bill_type']
     category_id = request.form.get('bill_category_id', type=int)
-    # account_id removido do formulário, mas ainda pode ser passado como None ou padrão se necessário
-    account_id = None # Ou um ID de conta padrão se houver um conceito de conta "principal" para contas a pagar
+    account_id = None
 
     add_bill_db(description, amount, due_date, current_user.id, 
                 is_recurring, recurring_frequency, recurring_total_occurrences, bill_type, category_id, account_id)
@@ -1439,7 +1406,6 @@ def handle_add_bill():
 @app.route('/pay_bill/<int:bill_id>', methods=['POST'])
 @login_required
 def handle_pay_bill(bill_id):
-    # Agora recebemos o account_id do formulário do modal
     payment_account_id = request.form.get('payment_account_id', type=int) 
     
     if not payment_account_id:
@@ -1449,8 +1415,6 @@ def handle_pay_bill(bill_id):
     if pay_bill_db(bill_id, current_user.id, payment_account_id):
         flash('Conta paga e transação registrada com sucesso!', 'success')
     else:
-        # A função pay_bill_db já lida com saldo insuficiente e outras validações.
-        # A flash message será gerada dentro dela.
         pass 
     return redirect(url_for('index'))
 
@@ -1461,7 +1425,7 @@ def handle_reschedule_bill(bill_id):
     if reschedule_bill_db(bill_id, new_date, current_user.id):
         flash('Conta remarcada com sucesso!', 'success')
     else:
-        flash('Não foi possível remarcar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Não foi possível remarcar a conta.', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
@@ -1470,7 +1434,7 @@ def handle_delete_transaction(transaction_id):
     if delete_transaction_db(transaction_id, current_user.id):
         flash('Transação excluída com sucesso!', 'info')
     else:
-        flash('Não foi possível excluir a transação. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Não foi possível excluir a transação.', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/delete_bill/<int:bill_id>', methods=['POST'])
@@ -1479,7 +1443,7 @@ def handle_delete_bill(bill_id):
     if delete_bill_db(bill_id, current_user.id):
         flash('Conta excluída com sucesso!', 'info')
     else:
-        flash('Não foi possível excluir a conta. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Não foi possível excluir a conta.', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/get_transaction_data/<int:transaction_id>', methods=['GET'])
@@ -1497,7 +1461,7 @@ def get_transaction_data(transaction_id):
             'account_id': transaction.account_id,
             'goal_id': transaction.goal_id
         })
-    return jsonify({'error': 'Transação não encontrada ou não pertence a este usuário'}), 404
+    return jsonify({'error': 'Transação não encontrada'}), 404
 
 @app.route('/edit_transaction/<int:transaction_id>', methods=['POST'])
 @login_required
@@ -1513,7 +1477,7 @@ def handle_edit_transaction(transaction_id):
     if edit_transaction_db(transaction_id, description, amount, date, transaction_type, current_user.id, category_id, account_id, goal_id):
         flash('Transação atualizada com sucesso!', 'success')
     else:
-        flash('Não foi possível atualizar a transação. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Não foi possível atualizar a transação.', 'danger')
     return redirect(url_for('index'))
 
 @app.route('/get_bill_data/<int:bill_id>', methods=['GET'])
@@ -1540,7 +1504,7 @@ def get_bill_data(bill_id):
             'category_id': bill.category_id,
             'account_id': bill.account_id
         })
-    return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+    return jsonify({'error': 'Conta não encontrada'}), 404
 
 @app.route('/edit_bill/<int:bill_id>', methods=['POST'])
 @login_required
@@ -1555,22 +1519,20 @@ def handle_edit_bill(bill_id):
     is_active_recurring = request.form.get('edit_is_active_recurring_bill') == 'on'
     bill_type = request.form['edit_bill_type']
     category_id = request.form.get('edit_bill_category_id', type=int)
-    # account_id removido do formulário, então passamos o original ou None
     bill = Bill.query.filter_by(id=bill_id, user_id=current_user.id).first()
-    account_id = bill.account_id if bill else None # Mantém o account_id original se não for editado via formulário
+    account_id = bill.account_id if bill else None
 
     if edit_bill_db(bill_id, description, amount, due_date, current_user.id,
                       is_recurring, recurring_frequency, recurring_total_occurrences, is_active_recurring, bill_type, category_id, account_id):
         flash('Conta atualizada com sucesso!', 'success')
     else:
-        flash('Não foi possível atualizar a conta. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Não foi possível atualizar a conta.', 'danger')
     return redirect(url_for('index'))
 
 
 # --- ROTAS DE AUTENTICAÇÃO E GERENCIAMENTO DE USUÁRIO ---
 
 def create_default_data_for_user(user):
-    # Cria categorias padrão
     db.session.add(Category(name='Salário', type='income', user_id=user.id))
     db.session.add(Category(name='Freelance', type='income', user_id=user.id))
     db.session.add(Category(name='Outras Receitas', type='income', user_id=user.id))
@@ -1583,9 +1545,8 @@ def create_default_data_for_user(user):
     db.session.add(Category(name='Contas Fixas', type='expense', user_id=user.id))
     db.session.add(Category(name='Outras Despesas', type='expense', user_id=user.id))
     db.session.add(Category(name='Poupança para Metas', type='expense', user_id=user.id))
-    db.session.add(Category(name='Assinaturas', type='expense', user_id=user.id)) # NOVA CATEGORIA PADRÃO
+    db.session.add(Category(name='Assinaturas', type='expense', user_id=user.id))
     
-    # Cria uma conta principal padrão
     db.session.add(Account(name='Conta Principal', balance=0.00, user_id=user.id))
     
     db.session.commit()
@@ -1610,9 +1571,9 @@ def register():
         existing_user_username = User.query.filter_by(username=username).first()
 
         if existing_user_email:
-            flash('Este e-mail já está em uso. Por favor, escolha outro.', 'danger')
+            flash('Este e-mail já está em uso.', 'danger')
         elif existing_user_username:
-            flash('Este nome de usuário já está em uso. Por favor, escolha outro.', 'danger')
+            flash('Este nome de usuário já está em uso.', 'danger')
         else:
             new_user = User(email=email, username=username)
             new_user.set_password(password)
@@ -1696,7 +1657,6 @@ def delete_account_user():
             flash('Senha incorreta.', 'danger')
     return render_template('delete_account.html')
 
-# ROTA: Solicitar Código de Recuperação de Senha
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password_request():
     if current_user.is_authenticated:
@@ -1709,20 +1669,19 @@ def forgot_password_request():
         if user:
             recovery_code = generate_recovery_code()
             user.recovery_code = recovery_code
-            user.recovery_code_expires_at = datetime.datetime.now() + datetime.timedelta(minutes=10) # Código válido por 10 minutos
+            user.recovery_code_expires_at = datetime.datetime.now() + datetime.timedelta(minutes=10)
             db.session.commit()
 
             if send_recovery_email(user.email, recovery_code):
                 flash('Um código de recuperação foi enviado para o seu e-mail.', 'success')
                 return redirect(url_for('forgot_password_request', code_sent='true', email=email))
             else:
-                flash('Não foi possível enviar o código de recuperação. Verifique suas configurações de e-mail.', 'danger')
+                flash('Não foi possível enviar o código de recuperação.', 'danger')
         else:
             flash('E-mail não encontrado.', 'danger')
         
     return render_template('forgot_password.html')
 
-# ROTA: Verificar Código e Redefinir Senha
 @app.route('/reset_password_verify', methods=['POST'])
 def reset_password_verify():
     if current_user.is_authenticated:
@@ -1738,11 +1697,11 @@ def reset_password_verify():
     if not user:
         flash('E-mail não encontrado.', 'danger')
     elif user.recovery_code is None or user.recovery_code_expires_at is None:
-        flash('Não há solicitação de recuperação de senha ativa para este e-mail. Solicite um novo código.', 'danger')
-    elif user.recovery_code != code.upper(): # Converta para maiúsculas para comparar
+        flash('Não há solicitação de recuperação de senha ativa.', 'danger')
+    elif user.recovery_code != code.upper():
         flash('Código de recuperação incorreto.', 'danger')
     elif datetime.datetime.now() > user.recovery_code_expires_at:
-        flash('O código de recuperação expirou. Solicite um novo código.', 'danger')
+        flash('O código de recuperação expirou.', 'danger')
     elif len(new_password) < 8:
         flash('A nova senha deve ter no mínimo 8 caracteres.', 'danger')
     elif new_password != confirm_new_password:
@@ -1755,11 +1714,9 @@ def reset_password_verify():
         flash('Sua senha foi redefinida com sucesso! Faça login.', 'success')
         return redirect(url_for('login'))
         
-    # Se houver erro, renderiza a página de recuperação novamente com a seção de reset visível
     return render_template('forgot_password.html', code_sent='true', email=email)
 
 
-# ROTA: Resumo Financeiro Mensal (para Profile)
 @app.route('/profile/monthly_summary', methods=['GET'])
 @login_required
 def get_monthly_summary():
@@ -1802,13 +1759,11 @@ def get_monthly_summary():
         'transactions_details': transactions_details
     })
 
-# ROTA: Insight da IA (para Profile e Relatórios)
 @app.route('/ai_insight', methods=['POST'])
 @login_required
 def get_ai_insight():
     data = request.get_json()
     
-    # Pode receber summary_data (do perfil) ou report_data (dos relatórios)
     summary_data = data.get('summary_data') 
     report_data = data.get('report_data')
 
@@ -1816,10 +1771,10 @@ def get_ai_insight():
     
     if summary_data:
         prompt_parts.extend([
-            f"Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:",
-            f"Receita Total: R${summary_data['income']:.2f},",
-            f"Despesa Total: R${summary_data['expenses']:.2f},",
-            f"Saldo Mensal: R${summary_data['balance']:.2f}."
+            f"Com base nos dados de um mês para o usuário {current_user.username}:",
+            f"Receita: R${summary_data['income']:.2f},",
+            f"Despesa: R${summary_data['expenses']:.2f},",
+            f"Saldo: R${summary_data['balance']:.2f}."
         ])
         if summary_data.get('transactions_details'):
             limited_transactions = summary_data['transactions_details'][:5]
@@ -1836,25 +1791,24 @@ def get_ai_insight():
         transaction_count = report_data.get('transaction_count', 0)
 
         prompt_parts.extend([
-            f"Com base nos dados financeiros do usuário {current_user.username} para o período de {start_date} a {end_date}:",
-            f"Receita Total: R${total_income:.2f},",
-            f"Despesa Total: R${total_expenses:.2f},",
-            f"Saldo Líquido no Período: R${balance:.2f}.",
-            f"Total de {transaction_count} transações registradas."
+            f"Com base nos dados do usuário {current_user.username} para o período de {start_date} a {end_date}:",
+            f"Receita: R${total_income:.2f},",
+            f"Despesa: R${total_expenses:.2f},",
+            f"Saldo: R${balance:.2f}.",
+            f"Total de {transaction_count} transações."
         ])
         if expenses_by_category:
             expense_cat_str = ", ".join([f"{cat}: R${val:.2f}" for cat, val in expenses_by_category.items()])
             prompt_parts.append(f"Despesas por Categoria: {expense_cat_str}.")
         
     else:
-        return jsonify({'error': 'Dados de resumo ou relatório não fornecidos.'}), 400
+        return jsonify({'error': 'Dados não fornecidos.'}), 400
 
     prompt_parts.append(
-        f"Forneça um breve insight ou conselho financeiro pessoal para o usuário. "
-        f"Concentre-se em pontos fortes, áreas para melhoria ou tendências. "
-        f"Use uma linguagem amigável e direta em português. "
-        f"Seja conciso, com no máximo 150 palavras (pode exceder ligeiramente se necessário para clareza). "
-        f"Não inclua 'Olá!' ou saudações, vá direto ao ponto."
+        f"Forneça um breve insight ou conselho financeiro. "
+        f"Foque em pontos fortes, áreas para melhoria ou tendências. "
+        f"Use linguagem amigável em português. Máximo de 150 palavras."
+        f"Vá direto ao ponto."
     )
 
     prompt_text = " ".join(prompt_parts)
@@ -1883,7 +1837,7 @@ def get_chart_data():
     monthly_income_data = {}
     monthly_expenses_data = {}
 
-    for i in range(6, -1, -1): # Últimos 7 meses (mês atual + 6 anteriores)
+    for i in range(6, -1, -1):
         target_month_date = today - relativedelta(months=i)
         target_month = target_month_date.month
         target_year = target_month_date.year
@@ -1922,7 +1876,7 @@ def get_chart_data():
 
     current_year_transactions = Transaction.query.filter(
         Transaction.user_id == user_id,
-        Transaction.type == 'expense', # Apenas despesas para este gráfico
+        Transaction.type == 'expense',
         Transaction.date >= start_year_str,
         Transaction.date < end_year_str
     ).all()
@@ -1986,7 +1940,7 @@ def handle_add_budget():
     if add_budget_db(current_user.id, category_id, budget_amount, month_year):
         flash('Orçamento adicionado/atualizado com sucesso!', 'success')
     else:
-        flash('Erro ao adicionar/atualizar orçamento. Um orçamento para esta categoria e mês já pode existir.', 'danger')
+        flash('Erro ao adicionar/atualizar orçamento.', 'danger')
     return redirect(url_for('budgets_page', month_year=month_year))
 
 @app.route('/edit_budget/<int:budget_id>', methods=['POST'])
@@ -2015,9 +1969,9 @@ def handle_delete_budget(budget_id):
 @login_required
 def goals_page():
     goals = Goal.query.filter_by(user_id=current_user.id).all()
-    user_accounts = Account.query.filter_by(user_id=current_user.id).all() # Passa as contas para o template
+    user_accounts = Account.query.filter_by(user_id=current_user.id).all()
     accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
-    return render_template('goals.html', goals=goals, accounts=user_accounts, accounts_json=accounts_json) # Passa accounts_json
+    return render_template('goals.html', goals=goals, accounts=user_accounts, accounts_json=accounts_json)
 
 @app.route('/add_goal', methods=['POST'])
 @login_required
@@ -2069,11 +2023,11 @@ def handle_contribute_to_goal(goal_id):
     if contribute_to_goal_db(goal_id, current_user.id, amount, source_account_id):
         pass 
     else:
-        flash('Erro ao contribuir para a meta. Verifique o valor, a conta ou se a meta existe.', 'danger')
+        flash('Erro ao contribuir para a meta.', 'danger')
     return redirect(url_for('goals_page'))
 
 
-# --- NOVAS ROTAS PARA ORÇAMENTO INTELIGENTE ---
+# --- ROTAS PARA ORÇAMENTO INTELIGENTE ---
 @app.route('/recreate_budget')
 @login_required
 def recreate_last_month_budget():
@@ -2096,7 +2050,7 @@ def recreate_last_month_budget():
 
 @app.route('/suggest_budget_ai')
 @login_required
-def suggest_budget_ai(): # Renomeado para evitar conflito com a função interna
+def suggest_budget_ai():
     current_month_date = datetime.date.today().replace(day=1)
     last_month_date = current_month_date - relativedelta(months=1)
     last_month_year = last_month_date.strftime('%Y-%m')
@@ -2105,25 +2059,24 @@ def suggest_budget_ai(): # Renomeado para evitar conflito com a função interna
     last_month_budgets = Budget.query.filter_by(user_id=current_user.id, month_year=last_month_year).all()
 
     if not last_month_budgets:
-        flash('Nenhum orçamento encontrado no mês anterior para usar como base para a sugestão.', 'warning')
+        flash('Nenhum orçamento encontrado no mês anterior para a sugestão.', 'warning')
         return redirect(url_for('budgets_page'))
 
-    # Coleta dados de gastos reais do mês anterior
     budget_vs_actual = []
     for budget in last_month_budgets:
         budget_vs_actual.append(
-            f"- Categoria: {budget.category.name}, Orçado: R${budget.budget_amount:.2f}, Gasto Real: R${budget.current_spent:.2f}"
+            f"- Categoria: {budget.category.name}, Orçado: R${budget.budget_amount:.2f}, Gasto: R${budget.current_spent:.2f}"
         )
     
     data_summary = "\n".join(budget_vs_actual)
 
     prompt = (
-        f"Você é um assistente financeiro. Com base nos seguintes dados financeiros de um mês específico para o usuário {current_user.username}:" # Usa username para IA
+        f"Você é um assistente financeiro. Com base nos dados do usuário {current_user.username}:"
         f"sugira um novo orçamento para o mês atual. Ajuste os valores de forma realista. "
-        f"Se o gasto foi muito maior que o orçado, sugira um aumento moderado. Se foi muito menor, sugira uma pequena redução. "
-        f"Mantenha os valores arredondados para facilitar. Responda APENAS com um JSON contendo uma chave 'sugestoes' que é uma lista de objetos, "
-        f"onde cada objeto tem as chaves 'categoria' e 'valor_sugerido'.\n\n"
-        f"Dados do Mês Anterior:\n{data_summary}"
+        f"Se o gasto foi maior que o orçado, sugira um aumento. Se foi menor, sugira uma redução. "
+        f"Responda APENAS com um JSON com uma chave 'sugestoes' que é uma lista de objetos, "
+        f"onde cada objeto tem 'categoria' e 'valor_sugerido'.\n\n"
+        f"Dados:\n{data_summary}"
     )
 
     try:
@@ -2138,10 +2091,10 @@ def suggest_budget_ai(): # Renomeado para evitar conflito com a função interna
             if category:
                 add_budget_db(current_user.id, category.id, sug['valor_sugerido'], current_month_year)
         
-        flash('Orçamento sugerido pela IA foi criado! Revise e ajuste se necessário.', 'success')
+        flash('Orçamento sugerido pela IA foi criado! Revise e ajuste.', 'success')
     except Exception as e:
         print(f"ERROR: Erro ao processar sugestão da IA: {e}")
-        flash('Não foi possível gerar uma sugestão da IA no momento. Por favor, tente novamente mais tarde.', 'danger')
+        flash('Não foi possível gerar uma sugestão da IA.', 'danger')
 
     return redirect(url_for('budgets_page'))
 
@@ -2149,7 +2102,6 @@ def suggest_budget_ai(): # Renomeado para evitar conflito com a função interna
 @app.route('/accounts')
 @login_required
 def accounts_page():
-    """Exibe a página de gerenciamento de contas."""
     user_accounts = Account.query.filter_by(user_id=current_user.id).order_by(Account.name.asc()).all()
     accounts_json = [{'id': acc.id, 'name': acc.name, 'balance': acc.balance} for acc in user_accounts]
     return render_template('accounts.html', accounts=user_accounts, accounts_json=accounts_json)
@@ -2157,43 +2109,39 @@ def accounts_page():
 @app.route('/add_account', methods=['POST'])
 @login_required
 def handle_add_account():
-    """Lida com a adição de uma nova conta."""
     name = request.form['name']
     initial_balance = request.form['initial_balance']
     
     if add_account_db(current_user.id, name, initial_balance):
         flash('Conta adicionada com sucesso!', 'success')
     else:
-        flash('Erro ao adicionar conta. Uma conta com este nome já pode existir.', 'danger')
+        flash('Erro ao adicionar conta. Uma conta com este nome já existe.', 'danger')
     return redirect(url_for('accounts_page'))
 
 @app.route('/edit_account/<int:account_id>', methods=['POST'])
 @login_required
 def handle_edit_account(account_id):
-    """Lida com a edição de uma conta existente."""
     name = request.form['name']
     balance = request.form['balance']
     
     if edit_account_db(account_id, current_user.id, name, balance):
         flash('Conta atualizada com sucesso!', 'success')
     else:
-        flash('Erro ao atualizar conta. Uma conta com este nome já pode existir.', 'danger')
+        flash('Erro ao atualizar conta.', 'danger')
     return redirect(url_for('accounts_page'))
 
 @app.route('/delete_account/<int:account_id>', methods=['POST'])
 @login_required
 def handle_delete_account(account_id):
-    """Lida com a exclusão de uma conta."""
     if delete_account_db(account_id, current_user.id):
         flash('Conta excluída com sucesso! Transações associadas foram desvinculadas.', 'info')
     else:
-        flash('Erro ao excluir conta. Verifique se ela existe ou pertence a você.', 'danger')
+        flash('Erro ao excluir conta.', 'danger')
     return redirect(url_for('accounts_page'))
 
 @app.route('/get_account_data/<int:account_id>', methods=['GET'])
 @login_required
 def get_account_data(account_id):
-    """Retorna dados de uma conta específica para edição via AJAX."""
     account = Account.query.filter_by(id=account_id, user_id=current_user.id).first()
     if account:
         return jsonify({
@@ -2201,12 +2149,11 @@ def get_account_data(account_id):
             'name': account.name,
             'balance': account.balance
         })
-    return jsonify({'error': 'Conta não encontrada ou não pertence a este usuário'}), 404
+    return jsonify({'error': 'Conta não encontrada'}), 404
 
 @app.route('/transfer_funds', methods=['POST'])
 @login_required
 def handle_transfer_funds():
-    """Lida com a transferência de fundos entre contas."""
     source_account_id = request.form.get('source_account_id', type=int)
     destination_account_id = request.form.get('destination_account_id', type=int)
     amount = request.form.get('amount', type=float)
@@ -2221,37 +2168,33 @@ def handle_transfer_funds():
 @app.route('/reports')
 @login_required
 def reports_page():
-    """Exibe a página de relatórios."""
     all_categories_formatted = [(c.id, c.type, c.name) for c in Category.query.filter_by(user_id=current_user.id).all()]
     return render_template('reports.html', all_categories=all_categories_formatted)
 
 @app.route('/get_detailed_report_data', methods=['GET'])
 @login_required
 def get_detailed_report_data():
-    """
-    Endpoint para buscar dados detalhados para relatórios com base em filtros.
-    """
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
     transaction_type = request.args.get('transaction_type')
     category_id = request.args.get('category_id', type=int)
 
     if not start_date_str or not end_date_str:
-        return jsonify({'error': 'Datas de início e fim são obrigató.'}), 400
+        return jsonify({'error': 'Datas de início e fim são obrigatórias.'}), 400
 
     report_data = get_detailed_report_data_db(current_user.id, start_date_str, end_date_str, transaction_type, category_id)
     
     if 'error' in report_data:
         return jsonify(report_data), 400
     
+    # --- ALTERADO --- Chave renomeada para 'account_balance_evolution_chart'
+    report_data['net_worth_evolution_chart'] = report_data.pop('account_balance_evolution_chart')
+    
     return jsonify(report_data)
 
 @app.route('/export_report/<format>', methods=['GET'])
 @login_required
 def export_report(format):
-    """
-    Exporta os dados do relatório para Excel ou PDF com base nos filtros.
-    """
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
     transaction_type = request.args.get('transaction_type')
@@ -2261,12 +2204,14 @@ def export_report(format):
         flash('Datas de início e fim são obrigatórias para exportação.', 'danger')
         return redirect(url_for('reports_page'))
 
-    # Reutilize a função que busca os dados do relatório
     report_data = get_detailed_report_data_db(current_user.id, start_date_str, end_date_str, transaction_type, category_id)
 
     if 'error' in report_data:
         flash(f"Erro ao gerar dados para exportação: {report_data['error']}", 'danger')
         return redirect(url_for('reports_page'))
+    
+    # --- ALTERADO --- Chave renomeada
+    report_data['net_worth_evolution_chart'] = report_data.pop('account_balance_evolution_chart')
 
     transactions_query = Transaction.query.filter(
         Transaction.user_id == current_user.id,
@@ -2286,40 +2231,26 @@ def export_report(format):
         sheet = workbook.active
         sheet.title = "Relatorio Financeiro"
 
-        # Cabeçalho
         headers = ["Descrição", "Valor", "Data", "Tipo", "Categoria", "Conta", "Meta"]
         sheet.append(headers)
 
-        # Estilo para o cabeçalho
         header_font = Font(bold=True)
-        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid") # Light gray
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
         for col_idx in range(1, len(headers) + 1):
             cell = sheet.cell(row=1, column=col_idx)
             cell.font = header_font
             cell.fill = header_fill
-        # Dados das transações
-        for row_idx, t in enumerate(filtered_transactions, start=2): # Começa da linha 2
+        for row_idx, t in enumerate(filtered_transactions, start=2):
             category_name = t.category.name if t.category else "N/A"
             account_name = t.account.name if t.account else "N/A"
             goal_name = t.goal.name if t.goal else "N/A"
-            row_data = [
-                t.description,
-                t.amount,
-                t.date,
-                "Receita" if t.type == "income" else "Despesa",
-                category_name,
-                account_name,
-                goal_name
-            ]
+            row_data = [t.description, t.amount, t.date, "Receita" if t.type == "income" else "Despesa", category_name, account_name, goal_name]
             sheet.append(row_data)
+            sheet.cell(row=row_idx, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE
 
-            # Aplicar formato de moeda à coluna 'Valor' (coluna B)
-            sheet.cell(row=row_idx, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
-
-        # Auto-ajustar largura das colunas
         for column in sheet.columns:
             max_length = 0
-            column_letter = column[0].column_letter # Get the column name (e.g. 'A')
+            column_letter = column[0].column_letter
             for cell in column:
                 try:
                     if len(str(cell.value)) > max_length:
@@ -2329,50 +2260,40 @@ def export_report(format):
             adjusted_width = (max_length + 2)
             sheet.column_dimensions[column_letter].width = adjusted_width
         
-        # Adicionar resumo de despesas por categoria
         if report_data['expenses_by_category_chart']['labels']:
-            sheet.append([]) # Linha em branco para separação
+            sheet.append([])
             sheet.append(["Despesas por Categoria"])
             for i, label in enumerate(report_data['expenses_by_category_chart']['labels']):
                 value = report_data['expenses_by_category_chart']['values'][i]
                 sheet.append([label, value])
-                # A célula de valor está na coluna 2 da linha recém-adicionada
-                sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
-
-        # Adicionar evolução do patrimônio líquido
+                sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE
         if report_data['net_worth_evolution_chart']['labels']:
-            sheet.append([]) # Linha em branco para separação
-            sheet.append(["Evolução do Patrimônio Líquido"])
-            sheet.append(["Data", "Patrimônio Líquido"])
+            sheet.append([])
+            sheet.append(["Evolução do Saldo em Contas"]) # --- ALTERADO ---
+            sheet.append(["Data", "Saldo"])
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
                 value = report_data['net_worth_evolution_chart']['values'][i]
-                # Filtrar valores: apenas se o valor for > 0.01 ou < 0.00
                 if value > 0.01 or value < 0.00:
                     sheet.append([label, value])
-                    # A célula de valor está na coluna 2 da linha recém-adicionada
-                    sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE # Formato de moeda
+                    sheet.cell(row=sheet.max_row, column=2).number_format = FORMAT_CURRENCY_USD_SIMPLE
 
         workbook.save(output)
         output.seek(0)
         return send_file(output, download_name="relatorio_financeiro.xlsx", as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     elif format == 'pdf':
-        # Configuração do PDF
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size = 12)
 
-        pdf.cell(200, 10, text = f"Relatório Financeiro de {start_date_str} a {end_date_str}", new_x="LMARGIN", new_y="NEXT", align = 'C')
+        pdf.cell(200, 10, text = f"Relatório de {start_date_str} a {end_date_str}", new_x="LMARGIN", new_y="NEXT", align = 'C')
         pdf.ln(10)
 
-        # Detalhes das Transações
         if filtered_transactions:
             pdf.set_font("Arial", size = 10, style='B')
-            pdf.cell(0, 10, text="Transações Detalhadas:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 10, text="Transações:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", size = 8)
             
-            # Cabeçalho da tabela
-            # Ajuste as larguras conforme necessário. Aumentado a largura da descrição.
             col_widths = [60, 20, 20, 20, 40, 30] 
             pdf.cell(col_widths[0], 7, "Descrição", 1)
             pdf.cell(col_widths[1], 7, "Valor", 1)
@@ -2385,13 +2306,8 @@ def export_report(format):
             for t in filtered_transactions:
                 category_name = t.category.name if t.category else "N/A"
                 account_name = t.account.name if t.account else "N/A"
-                # Usar multi_cell para descrições longas
-                # pdf.multi_cell(col_widths[0], 7, t.description, 1) # Isso faria a linha quebrar
-                
-                # Para evitar quebra de linha e manter a célula na mesma linha,
-                # vamos truncar a descrição se for muito longa e garantir que não haja quebras de linha
                 description_display = t.description.replace('\n', ' ').replace('\r', ' ')
-                if len(description_display) > 35: # Limite aproximado para a largura da célula
+                if len(description_display) > 35:
                     description_display = description_display[:32] + "..."
 
                 pdf.cell(col_widths[0], 7, description_display, 1)
@@ -2402,11 +2318,10 @@ def export_report(format):
                 pdf.cell(col_widths[5], 7, account_name, 1)
                 pdf.ln()
         else:
-            pdf.cell(0, 10, text="Nenhuma transação encontrada para os filtros selecionados.", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 10, text="Nenhuma transação encontrada.", new_x="LMARGIN", new_y="NEXT")
         
         pdf.ln(10)
 
-        # Resumo de Despesas por Categoria
         if report_data['expenses_by_category_chart']['labels']:
             pdf.set_font("Arial", size = 10, style='B')
             pdf.cell(0, 10, text="Despesas por Categoria:", new_x="LMARGIN", new_y="NEXT")
@@ -2417,25 +2332,22 @@ def export_report(format):
         
         pdf.ln(10)
 
-        # Evolução do Patrimônio Líquido
         if report_data['net_worth_evolution_chart']['labels']:
             pdf.set_font("Arial", size = 10, style='B')
-            pdf.cell(0, 10, text="Evolução do Patrimônio Líquido:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 10, text="Evolução do Saldo em Contas:", new_x="LMARGIN", new_y="NEXT") # --- ALTERADO ---
             pdf.set_font("Arial", size = 8)
             for i, label in enumerate(report_data['net_worth_evolution_chart']['labels']):
                 value = report_data['net_worth_evolution_chart']['values'][i]
-                # Filtrar valores: apenas se o valor for > 0.01 ou < 0.00
                 if value > 0.01 or value < 0.00:
                     pdf.cell(0, 7, text=f"{label}: R$ {value:.2f}", new_x="LMARGIN", new_y="NEXT")
 
-        # Correção aqui: remove .encode('latin-1')
         return send_file(io.BytesIO(pdf.output(dest='S')), download_name="relatorio_financeiro.pdf", as_attachment=True, mimetype='application/pdf')
 
     else:
         flash('Formato de exportação inválido.', 'danger')
         return redirect(url_for('reports_page'))
 
-# --- ROTAS PARA GERENCIAMENTO DE ASSINATURAS ---
+# --- ROTAS DE ASSINATURAS ---
 @app.route('/subscriptions')
 @login_required
 def subscriptions_page():
@@ -2458,27 +2370,22 @@ def handle_add_subscription():
     category_id = request.form.get('category_id', type=int)
     account_id = request.form.get('account_id', type=int)
 
-    # Calcular a próxima data de vencimento inicial
     today = datetime.date.today()
     next_due_date_obj = None
     try:
         due_day = int(due_date_of_month)
         if not (1 <= due_day <= 31):
-            flash('Dia de vencimento inválido. Deve ser entre 1 e 31.', 'danger')
+            flash('Dia de vencimento inválido.', 'danger')
             return redirect(url_for('subscriptions_page'))
         
-        # Tenta criar a data no mês atual
         try:
             next_due_date_obj = today.replace(day=due_day)
-        except ValueError: # Dia inválido para o mês atual (ex: 31 de fev)
-            # Tenta o último dia do mês
+        except ValueError:
             last_day_of_month = calendar.monthrange(today.year, today.month)[1]
             next_due_date_obj = today.replace(day=last_day_of_month)
 
-        # Se a data de vencimento já passou no mês atual, define para o próximo mês
         if next_due_date_obj < today:
             next_due_date_obj += relativedelta(months=1)
-            # Garante que o dia ainda é válido para o novo mês
             try:
                 next_due_date_obj = next_due_date_obj.replace(day=due_day)
             except ValueError:
@@ -2486,23 +2393,17 @@ def handle_add_subscription():
                 next_due_date_obj = next_due_date_obj.replace(day=last_day_of_next_month)
 
     except ValueError:
-        flash('Dia de vencimento inválido. Insira um número.', 'danger')
+        flash('Dia de vencimento inválido.', 'danger')
         return redirect(url_for('subscriptions_page'))
     
     if not next_due_date_obj:
-        flash('Não foi possível determinar a próxima data de vencimento.', 'danger')
+        flash('Não foi possível determinar a data de vencimento.', 'danger')
         return redirect(url_for('subscriptions_page'))
 
     new_subscription = Subscription(
-        user_id=current_user.id,
-        name=name,
-        amount=float(amount),
-        billing_cycle=billing_cycle,
-        due_date_of_month=int(due_date_of_month),
-        next_due_date=next_due_date_obj.isoformat(),
-        status='active',
-        category_id=category_id,
-        account_id=account_id
+        user_id=current_user.id, name=name, amount=float(amount), billing_cycle=billing_cycle,
+        due_date_of_month=int(due_date_of_month), next_due_date=next_due_date_obj.isoformat(),
+        status='active', category_id=category_id, account_id=account_id
     )
     db.session.add(new_subscription)
     db.session.commit()
@@ -2515,17 +2416,12 @@ def get_subscription_data(subscription_id):
     subscription = Subscription.query.filter_by(id=subscription_id, user_id=current_user.id).first()
     if subscription:
         return jsonify({
-            'id': subscription.id,
-            'name': subscription.name,
-            'amount': subscription.amount,
-            'billing_cycle': subscription.billing_cycle,
-            'due_date_of_month': subscription.due_date_of_month,
-            'next_due_date': subscription.next_due_date,
-            'status': subscription.status,
-            'category_id': subscription.category_id,
-            'account_id': subscription.account_id
+            'id': subscription.id, 'name': subscription.name, 'amount': subscription.amount,
+            'billing_cycle': subscription.billing_cycle, 'due_date_of_month': subscription.due_date_of_month,
+            'next_due_date': subscription.next_due_date, 'status': subscription.status,
+            'category_id': subscription.category_id, 'account_id': subscription.account_id
         })
-    return jsonify({'error': 'Assinatura não encontrada ou não pertence a este usuário'}), 404
+    return jsonify({'error': 'Assinatura não encontrada'}), 404
 
 @app.route('/edit_subscription/<int:subscription_id>', methods=['POST'])
 @login_required
@@ -2543,7 +2439,6 @@ def handle_edit_subscription(subscription_id):
     category_id = request.form.get('edit_category_id', type=int)
     account_id = request.form.get('edit_account_id', type=int)
 
-    # Atualizar campos
     subscription.name = name
     subscription.amount = float(amount)
     subscription.billing_cycle = billing_cycle
@@ -2551,44 +2446,37 @@ def handle_edit_subscription(subscription_id):
     subscription.category_id = category_id
     subscription.account_id = account_id
 
-    # Recalcular next_due_date se o dia do mês ou ciclo de cobrança mudar
     if int(due_date_of_month) != subscription.due_date_of_month or billing_cycle != subscription.billing_cycle:
         subscription.due_date_of_month = int(due_date_of_month)
-        
-        # Lógica para recalcular next_due_date (similar à adição)
         today = datetime.date.today()
         next_due_date_obj = None
         try:
             due_day = int(due_date_of_month)
             if not (1 <= due_day <= 31):
-                flash('Dia de vencimento inválido. Deve ser entre 1 e 31.', 'danger')
+                flash('Dia de vencimento inválido.', 'danger')
                 return redirect(url_for('subscriptions_page'))
             
-            # Tenta criar a data no mês atual
             try:
                 next_due_date_obj = today.replace(day=due_day)
-            except ValueError: # Dia inválido para o mês atual (ex: 31 de fev)
+            except ValueError:
                 last_day_of_month = calendar.monthrange(today.year, today.month)[1]
                 next_due_date_obj = today.replace(day=last_day_of_month)
 
-            # Se a data de vencimento já passou no mês atual, define para o próximo mês
             if next_due_date_obj < today:
                 next_due_date_obj += relativedelta(months=1)
-                # Garante que o dia ainda é válido para o novo mês
                 try:
                     next_due_date_obj = next_due_date_obj.replace(day=due_day)
                 except ValueError:
                     last_day_of_next_month = calendar.monthrange(next_due_date_obj.year, next_due_date_obj.month)[1]
                     next_due_date_obj = next_due_date_obj.replace(day=last_day_of_next_month)
-
         except ValueError:
-            flash('Dia de vencimento inválido. Insira um número.', 'danger')
+            flash('Dia de vencimento inválido.', 'danger')
             return redirect(url_for('subscriptions_page'))
         
         if next_due_date_obj:
             subscription.next_due_date = next_due_date_obj.isoformat()
         else:
-            flash('Não foi possível recalcular a próxima data de vencimento.', 'danger')
+            flash('Não foi possível recalcular a data de vencimento.', 'danger')
             return redirect(url_for('subscriptions_page'))
 
     db.session.commit()
@@ -2608,12 +2496,139 @@ def handle_delete_subscription(subscription_id):
     flash('Assinatura excluída com sucesso!', 'info')
     return redirect(url_for('subscriptions_page'))
 
+# --- NOVO --- ROTAS PARA DÍVIDAS E INVESTIMENTOS
+
+@app.route('/debts')
+@login_required
+def debts_page():
+    debts = Debt.query.filter_by(user_id=current_user.id).order_by(Debt.name.asc()).all()
+    return render_template('debts.html', debts=debts)
+
+@app.route('/add_debt', methods=['POST'])
+@login_required
+def add_debt():
+    name = request.form['name']
+    debt_type = request.form['type']
+    total_amount = request.form['total_amount']
+    outstanding_balance = request.form['outstanding_balance']
+    interest_rate = request.form.get('interest_rate') or None
+    start_date = request.form['start_date']
+    end_date = request.form.get('end_date') or None
+
+    new_debt = Debt(
+        user_id=current_user.id,
+        name=name,
+        type=debt_type,
+        total_amount=float(total_amount),
+        outstanding_balance=float(outstanding_balance),
+        interest_rate=float(interest_rate) if interest_rate else None,
+        start_date=start_date,
+        end_date=end_date if end_date else None
+    )
+    db.session.add(new_debt)
+    db.session.commit()
+    flash('Dívida adicionada com sucesso!', 'success')
+    return redirect(url_for('debts_page'))
+
+@app.route('/edit_debt/<int:debt_id>', methods=['POST'])
+@login_required
+def edit_debt(debt_id):
+    debt = Debt.query.filter_by(id=debt_id, user_id=current_user.id).first_or_404()
+    debt.name = request.form['name']
+    debt.type = request.form['type']
+    debt.total_amount = float(request.form['total_amount'])
+    debt.outstanding_balance = float(request.form['outstanding_balance'])
+    debt.interest_rate = float(request.form.get('interest_rate')) if request.form.get('interest_rate') else None
+    debt.start_date = request.form['start_date']
+    debt.end_date = request.form.get('end_date') or None
+    db.session.commit()
+    flash('Dívida atualizada com sucesso!', 'success')
+    return redirect(url_for('debts_page'))
+
+@app.route('/delete_debt/<int:debt_id>', methods=['POST'])
+@login_required
+def delete_debt(debt_id):
+    debt = Debt.query.filter_by(id=debt_id, user_id=current_user.id).first_or_404()
+    db.session.delete(debt)
+    db.session.commit()
+    flash('Dívida excluída com sucesso!', 'info')
+    return redirect(url_for('debts_page'))
+
+@app.route('/get_debt_data/<int:debt_id>')
+@login_required
+def get_debt_data(debt_id):
+    debt = Debt.query.filter_by(id=debt_id, user_id=current_user.id).first_or_404()
+    return jsonify({
+        'id': debt.id, 'name': debt.name, 'type': debt.type,
+        'total_amount': debt.total_amount, 'outstanding_balance': debt.outstanding_balance,
+        'interest_rate': debt.interest_rate, 'start_date': debt.start_date, 'end_date': debt.end_date
+    })
+
+@app.route('/investments')
+@login_required
+def investments_page():
+    investments = Investment.query.filter_by(user_id=current_user.id).order_by(Investment.name.asc()).all()
+    return render_template('investments.html', investments=investments)
+
+@app.route('/add_investment', methods=['POST'])
+@login_required
+def add_investment():
+    name = request.form['name']
+    inv_type = request.form['type']
+    current_value = request.form['current_value']
+    purchase_date = request.form.get('purchase_date') or None
+    institution = request.form.get('institution') or None
+
+    new_investment = Investment(
+        user_id=current_user.id,
+        name=name,
+        type=inv_type,
+        current_value=float(current_value),
+        purchase_date=purchase_date if purchase_date else None,
+        institution=institution
+    )
+    db.session.add(new_investment)
+    db.session.commit()
+    flash('Investimento adicionado com sucesso!', 'success')
+    return redirect(url_for('investments_page'))
+
+@app.route('/edit_investment/<int:investment_id>', methods=['POST'])
+@login_required
+def edit_investment(investment_id):
+    inv = Investment.query.filter_by(id=investment_id, user_id=current_user.id).first_or_404()
+    inv.name = request.form['name']
+    inv.type = request.form['type']
+    inv.current_value = float(request.form['current_value'])
+    inv.purchase_date = request.form.get('purchase_date') or None
+    inv.institution = request.form.get('institution') or None
+    db.session.commit()
+    flash('Investimento atualizado com sucesso!', 'success')
+    return redirect(url_for('investments_page'))
+
+@app.route('/delete_investment/<int:investment_id>', methods=['POST'])
+@login_required
+def delete_investment(investment_id):
+    inv = Investment.query.filter_by(id=investment_id, user_id=current_user.id).first_or_404()
+    db.session.delete(inv)
+    db.session.commit()
+    flash('Investimento excluído com sucesso!', 'info')
+    return redirect(url_for('investments_page'))
+
+@app.route('/get_investment_data/<int:investment_id>')
+@login_required
+def get_investment_data(investment_id):
+    inv = Investment.query.filter_by(id=investment_id, user_id=current_user.id).first_or_404()
+    return jsonify({
+        'id': inv.id, 'name': inv.name, 'type': inv.type,
+        'current_value': inv.current_value, 'purchase_date': inv.purchase_date,
+        'institution': inv.institution
+    })
 
 # --- INICIALIZAÇÃO DO BANCO DE DADOS ---
 with app.app_context():
-    db.init_app(app) # Associar SQLAlchemy ao app
-    migrate.init_app(app, db) # Associar Flask-Migrate ao app e db
-    db.create_all() # Cria as tabelas se não existirem (para SQLite local ou primeira vez)
+    db.init_app(app)
+    migrate.init_app(app, db)
+    db.create_all()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
