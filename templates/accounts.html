@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minhas Contas - Gestão Financeira Pessoal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
     <!-- Link para o Font Awesome via CDN para os ícones -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="[https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css](https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css)" xintegrity="sha512-Fo3rlrZj/k7ujTnHg4CGR2D7kSs0V4LLanw2qksYuRlEzO+tcaEPQogQ0KaoGN26/zrn20ImR1DfuLWnOo7aBA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('[https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap)');
         
         /* Variáveis CSS para modo claro */
         :root {
@@ -241,7 +241,7 @@
             <div class="flex items-center">
                 {% if current_user.is_authenticated %}
                     <button type="button" onclick="toggleSidebar()" class="text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 mr-4 p-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-8 w-8">
+                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu h-8 w-8">
                             <line x1="4" x2="20" y1="12" y2="12"/>
                             <line x1="4" x2="20" y1="6" y2="6"/>
                             <line x1="4" x2="20" y1="18" y2="18"/>
@@ -277,8 +277,10 @@
                     <a href="{{ url_for('accounts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-wallet mr-3"></i> Minhas Contas
                     </a>
+                    <a href="{{ url_for('investments_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-chart-line mr-3"></i> Investimentos</a>
+                    <a href="{{ url_for('debts_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md"><i class="fas fa-credit-card mr-3"></i> Dívidas</a>
                     <a href="{{ url_for('reports_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
-                        <i class="fas fa-chart-line mr-3"></i> Relatórios
+                        <i class="fas fa-chart-bar mr-3"></i> Relatórios
                     </a>
                     <a href="{{ url_for('subscriptions_page') }}" class="flex items-center px-4 py-2 text-gray-800 hover:bg-gray-100 rounded-md">
                         <i class="fas fa-sync-alt mr-3"></i> Assinaturas
